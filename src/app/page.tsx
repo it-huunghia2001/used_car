@@ -1,16 +1,10 @@
 "use client";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/store";
-import { increment, decrement } from "@/store/slices/counterSlice";
 import { useApiRequest } from "@/lib/hooks/useApiRequest";
 import { KPIService } from "@/services/template-call-kpi";
 import { useState } from "react";
 import { useLazyApiRequest } from "@/lib/hooks/useLazyApiRequest";
 
 export default function HomePage() {
-  const count = useSelector((state: RootState) => state.counter.value);
-  const dispatch = useDispatch();
-
   const {
     trigger: refetch, // Hàm để gọi lại API với tham số mới
     data: lazyData, // Dữ liệu trả về từ API tên biến là lazyData,
@@ -42,19 +36,10 @@ export default function HomePage() {
         Welcome to Fullstack Next.js!
       </h1>
       <div className="mt-4">
-        <p className="text-lg">Counter: {count}</p>
-        <button
-          onClick={() => dispatch(increment())}
-          className="px-4 py-2 bg-green-500 text-white rounded mr-2"
-        >
+        <button className="px-4 py-2 bg-green-500 text-white rounded mr-2">
           +1
         </button>
-        <button
-          onClick={() => dispatch(decrement())}
-          className="px-4 py-2 bg-red-500 text-white rounded"
-        >
-          -1
-        </button>
+        <button className="px-4 py-2 bg-red-500 text-white rounded">-1</button>
       </div>
 
       <div className="p-6">

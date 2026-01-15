@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,9 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react"; // Cần cài: npm i lucide-react
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { login } from "@/lib/auth";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const router = useRouter();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
@@ -19,17 +23,14 @@ export default function LoginPage() {
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const newErrors: typeof errors = {};
 
-    if (!email.trim()) {
-      newErrors.email = "Email không được để trống";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = "Email không hợp lệ";
+    if (!username.trim()) {
+      newErrors.email = "Username không được để trống";
     }
-
     if (!password.trim()) {
       newErrors.password = "Mật khẩu không được để trống";
     }
@@ -40,10 +41,32 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const res = await login(username, password);
+
+      if (Number(res.status) === 0) {
+        // BƯỚC QUAN TRỌNG:
+        // Làm tươi lại các Server Components để Layout nhận token/role mới
+        router.refresh();
+
+        // Sau đó mới chuyển hướng
+        window.location.href = "/";
+      } else {
+        // Nếu server trả về lỗi (chưa active, sai mật khẩu, v.v.)
+        // Giả sử server trả về { status: 1, message: "Tài khoản chưa active" }
+        if (res.message?.toLowerCase().includes("active")) {
+          newErrors.email = res.message; // hiển thị dưới username
+        } else {
+          newErrors.password = res.message; // hiển thị dưới password
+        }
+        setErrors({ ...newErrors });
+      }
+    } catch (err: any) {
+      newErrors.password = err.message || "Lỗi server, thử lại sau";
+      setErrors({ ...newErrors });
+    } finally {
       setLoading(false);
-      alert("Đăng nhập thành công!");
-    }, 1000);
+    }
   };
 
   useEffect(() => {
@@ -86,19 +109,19 @@ export default function LoginPage() {
                 Đăng nhập
               </h1>
               <p className="text-sm text-gray-400 dark:text-gray-400 mt-1">
-                Nhập email và mật khẩu
+                Nhập username và mật khẩu
               </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="email"
+                  id="username"
                   type="string"
-                  value={email}
+                  value={username}
                   onChange={(e) => {
-                    setEmail(e.target.value);
+                    setUsername(e.target.value);
                     setErrors((prev) => ({ ...prev, email: "" }));
                   }}
                   placeholder="you@example.com"
@@ -135,14 +158,16 @@ export default function LoginPage() {
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-sm text-red-500 mt-1">{errors.password}</p>
+                  <p className="text-sm text-red-500 mt-1 text-center italic">
+                    {errors.password}
+                  </p>
                 )}
               </div>
 
               <Button
                 type="submit"
                 className="w-full mt-4 cursor-pointer"
-                disabled={loading}
+                // disabled={loading}
               >
                 {loading ? "Đang đăng nhập..." : "Đăng nhập"}
               </Button>

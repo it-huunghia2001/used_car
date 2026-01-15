@@ -1,15 +1,177 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+// --- HỆ THỐNG ĐƠN VỊ ---
+
+model Branch {
+  id      String @id @default(cuid())
+  name    String @unique // Tên chi nhánh (VD: Toyota Bình Dương)
+  address String // Địa chỉ chi nhánh
+  cars    Car[] // Danh sách xe thuộc chi nhánh
+  users   User[] // Nhân viên thuộc chi nhánh
+}
+
+model Department {
+  id        String     @id @default(cuid())
+  name      String     @unique // Tên phòng ban (VD: Phòng Thu Mua, Phòng Kinh Doanh)
+  positions Position[] // Các chức vụ trong phòng này
+  users     User[] // Các nhân viên thuộc phòng này
+  createdAt DateTime   @default(now())
+}
+
+model Position {
+  id           String     @id @default(cuid())
+  name         String // Tên chức vụ (VD: Trưởng phòng, Nhân viên)
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  users        User[]
+
+  @@unique([name, departmentId]) // Đảm bảo tên chức vụ trong 1 phòng không trùng nhau
+}
+
+// --- HỆ THỐNG NGƯỜI DÙNG ---
+
+model User {
+  id       String  @id @default(cuid())
+  username String  @unique // Mã nhân viên dùng để đăng nhập
+  fullName String? // Họ tên đầy đủ
+  email    String // Email công ty
+  password String // Mật khẩu đã hash
+  phone    String? // Số điện thoại nhân viên
+  role     Role    @default(REFERRER) // Quyền hệ thống
+  active   Boolean @default(true) // Trạng thái tài khoản
+
+  // Quan hệ đơn vị
+  branchId     String?
+  branch       Branch?     @relation(fields: [branchId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  positionId   String?
+  position     Position?   @relation(fields: [positionId], references: [id])
+
+  // Cấu hình tổng đài (Nếu có)
+  extension       String? @unique
+  extensionPwd    String?
+  isGlobalManager Boolean @default(false) // Quản lý toàn hệ thống
+
+  // Quan hệ nghiệp vụ
+  purchases        Car[]      @relation("Purchaser") // Xe do nhân viên này thu mua
+  referrals        Car[]      @relation("Referrer") // Xe do nhân viên này giới thiệu
+  createdReferrals Customer[] @relation("CreatedReferrals") // Khách hàng do nhân viên này giới thiệu
+  assignedLeads    Customer[] @relation("AssignedLeads") // Khách hàng được giao cho nhân viên này chăm sóc
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId], map: "User_branchId_fkey")
+}
+
+// --- HỆ THỐNG QUẢN LÝ XE ---
+
+model Car {
+  id           String    @id @default(cuid())
+  modelName    String // Tên dòng xe (VD: Toyota Vios G)
+  vin          String    @unique // Số khung
+  ownerName    String // Tên chủ xe hiện tại
+  licensePlate String? // Biển kiểm soát
+  status       CarStatus @default(PENDING) // Trạng thái xe
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  // Người giới thiệu xe
+  referrerId String
+  referrer   User   @relation("Referrer", fields: [referrerId], references: [id])
+
+  // Nhân viên thu mua xử lý
+  purchaserId String?
+  purchaser   User?   @relation("Purchaser", fields: [purchaserId], references: [id])
+
+  createdAt     DateTime  @default(now())
+  purchasedAt   DateTime? // Ngày ký hợp đồng mua
+  refurbishedAt DateTime? // Ngày hoàn tất làm đẹp
+  soldAt        DateTime? // Ngày ký hợp đồng bán
+  updatedAt     DateTime  @updatedAt
+
+  @@index([branchId], map: "Car_branchId_fkey")
+  @@index([purchaserId], map: "Car_purchaserId_fkey")
+  @@index([referrerId], map: "Car_referrerId_fkey")
+}
+
+// --- HỆ THỐNG QUẢN LÝ KHÁCH HÀNG (LEADS) ---
+
+model Customer {
+  id       String       @id @default(cuid())
+  fullName String // Tên khách hàng
+  phone    String // Số điện thoại khách
+  type     ReferralType @default(SELL) // Nhu cầu: Bán/Mua/Định giá
+  status   LeadStatus   @default(NEW) // Trạng thái xử lý
+
+  // --- CÁC TRƯỜNG BỔ SUNG TỪ GIAO DIỆN ---
+  carType       String? // Loại xe (Vd: Vios, Fortuner...)
+  licensePlate  String? // Biển số xe (Dành cho Bán xe & Định giá)
+  budget        String? // Ngân sách (Dành cho Mua xe)
+  expectedPrice String? // Giá mong muốn (Dành cho Định giá)
+
+  // Lưu trữ link hình ảnh (sau khi upload lên Cloudinary/S3)
+  carImages         String? @db.Text // JSON string hoặc danh sách link ảnh xe
+  registrationImage String? @db.Text // Ảnh đăng kiểm
+  idCardFront       String? @db.Text // Ảnh giấy tờ mặt trước
+  idCardBack        String? @db.Text // Ảnh giấy tờ mặt sau
+
+  note String? @db.Text // Ghi chú chi tiết thêm
+  // ---------------------------------------
+
+  // Người giới thiệu khách (Referrer)
+  referrerId String
+  referrer   User   @relation("CreatedReferrals", fields: [referrerId], references: [id])
+
+  // Nhân viên được giao chăm sóc
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedLeads", fields: [assignedToId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([referrerId])
+  @@index([assignedToId])
+}
+
+// --- ENUMS (DANH MỤC CỐ ĐỊNH) ---
+
+enum Role {
+  ADMIN // Quản trị hệ thống
+  MANAGER // Quản lý chi nhánh/phòng ban
+  PURCHASE_STAFF // Nhân viên thu mua (Định giá/Mua xe)
+  SALES_STAFF // Nhân viên kinh doanh (Bán xe)
+  REFERRER // Người giới thiệu (Cộng tác viên/NV các phòng khác)
+}
+
+enum ReferralType {
+  SELL // Khách hàng muốn bán/đổi xe
+  BUY // Khách hàng muốn tìm mua xe cũ
+  VALUATION // Khách hàng chỉ muốn định giá xe
+}
+
+enum LeadStatus {
+  NEW // Mới tiếp nhận từ người giới thiệu
+  ASSIGNED // Đã phân bổ cho nhân viên chăm sóc
+  CONTACTED // Đã liên hệ trao đổi với khách
+  DEAL_DONE // Đã giao dịch thành công (Mua hoặc Bán)
+  CANCELLED // Khách không còn nhu cầu hoặc sai thông tin
+}
+
+enum CarStatus {
+  PENDING // Đang chờ kiểm tra/định giá
+  PURCHASE_FAILED // Không mua được xe
+  REFURBISHING // Đang trong quá trình làm đẹp (Maru-Kuri)
+  READY_FOR_SALE // Đã sẵn sàng trưng bày bán
+  BOOKED // Khách đã đặt cọc
+  SOLD // Đã bàn giao xe cho khách
 }
