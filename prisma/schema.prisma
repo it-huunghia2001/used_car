@@ -35,6 +35,13 @@ model Position {
   @@unique([name, departmentId]) // Đảm bảo tên chức vụ trong 1 phòng không trùng nhau
 }
 
+model CarModel {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  customers Customer[] // Quan hệ ngược lại
+  cars      Car[] // Dùng cho cả bảng xe trong kho
+}
+
 // --- HỆ THỐNG NGƯỜI DÙNG ---
 
 model User {
@@ -61,13 +68,14 @@ model User {
   isGlobalManager Boolean @default(false) // Quản lý toàn hệ thống
 
   // Quan hệ nghiệp vụ
-  purchases        Car[]      @relation("Purchaser") // Xe do nhân viên này thu mua
-  referrals        Car[]      @relation("Referrer") // Xe do nhân viên này giới thiệu
-  createdReferrals Customer[] @relation("CreatedReferrals") // Khách hàng do nhân viên này giới thiệu
-  assignedLeads    Customer[] @relation("AssignedLeads") // Khách hàng được giao cho nhân viên này chăm sóc
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  purchases        Car[]          @relation("Purchaser") // Xe do nhân viên này thu mua
+  referrals        Car[]          @relation("Referrer") // Xe do nhân viên này giới thiệu
+  createdReferrals Customer[]     @relation("CreatedReferrals") // Khách hàng do nhân viên này giới thiệu
+  assignedLeads    Customer[]     @relation("AssignedLeads") // Khách hàng được giao cho nhân viên này chăm sóc
+  lastAssignedAt   DateTime?      @default(now()) // Dùng để sắp xếp người nào đợi lâu nhất thì nhận khách
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  leadActivities   LeadActivity[]
 
   @@index([branchId], map: "User_branchId_fkey")
 }
@@ -75,33 +83,87 @@ model User {
 // --- HỆ THỐNG QUẢN LÝ XE ---
 
 model Car {
-  id           String    @id @default(cuid())
-  modelName    String // Tên dòng xe (VD: Toyota Vios G)
-  vin          String    @unique // Số khung
-  ownerName    String // Tên chủ xe hiện tại
-  licensePlate String? // Biển kiểm soát
-  status       CarStatus @default(PENDING) // Trạng thái xe
+  id String @id @default(cuid())
 
+  // --- THÔNG TIN ĐỊNH DANH CƠ BẢN ---
+  modelName    String // VD: Toyota Fortuner 2.8AT 4x4 Legender
+  vin          String // Số khung (Dùng để kiểm tra lịch sử bảo dưỡng)
+  engineNumber String? // Số máy
+  licensePlate String? // Biển kiểm soát (Có thể ẩn 2 số cuối khi hiển thị web)
+  year         Int // Năm sản xuất
+
+  // --- THÔNG SỐ KỸ THUẬT CHI TIẾT ---
+  odo           Int // Số Km đã đi
+  transmission  Transmission @default(AUTOMATIC) // Hộp số
+  fuelType      FuelType     @default(GASOLINE) // Loại nhiên liệu
+  carType       CarType      @default(SUV) // Kiểu dáng xe
+  engineSize    String? // Dung tích động cơ (VD: 2.8L)
+  driveTrain    String? // Hệ dẫn động (VD: 4WD, RWD, FWD)
+  color         String? // Màu ngoại thất
+  interiorColor String? // Màu nội thất
+  seats         Int          @default(5) // Số chỗ ngồi
+  origin        String? // Xuất xứ (VD: Nhập khẩu Thái Lan, Lắp ráp trong nước)
+
+  // --- THÔNG TIN THƯƠNG MẠI ---
+  sellingPrice  Decimal? @db.Decimal(15, 2) // Giá niêm yết trên Web
+  costPrice     Decimal? @db.Decimal(15, 2) // Giá gốc thu mua (Chỉ Admin xem)
+  isPromoted    Boolean  @default(false) // Đánh dấu xe đang giảm giá/khuyến mãi
+  promotionNote String?  @db.Text // Chi tiết quà tặng kèm theo
+
+  // --- NỘI DUNG HIỂN THỊ (CMS) ---
+  images      Json? // Lưu danh sách URL ảnh (Dạng mảng: ["url1", "url2"])
+  videoUrl    String? // Link Youtube/TikTok review xe
+  description String? @db.Text // Mô tả chi tiết tình trạng xe (Cam kết 5 tiêu chuẩn vàng)
+  features    String? @db.Text // Các tính năng nổi bật (VD: Phanh tay điện tử, Cửa sổ trời...)
+
+  // --- TRẠNG THÁI & QUẢN LÝ ---
+  status   CarStatus @default(PENDING)
   branchId String
-  branch   Branch @relation(fields: [branchId], references: [id])
+  branch   Branch    @relation(fields: [branchId], references: [id])
 
-  // Người giới thiệu xe
-  referrerId String
-  referrer   User   @relation("Referrer", fields: [referrerId], references: [id])
-
-  // Nhân viên thu mua xử lý
+  // Quan hệ nhân sự
+  referrerId  String
+  referrer    User    @relation("Referrer", fields: [referrerId], references: [id])
   purchaserId String?
   purchaser   User?   @relation("Purchaser", fields: [purchaserId], references: [id])
 
+  // --- THỜI GIAN ---
   createdAt     DateTime  @default(now())
-  purchasedAt   DateTime? // Ngày ký hợp đồng mua
-  refurbishedAt DateTime? // Ngày hoàn tất làm đẹp
-  soldAt        DateTime? // Ngày ký hợp đồng bán
   updatedAt     DateTime  @updatedAt
+  purchasedAt   DateTime? // Ngày ký hợp đồng mua về
+  refurbishedAt DateTime? // Ngày hoàn tất làm đẹp (Maru-Kuri)
+  soldAt        DateTime? // Ngày giao xe cho khách
+  carModel      CarModel? @relation(fields: [carModelId], references: [id])
+  carModelId    String?
 
-  @@index([branchId], map: "Car_branchId_fkey")
-  @@index([purchaserId], map: "Car_purchaserId_fkey")
-  @@index([referrerId], map: "Car_referrerId_fkey")
+  @@index([branchId])
+  @@index([purchaserId])
+  @@index([referrerId])
+  @@index([status])
+}
+
+// --- BỔ SUNG CÁC ENUM ĐỂ CHUẨN HÓA DỮ LIỆU ---
+
+enum Transmission {
+  MANUAL // Số sàn
+  AUTOMATIC // Số tự động
+  CVT // Số vô cấp
+}
+
+enum FuelType {
+  GASOLINE // Xăng
+  DIESEL // Dầu
+  HYBRID // Xăng pha điện
+  ELECTRIC // Điện
+}
+
+enum CarType {
+  SEDAN
+  SUV
+  HATCHBACK
+  PICKUP // Bán tải
+  MPV // Xe đa dụng (Vd: Innova)
+  COUPE
 }
 
 // --- HỆ THỐNG QUẢN LÝ KHÁCH HÀNG (LEADS) ---
@@ -114,7 +176,7 @@ model Customer {
   status   LeadStatus   @default(NEW) // Trạng thái xử lý
 
   // --- CÁC TRƯỜNG BỔ SUNG TỪ GIAO DIỆN ---
-  carType       String? // Loại xe (Vd: Vios, Fortuner...)
+  carYear       String? // Loại xe (Vd: Vios, Fortuner...)
   licensePlate  String? // Biển số xe (Dành cho Bán xe & Định giá)
   budget        String? // Ngân sách (Dành cho Mua xe)
   expectedPrice String? // Giá mong muốn (Dành cho Định giá)
@@ -124,6 +186,9 @@ model Customer {
   registrationImage String? @db.Text // Ảnh đăng kiểm
   idCardFront       String? @db.Text // Ảnh giấy tờ mặt trước
   idCardBack        String? @db.Text // Ảnh giấy tờ mặt sau
+
+  carModelId String?
+  carModel   CarModel? @relation(fields: [carModelId], references: [id])
 
   note String? @db.Text // Ghi chú chi tiết thêm
   // ---------------------------------------
@@ -139,8 +204,43 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  activities LeadActivity[]
+
+  // Thêm index cho status để tăng tốc độ truy vấn khi lọc khách hàng
+  @@index([status])
   @@index([referrerId])
   @@index([assignedToId])
+}
+
+model LeadActivity {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  status LeadStatus // Trạng thái tại thời điểm cập nhật
+
+  // Liên kết đến lý do mẫu từ Admin
+  reasonId String?
+  reason   LeadReason? @relation(fields: [reasonId], references: [id])
+
+  // Ghi chú thêm của nhân viên (không bắt buộc)
+  note String? @db.Text
+
+  createdById String
+  user        User     @relation(fields: [createdById], references: [id]) // Tên quan hệ ở đây
+  createdAt   DateTime @default(now())
+
+  @@index([customerId])
+  @@index([reasonId])
+}
+
+model LeadReason {
+  id         String         @id @default(cuid())
+  content    String         @unique // Nội dung lý do (VD: Khách chê giá thu thấp)
+  type       LeadStatus // Thuộc nhóm trạng thái nào (LOSE, FROZEN, PENDING_VIEW)
+  active     Boolean        @default(true) // Cho phép sử dụng hay ẩn đi
+  activities LeadActivity[] // Quan hệ ngược lại để truy xuất thống kê
+  createdAt  DateTime       @default(now())
 }
 
 // --- ENUMS (DANH MỤC CỐ ĐỊNH) ---
@@ -165,6 +265,12 @@ enum LeadStatus {
   CONTACTED // Đã liên hệ trao đổi với khách
   DEAL_DONE // Đã giao dịch thành công (Mua hoặc Bán)
   CANCELLED // Khách không còn nhu cầu hoặc sai thông tin
+  PENDING_DEAL_APPROVAL // Chờ duyệt Thu mua/Bán thành công
+  PENDING_LOSE_APPROVAL // Chờ duyệt Thất bại
+
+  LOSE // Thất bại hoàn toàn
+  FROZEN // Đóng băng (Tạm dừng chăm sóc)
+  PENDING_VIEW // Nguyên nhân chưa xem xe được
 }
 
 enum CarStatus {

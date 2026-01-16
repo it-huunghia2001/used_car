@@ -15,6 +15,10 @@ import {
   Space,
   Button,
   Tooltip,
+  Typography,
+  Modal,
+  Descriptions,
+  Divider,
 } from "antd";
 import { useEffect, useState } from "react";
 import {
@@ -24,17 +28,23 @@ import {
   SearchOutlined,
   ReloadOutlined,
   CheckCircleOutlined,
+  EyeOutlined,
+  CalendarOutlined,
+  EnvironmentOutlined,
+  InfoCircleOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import {
   getCustomersAction,
   assignCustomerAction,
 } from "@/actions/customer-actions";
-import { getEligibleStaffAction, getUsersAction } from "@/actions/user-actions";
+import { getEligibleStaffAction } from "@/actions/user-actions";
 import dayjs from "dayjs";
 
 const { Search } = Input;
+const { Text, Title } = Typography;
 
-// Interface giữ nguyên như cũ
+// Interfaces
 interface UserData {
   id: string;
   fullName: string | null;
@@ -50,11 +60,18 @@ interface CustomerData {
   status: string;
   createdAt: any;
   licensePlate?: string;
-  carType?: string;
-  referrerId: string; // Thêm nếu cần
-  assignedToId: string | null; // <--- THÊM DÒNG NÀY ĐỂ HẾT LỖI
-  referrer: { fullName: string | null; username: string };
-  assignedTo: { fullName: string | null } | null;
+  carModel?: { name: string };
+  carYear?: number;
+  note?: string;
+  budget?: string;
+  expectedPrice?: string;
+  assignedToId: string | null;
+  referrer: {
+    fullName: string | null;
+    username: string;
+    branch?: { name: string };
+  };
+  assignedTo: { fullName: string | null; phone?: string } | null;
 }
 
 export default function CustomerManagementPage() {
@@ -62,6 +79,12 @@ export default function CustomerManagementPage() {
   const [filteredData, setFilteredData] = useState<CustomerData[]>([]);
   const [staffs, setStaffs] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal chi tiết
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(
+    null
+  );
 
   const loadAllData = async () => {
     setLoading(true);
@@ -84,7 +107,6 @@ export default function CustomerManagementPage() {
     loadAllData();
   }, []);
 
-  // Xử lý tìm kiếm nhanh
   const onSearch = (value: string) => {
     const filtered = data.filter(
       (item) =>
@@ -99,7 +121,7 @@ export default function CustomerManagementPage() {
     {
       title: "Thời gian",
       dataIndex: "createdAt",
-      width: 150,
+      width: 120,
       render: (date: any) => (
         <div className="text-gray-500 text-xs">
           {dayjs(date).format("DD/MM/YYYY")}
@@ -109,16 +131,16 @@ export default function CustomerManagementPage() {
       ),
     },
     {
-      title: "Thông tin Khách hàng",
+      title: "Khách hàng",
       key: "customerInfo",
       render: (record: CustomerData) => (
         <Space direction="vertical" size={0}>
           <Text strong className="text-blue-700 uppercase">
             {record.fullName}
           </Text>
-          <Space className="text-xs text-gray-500">
+          <Text type="secondary" className="text-xs">
             <PhoneOutlined /> {record.phone}
-          </Space>
+          </Text>
         </Space>
       ),
     },
@@ -144,28 +166,13 @@ export default function CustomerManagementPage() {
             >
               {typeLabels[record.type]}
             </Tag>
-            {record.carType && (
-              <div className="text-xs font-medium text-gray-600 italic">
-                🚙 {record.carType} - {record.licensePlate || "Chưa có biển"}
-              </div>
-            )}
+            <div className="text-xs font-medium text-gray-600 italic">
+              {record.carModel?.name || "Chưa chọn mẫu"} -{" "}
+              {record.licensePlate || "N/A"}
+            </div>
           </Space>
         );
       },
-    },
-    {
-      title: "Người giới thiệu",
-      render: (record: CustomerData) => (
-        <div className="flex items-center gap-2">
-          <UserOutlined className="text-gray-400" />
-          <div>
-            <div className="text-sm">{record.referrer?.fullName}</div>
-            <div className="text-[10px] bg-gray-100 px-1 rounded text-gray-400">
-              ID: {record.referrer?.username}
-            </div>
-          </div>
-        </div>
-      ),
     },
     {
       title: "Trạng thái",
@@ -179,134 +186,223 @@ export default function CustomerManagementPage() {
           CANCELLED: { color: "error", text: "HỦY" },
         };
         return (
-          <Tag color={statusMap[status]?.color} style={{ borderRadius: 10 }}>
-            {statusMap[status]?.text}
-          </Tag>
+          <Tag color={statusMap[status]?.color}>{statusMap[status]?.text}</Tag>
         );
       },
     },
     {
-      title: "Phân bổ nhân viên phụ trách",
-      width: 220,
+      title: "Nhân viên phụ trách",
+      width: 200,
       render: (record: CustomerData) => (
-        <Select
-          placeholder="Chọn nhân viên..."
-          style={{ width: "100%" }}
-          defaultValue={record.assignedToId}
-          status={!record.assignedToId ? "error" : ""}
-          onChange={async (val) => {
-            try {
-              await assignCustomerAction(record.id, val);
-              message.success(`Đã giao khách ${record.fullName} thành công`);
-              loadAllData(); // Refresh để cập nhật trạng thái
-            } catch (err) {
-              message.error("Không thể phân bổ");
-            }
-          }}
-        >
-          {staffs.map((s: UserData) => (
-            <Select.Option key={s.id} value={s.id}>
-              <span className="font-medium">{s.fullName}</span>{" "}
-              <small className="text-gray-400">({s.role})</small>
-            </Select.Option>
-          ))}
-        </Select>
+        <div onClick={(e) => e.stopPropagation()}>
+          {" "}
+          {/* Chặn sự kiện click row khi chọn Select */}
+          <Select
+            placeholder="Giao việc..."
+            className="w-full"
+            defaultValue={record.assignedToId}
+            onChange={async (val) => {
+              try {
+                await assignCustomerAction(record.id, val);
+                message.success(`Đã giao khách thành công`);
+                loadAllData();
+              } catch (err) {
+                message.error("Lỗi phân bổ");
+              }
+            }}
+          >
+            {staffs.map((s) => (
+              <Select.Option key={s.id} value={s.id}>
+                {s.fullName}
+              </Select.Option>
+            ))}
+          </Select>
+        </div>
       ),
     },
   ];
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {/* 1. Dashboard Thống kê nhanh */}
-      <Row gutter={16} className="mb-6">
-        <Col span={6}>
-          <Card
-            bordered={false}
-            className="shadow-sm border-l-4 border-magenta-500"
-          >
+    <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
+      {/* Dashboard Thống kê */}
+      <Row gutter={[16, 16]} className="mb-6">
+        <Col xs={12} sm={6}>
+          <Card className="shadow-sm border-l-4 border-red-500">
             <Statistic
-              title="Khách mới chưa giao"
+              title="Mới"
               value={data.filter((i) => i.status === "NEW").length}
-              prefix={<UserOutlined />}
-              valueStyle={{ color: "#cf1322" }}
+              prefix={<InfoCircleOutlined />}
             />
           </Card>
         </Col>
-        <Col span={6}>
-          <Card
-            bordered={false}
-            className="shadow-sm border-l-4 border-blue-500"
-          >
+        <Col xs={12} sm={6}>
+          <Card className="shadow-sm border-l-4 border-blue-500">
             <Statistic
               title="Đang xử lý"
               value={
-                data.filter(
-                  (i) => i.status === "CONTACTED" || i.status === "ASSIGNED"
-                ).length
+                data.filter((i) => ["ASSIGNED", "CONTACTED"].includes(i.status))
+                  .length
               }
-              prefix={<ReloadOutlined spin />}
+              prefix={<ReloadOutlined spin={loading} />}
             />
           </Card>
         </Col>
-        <Col span={6}>
-          <Card
-            bordered={false}
-            className="shadow-sm border-l-4 border-green-500"
-          >
+        <Col xs={12} sm={6}>
+          <Card className="shadow-sm border-l-4 border-green-500">
             <Statistic
-              title="Chốt thành công"
+              title="Thành công"
               value={data.filter((i) => i.status === "DEAL_DONE").length}
               prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: "#3f8600" }}
             />
           </Card>
         </Col>
-        <Col span={6}>
-          <Card
-            bordered={false}
-            className="shadow-sm border-l-4 border-gray-500"
-          >
+        <Col xs={12} sm={6}>
+          <Card className="shadow-sm border-l-4 border-gray-500">
             <Statistic
-              title="Tổng giới thiệu"
+              title="Tổng"
               value={data.length}
-              prefix={<CarOutlined />}
+              prefix={<FileTextOutlined />}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* 2. Bảng dữ liệu chính */}
       <Card
-        title={
-          <span className="text-lg font-bold">DANH SÁCH TIẾP NHẬN NHU CẦU</span>
-        }
+        title={<span className="font-bold">QUẢN LÝ TIẾP NHẬN</span>}
         extra={
           <Space>
             <Search
-              placeholder="Tìm tên, SĐT, biển số..."
+              placeholder="Tìm nhanh..."
               onSearch={onSearch}
-              style={{ width: 250 }}
+              style={{ width: 200 }}
               allowClear
             />
-            <Tooltip title="Tải lại dữ liệu">
-              <Button icon={<ReloadOutlined />} onClick={loadAllData} />
-            </Tooltip>
+            <Button icon={<ReloadOutlined />} onClick={loadAllData} />
           </Space>
         }
-        className="shadow-md rounded-lg"
+        className="shadow-md rounded-xl"
       >
         <Table
           dataSource={filteredData}
           columns={columns}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 8 }}
-          scroll={{ x: 1000 }}
+          pagination={{ pageSize: 10 }}
+          scroll={{ x: 900 }}
+          onRow={(record) => ({
+            onClick: () => {
+              setSelectedCustomer(record);
+              setDetailVisible(true);
+            },
+            className: "cursor-pointer hover:bg-blue-50 transition-colors",
+          })}
         />
       </Card>
+
+      {/* MODAL CHI TIẾT KHÁCH HÀNG */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-blue-600">
+            <EyeOutlined /> <span>CHI TIẾT GIỚI THIỆU</span>
+          </div>
+        }
+        open={detailVisible}
+        onCancel={() => setDetailVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setDetailVisible(false)}>
+            Đóng
+          </Button>,
+        ]}
+        width={700}
+        centered
+      >
+        {selectedCustomer && (
+          <div className="py-2">
+            <Descriptions
+              title="Thông tin khách hàng"
+              bordered
+              column={{ xs: 1, sm: 2 }}
+            >
+              <Descriptions.Item label="Họ tên" span={2}>
+                <Text strong className="text-lg">
+                  {selectedCustomer.fullName}
+                </Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Số điện thoại">
+                <Text copyable>{selectedCustomer.phone}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Thời gian gửi">
+                {dayjs(selectedCustomer.createdAt).format("HH:mm - DD/MM/YYYY")}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider orientation="horizontal" className="!my-4 text-gray-400">
+              Chi tiết nhu cầu
+            </Divider>
+
+            <Descriptions bordered column={1} size="small">
+              <Descriptions.Item label="Loại yêu cầu">
+                <Tag
+                  color={selectedCustomer.type === "SELL" ? "orange" : "blue"}
+                  className="font-bold"
+                >
+                  {selectedCustomer.type === "SELL"
+                    ? "BÁN / ĐỔI XE"
+                    : selectedCustomer.type === "BUY"
+                    ? "MUA XE"
+                    : "ĐỊNH GIÁ"}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Xe yêu cầu">
+                {selectedCustomer.carModel?.name}{" "}
+                {selectedCustomer.carYear
+                  ? `(Đời ${selectedCustomer.carYear})`
+                  : ""}
+              </Descriptions.Item>
+              <Descriptions.Item label="Biển số">
+                {selectedCustomer.licensePlate || "N/A"}
+              </Descriptions.Item>
+              {selectedCustomer.budget && (
+                <Descriptions.Item label="Ngân sách">
+                  {selectedCustomer.budget}
+                </Descriptions.Item>
+              )}
+              {selectedCustomer.expectedPrice && (
+                <Descriptions.Item label="Giá kỳ vọng">
+                  {selectedCustomer.expectedPrice}
+                </Descriptions.Item>
+              )}
+              <Descriptions.Item label="Ghi chú từ CTV">
+                {selectedCustomer.note || "Không có ghi chú"}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider orientation="horizontal" className="!my-4 text-gray-400">
+              Phụ trách & Nguồn
+            </Divider>
+
+            <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small">
+              <Descriptions.Item label="Người giới thiệu">
+                {selectedCustomer.referrer?.fullName} (
+                {selectedCustomer.referrer?.username})
+              </Descriptions.Item>
+              <Descriptions.Item label="Chi nhánh">
+                {selectedCustomer.referrer?.branch?.name || "Hệ thống"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Nhân viên xử lý" span={2}>
+                {selectedCustomer.assignedTo ? (
+                  <Space>
+                    <UserOutlined className="text-blue-500" />{" "}
+                    <Text strong>{selectedCustomer.assignedTo.fullName}</Text>
+                  </Space>
+                ) : (
+                  <Text className="danger italic">Chưa giao nhân viên</Text>
+                )}
+              </Descriptions.Item>
+            </Descriptions>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
-
-const { Text } = Typography;
-import { Typography } from "antd";

@@ -13,53 +13,65 @@ import {
   Space,
   Card,
   Typography,
-  message,
   Row,
   Col,
   Select,
   InputNumber,
-  Divider,
+  Segmented,
+  Avatar,
+  message,
+  Badge,
+  Tabs,
+  Alert,
 } from "antd";
 import {
-  CheckCircleOutlined,
   UserOutlined,
-  PhoneOutlined,
   ShoppingCartOutlined,
   CloseCircleOutlined,
+  SyncOutlined,
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import {
   getMyAssignedLeads,
   getAvailableCars,
-  processCarPurchase,
-  processCarSale,
-  processLeadFailed, // Đảm bảo hàm này đã được export từ file actions
+  getActiveReasonsAction,
+  requestPurchaseApproval,
+  requestSaleApproval,
+  requestLoseApproval,
+  processLeadStatusUpdate,
 } from "@/actions/task-actions";
+import { getCarModelsAction } from "@/actions/car-actions";
 
 const { Title, Text } = Typography;
 
 export default function AssignedTasksPage() {
   const [form] = Form.useForm();
   const [failForm] = Form.useForm();
+  const [messageApi, contextHolder] = message.useMessage();
+
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [reasons, setReasons] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFailModalOpen, setIsFailModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [filterType, setFilterType] = useState<any>("ALL");
+  const [carModels, setCarModels] = useState<any[]>([]);
 
-  // 1. Tải dữ liệu từ Server
   const loadData = async () => {
     setLoading(true);
     try {
-      const [leads, cars]: any = await Promise.all([
+      const [leads, cars, models]: any = await Promise.all([
         getMyAssignedLeads(),
         getAvailableCars(),
+        getCarModelsAction(),
       ]);
       setData(leads);
       setInventory(cars);
+      setCarModels(models);
     } catch (err) {
-      message.error("Lỗi tải dữ liệu hệ thống");
+      messageApi.error("Không thể tải danh sách dữ liệu");
     } finally {
       setLoading(false);
     }
@@ -69,53 +81,56 @@ export default function AssignedTasksPage() {
     loadData();
   }, []);
 
-  // 2. Mở Modal xử lý Thành công
-  const handleAction = (record: any) => {
-    setSelectedLead(record);
-    setIsModalOpen(true);
-    form.resetFields();
-    if (record.type !== "BUY") {
-      form.setFieldsValue({ modelName: record.carType });
-    }
-  };
-
-  // 3. Mở Modal xử lý Thất bại
-  const handleOpenFailModal = (record: any) => {
-    setSelectedLead(record);
-    setIsFailModalOpen(true);
-    failForm.resetFields();
-  };
-
-  // 4. Submit Thành công (Thu mua hoặc Bán xe)
   const onFinish = async (values: any) => {
     try {
       setLoading(true);
       if (selectedLead.type === "BUY") {
-        await processCarSale(selectedLead.id, values.carId);
-        message.success("Đã chốt bán xe và bàn giao thành công!");
+        await requestSaleApproval(selectedLead.id, values.carId);
+        messageApi.success("Đã gửi yêu cầu duyệt bán xe!");
       } else {
-        await processCarPurchase(selectedLead.id, values);
-        message.success("Đã hoàn tất thu mua và nhập kho!");
+        // Lấy tên Model từ ID để lưu vào bản ghi Car sau này
+        const selectedModel = carModels.find((m) => m.id === values.carModelId);
+        const payload = {
+          ...values,
+          modelName: selectedModel?.name || "Xe không định danh",
+        };
+        await requestPurchaseApproval(selectedLead.id, payload);
+        messageApi.success("Đã gửi yêu cầu duyệt thu mua xe!");
       }
       setIsModalOpen(false);
+      form.resetFields();
       loadData();
     } catch (err: any) {
-      message.error(err.message || "Có lỗi xảy ra");
+      messageApi.error(err.message || "Gửi yêu cầu thất bại");
     } finally {
       setLoading(false);
     }
   };
 
-  // 5. Submit Thất bại (Hủy Lead)
   const onFailFinish = async (values: any) => {
     try {
       setLoading(true);
-      await processLeadFailed(selectedLead.id, values.reason);
-      message.warning("Đã cập nhật trạng thái thất bại");
+      if (values.status === "LOSE") {
+        await requestLoseApproval(
+          selectedLead.id,
+          values.reasonId,
+          values.note || ""
+        );
+        messageApi.info("Yêu cầu đóng hồ sơ Thất bại đã gửi tới quản lý.");
+      } else {
+        await processLeadStatusUpdate(
+          selectedLead.id,
+          values.status,
+          values.reasonId,
+          values.note || ""
+        );
+        messageApi.success(`Đã cập nhật trạng thái: ${values.status}`);
+      }
       setIsFailModalOpen(false);
+      failForm.resetFields();
       loadData();
     } catch (err: any) {
-      message.error(err.message || "Không thể cập nhật trạng thái");
+      messageApi.error(err.message || "Lỗi cập nhật");
     } finally {
       setLoading(false);
     }
@@ -123,65 +138,70 @@ export default function AssignedTasksPage() {
 
   const columns = [
     {
-      title: "KHÁCH HÀNG",
+      title: "Khách hàng",
       key: "customer",
       render: (record: any) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>
-            <UserOutlined /> {record.fullName}
-          </Text>
-          <Text type="secondary" className="text-[12px]">
-            <PhoneOutlined /> {record.phone}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      title: "NHU CẦU",
-      dataIndex: "type",
-      width: 150,
-      render: (type: string) => {
-        const config: any = {
-          SELL: { color: "orange", text: "BÁN XE" },
-          BUY: { color: "green", text: "MUA XE" },
-          VALUATION: { color: "blue", text: "ĐỊNH GIÁ" },
-        };
-        return <Tag color={config[type]?.color}>{config[type]?.text}</Tag>;
-      },
-    },
-    {
-      title: "GHI CHÚ BAN ĐẦU",
-      key: "note",
-      render: (record: any) => (
-        <div className="max-w-[200px] text-[12px] italic text-gray-500">
-          {record.carType || "N/A"} - {record.note || "Không có ghi chú"}
+        <div className="flex items-center gap-3">
+          <Avatar icon={<UserOutlined />} className="bg-slate-400" />
+          <div>
+            <div className="font-bold text-slate-800">{record.fullName}</div>
+            <div className="text-slate-500 text-xs">{record.phone}</div>
+          </div>
         </div>
       ),
     },
     {
-      title: "THAO TÁC",
+      title: "Trạng thái",
+      dataIndex: "status",
+      render: (status: string) => {
+        if (status.startsWith("PENDING_")) {
+          return (
+            <Tag icon={<SyncOutlined spin />} color="warning">
+              Chờ duyệt
+            </Tag>
+          );
+        }
+        return <Badge status="processing" text={status} />;
+      },
+    },
+    {
+      title: "Nhu cầu",
+      render: (record: any) => (
+        <div>
+          <Tag color={record.type === "SELL" ? "orange" : "green"}>
+            {record.type === "SELL" ? "Thu mua" : "Bán xe"}
+          </Tag>
+          <span className="text-sm font-medium">{record.carModel?.name}</span>
+        </div>
+      ),
+    },
+    {
+      title: "Thao tác",
       align: "right" as const,
       render: (record: any) => (
         <Space>
           <Button
             type="primary"
-            icon={
-              record.type === "BUY" ? (
-                <ShoppingCartOutlined />
-              ) : (
-                <CheckCircleOutlined />
-              )
-            }
-            danger={record.type !== "BUY"}
-            onClick={() => handleAction(record)}
+            disabled={record.status.startsWith("PENDING_")}
+            onClick={() => {
+              setSelectedLead(record);
+              setIsModalOpen(true);
+              form.resetFields();
+            }}
           >
-            Thành công
+            Chốt Deal
           </Button>
           <Button
+            danger
+            disabled={record.status.startsWith("PENDING_")}
             icon={<CloseCircleOutlined />}
-            onClick={() => handleOpenFailModal(record)}
+            onClick={() => {
+              setSelectedLead(record);
+              setIsFailModalOpen(true);
+              getActiveReasonsAction("LOSE").then(setReasons);
+            }}
           >
-            Thất bại
+            Dừng
           </Button>
         </Space>
       ),
@@ -189,209 +209,372 @@ export default function AssignedTasksPage() {
   ];
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <Card
-        title={
-          <Space>
-            <ExclamationCircleOutlined className="text-blue-500" />
-            <Title level={4} style={{ margin: 0 }}>
-              Công việc được phân bổ
-            </Title>
-          </Space>
-        }
-        className="shadow-sm border-none"
-      >
-        <Table
-          dataSource={data}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-        />
-      </Card>
+    <div className="p-8 bg-[#f8fafc] min-h-screen">
+      {contextHolder}
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <Title level={2}>📋 Nhiệm vụ của tôi</Title>
+            <Text type="secondary">
+              Quản lý và xử lý tiến độ khách hàng được giao
+            </Text>
+          </div>
+          <Segmented
+            size="large"
+            options={[
+              { label: "Tất cả", value: "ALL" },
+              { label: "Mua xe", value: "BUY" },
+              { label: "Bán xe", value: "SELL" },
+            ]}
+            value={filterType}
+            onChange={setFilterType}
+          />
+        </div>
 
-      {/* MODAL XỬ LÝ THÀNH CÔNG */}
+        <Card bordered={false} className="shadow-md rounded-2xl">
+          <Table
+            dataSource={data.filter(
+              (i: any) => filterType === "ALL" || i.type === filterType
+            )}
+            columns={columns}
+            rowKey="id"
+            loading={loading}
+          />
+        </Card>
+      </div>
+
+      {/* MODAL THU MUA/BÁN */}
       <Modal
         title={
-          selectedLead?.type === "BUY"
-            ? "CHỐT ĐƠN BÁN XE"
-            : "NHẬP XE THU MUA VÀO KHO"
+          <div className="flex items-center gap-2 pb-2 border-b">
+            <ShoppingCartOutlined className="text-blue-600 text-xl" />
+            <span className="uppercase font-bold text-slate-700">
+              {selectedLead?.type === "BUY"
+                ? "Đề xuất bán xe cho khách"
+                : "Lập hồ sơ thu mua xe"}
+            </span>
+          </div>
         }
         open={isModalOpen}
         onOk={() => form.submit()}
         onCancel={() => setIsModalOpen(false)}
-        width={700}
-        confirmLoading={loading}
-        okText="Xác nhận hoàn tất"
+        width={1000}
+        okText="Gửi yêu cầu phê duyệt"
+        centered
         destroyOnClose
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={onFinish}
-          className="mt-4"
+          className="pt-4"
+          initialValues={{
+            transmission: "AUTOMATIC",
+            fuelType: "GASOLINE",
+            carType: "SUV",
+            seats: 5,
+          }}
         >
-          <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-100">
-            <Row gutter={16}>
-              <Col span={12}>
-                <Text>Khách hàng: </Text>
-                <strong>{selectedLead?.fullName}</strong>
-              </Col>
-              <Col span={12}>
-                <Text>Số điện thoại: </Text>
-                <strong>{selectedLead?.phone}</strong>
-              </Col>
-            </Row>
-          </div>
-
           {selectedLead?.type === "BUY" ? (
-            <Form.Item
-              name="carId"
-              label="Chọn xe từ kho để bàn giao"
-              rules={[{ required: true, message: "Vui lòng chọn xe" }]}
-            >
-              <Select
-                placeholder="Tìm kiếm xe theo tên hoặc số khung..."
-                showSearch
-                optionFilterProp="label"
-                size="large"
-              >
-                {inventory.map((car: any) => (
-                  <Select.Option
-                    key={car.id}
-                    value={car.id}
-                    label={`${car.modelName} ${car.vin}`}
-                  >
-                    <div className="flex justify-between py-1">
-                      <Space direction="vertical" size={0}>
-                        <span className="font-medium text-blue-600">
-                          {car.modelName}
-                        </span>
-                        <span className="text-[11px] text-gray-400">
-                          Màu: {car.color}
-                        </span>
-                      </Space>
-                      <span className="text-gray-400 font-mono text-[12px]">
-                        {car.vin}
-                      </span>
-                    </div>
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          ) : (
-            <>
-              <Row gutter={16}>
-                <Col span={24}>
-                  <Form.Item
-                    name="modelName"
-                    label="Tên dòng xe chính xác"
-                    rules={[{ required: true }]}
-                  >
-                    <Input
-                      placeholder="Vd: Toyota Vios 1.5G 2023"
-                      size="large"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="vin"
-                    label="Số khung (VIN)"
-                    rules={[
-                      {
-                        required: true,
-                        len: 17,
-                        message: "VIN phải đúng 17 ký tự",
-                      },
-                    ]}
-                  >
-                    <Input
-                      className="uppercase font-mono"
-                      maxLength={17}
-                      placeholder="17 ký tự"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="licensePlate" label="Biển số xe">
-                    <Input className="uppercase" placeholder="Vd: 30A-12345" />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item
-                    name="color"
-                    label="Màu sắc"
-                    rules={[{ required: true }]}
-                  >
-                    <Input placeholder="Vd: Trắng" />
-                  </Form.Item>
-                </Col>
-                <Col span={16}>
-                  <Form.Item
-                    name="price"
-                    label="Giá chốt giao dịch"
-                    rules={[{ required: true, message: "Cần nhập giá" }]}
-                  >
-                    <InputNumber
-                      className="w-full"
-                      size="large"
-                      formatter={(v) =>
-                        `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                      }
-                      suffix="VNĐ"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+            /* GIAO DIỆN KHI NHÂN VIÊN BÁN XE TỪ KHO CHO KHÁCH */
+            <div className="py-10">
               <Form.Item
-                name="location"
-                label="Vị trí đỗ bãi (Lưu kho)"
-                rules={[{ required: true }]}
+                name="carId"
+                label={
+                  <span className="font-semibold">Chọn xe đang có tại kho</span>
+                }
+                rules={[{ required: true, message: "Vui lòng chọn xe để bán" }]}
               >
-                <Input placeholder="Vd: Khu B - Tầng 2" />
+                <Select
+                  size="large"
+                  placeholder="Tìm theo tên xe hoặc biển số..."
+                  showSearch
+                  optionFilterProp="label"
+                  options={inventory.map((c: any) => ({
+                    label: `${c.modelName} - Biển: ${
+                      c.licensePlate || "Chưa có"
+                    } - Giá gốc: ${Number(c.costPrice).toLocaleString()}đ`,
+                    value: c.id,
+                  }))}
+                />
               </Form.Item>
-            </>
+              <Alert
+                message="Lưu ý: Chỉ những xe có trạng thái 'Sẵn sàng bán' mới hiển thị ở đây."
+                type="info"
+                showIcon
+              />
+            </div>
+          ) : (
+            /* GIAO DIỆN KHI NHÂN VIÊN THU MUA XE CỦA KHÁCH VÀO KHO */
+            <Tabs
+              type="card"
+              items={[
+                {
+                  key: "1",
+                  label: <span className="px-4">📋 Thông tin định danh</span>,
+                  children: (
+                    <div className="p-4 bg-slate-50 rounded-lg">
+                      <Row gutter={[16, 0]}>
+                        <Col span={12}>
+                          <Form.Item
+                            name="carModelId"
+                            label="Dòng xe hệ thống"
+                            rules={[{ required: true }]}
+                          >
+                            <Select
+                              showSearch
+                              options={carModels.map((m) => ({
+                                label: m.name,
+                                value: m.id,
+                              }))}
+                              placeholder="Chọn model xe"
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            name="price"
+                            label="Giá đề xuất thu mua (VNĐ)"
+                            rules={[{ required: true }]}
+                          >
+                            <InputNumber
+                              className="w-full!"
+                              size="large"
+                              formatter={(v) =>
+                                `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                              }
+                              addonAfter="VND"
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item name="vin" label="Số khung (VIN)">
+                            <Input
+                              className="uppercase font-mono"
+                              placeholder="17 ký tự"
+                              maxLength={17}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item name="engineNumber" label="Số máy">
+                            <Input
+                              className="uppercase font-mono"
+                              placeholder="Nhập số máy"
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item
+                            name="licensePlate"
+                            label="Biển kiểm soát"
+                            rules={[
+                              {
+                                required: true,
+                                message: "Vui lòng nhập biển số",
+                              },
+                              {
+                                pattern: /^[A-Z0-9]{1,9}$/,
+                                message:
+                                  "Biển số chỉ gồm chữ, số, không khoảng trắng/ký tự đặc biệt",
+                              },
+                            ]}
+                          >
+                            <Input
+                              className="uppercase font-mono"
+                              placeholder="VD: 51H12345"
+                              maxLength={9} // Giới hạn tối đa 9 ký tự
+                              onChange={(e) => {
+                                // Tự động xóa khoảng trắng và ký tự đặc biệt khi người dùng gõ
+                                const value = e.target.value
+                                  .toUpperCase()
+                                  .replace(/[^A-Z0-9]/g, "");
+                                form.setFieldsValue({ licensePlate: value });
+                              }}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item
+                            name="year"
+                            label="Năm sản xuất"
+                            rules={[{ required: true }]}
+                          >
+                            <InputNumber className="w-full!" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item name="origin" label="Xuất xứ">
+                            <Select
+                              options={[
+                                { label: "Nhập khẩu", value: "Nhập khẩu" },
+                                {
+                                  label: "Lắp ráp trong nước",
+                                  value: "Lắp ráp",
+                                },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item
+                            name="odo"
+                            label="Số Km đã đi (ODO)"
+                            rules={[{ required: true }]}
+                          >
+                            <InputNumber
+                              className="w-full!"
+                              addonAfter="Km"
+                              formatter={(v) =>
+                                `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                              }
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </div>
+                  ),
+                },
+                {
+                  key: "2",
+                  label: <span className="px-4">⚙️ Thông số kỹ thuật</span>,
+                  children: (
+                    <div className="p-4 bg-slate-50 rounded-lg">
+                      <Row gutter={[16, 0]}>
+                        <Col span={8}>
+                          <Form.Item name="transmission" label="Hộp số">
+                            <Select
+                              options={[
+                                { label: "Số tự động", value: "AUTOMATIC" },
+                                { label: "Số sàn", value: "MANUAL" },
+                                { label: "Vô cấp (CVT)", value: "CVT" },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item name="fuelType" label="Nhiên liệu">
+                            <Select
+                              options={[
+                                { label: "Xăng", value: "GASOLINE" },
+                                { label: "Dầu (Diesel)", value: "DIESEL" },
+                                { label: "Hybrid", value: "HYBRID" },
+                                { label: "Điện", value: "ELECTRIC" },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item name="carType" label="Kiểu dáng">
+                            <Select
+                              options={[
+                                { label: "SUV", value: "SUV" },
+                                { label: "Sedan", value: "SEDAN" },
+                                { label: "Hatchback", value: "HATCHBACK" },
+                                { label: "Pickup", value: "PICKUP" },
+                                { label: "MPV", value: "MPV" },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item
+                            name="engineSize"
+                            label="Dung tích động cơ"
+                          >
+                            <Input placeholder="VD: 2.5L, 1.5 Turbo" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item name="driveTrain" label="Hệ dẫn động">
+                            <Input placeholder="VD: 4WD, FWD, RWD" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item name="seats" label="Số chỗ ngồi">
+                            <InputNumber className="w-full" min={2} max={50} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item name="color" label="Màu ngoại thất">
+                            <Input placeholder="Trắng, Đen, Đỏ..." />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item name="interiorColor" label="Màu nội thất">
+                            <Input placeholder="Kem, Nâu, Đen..." />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </div>
+                  ),
+                },
+                {
+                  key: "3",
+                  label: <span className="px-4">📝 Mô tả & Cam kết</span>,
+                  children: (
+                    <div className="p-4 bg-slate-50 rounded-lg">
+                      <Form.Item
+                        name="features"
+                        label="Trang bị nổi bật (Options)"
+                      >
+                        <Input.TextArea
+                          rows={3}
+                          placeholder="Cửa sổ trời, Phanh tay điện tử, Ghế điện, Loa JBL..."
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        name="description"
+                        label="Tình trạng thực tế & Cam kết chất lượng"
+                      >
+                        <Input.TextArea
+                          rows={5}
+                          placeholder="Xe không đâm đụng, không ngập nước, máy móc nguyên bản, bảo dưỡng định kỳ tại hãng..."
+                        />
+                      </Form.Item>
+                    </div>
+                  ),
+                },
+              ]}
+            />
           )}
         </Form>
       </Modal>
 
-      {/* MODAL XỬ LÝ THẤT BẠI */}
+      {/* MODAL DỪNG LEAD */}
       <Modal
-        title={
-          <Space className="text-red-500">
-            <CloseCircleOutlined />
-            <span>XÁC NHẬN GIAO DỊCH THẤT BẠI</span>
-          </Space>
-        }
         open={isFailModalOpen}
         onOk={() => failForm.submit()}
         onCancel={() => setIsFailModalOpen(false)}
-        okText="Xác nhận hủy Lead"
         okButtonProps={{ danger: true }}
-        confirmLoading={loading}
-        destroyOnClose
       >
+        <div className="text-center py-4">
+          <ExclamationCircleOutlined className="text-amber-500 text-4xl mb-2" />
+          <Title level={4}>Dừng chăm sóc khách hàng</Title>
+        </div>
         <Form
           form={failForm}
           layout="vertical"
           onFinish={onFailFinish}
-          className="mt-4"
+          initialValues={{ status: "LOSE" }}
         >
-          <Text type="secondary">
-            Vui lòng nhập lý do cụ thể khiến khách hàng không thực hiện giao
-            dịch này.
-          </Text>
-          <Form.Item
-            name="reason"
-            label="Lý do thất bại"
-            className="mt-4"
-            rules={[{ required: true, message: "Vui lòng nhập lý do" }]}
-          >
-            <Input.TextArea
-              rows={4}
-              placeholder="Vd: Khách đổi ý không bán nữa, giá chào mua quá thấp, xe bị lỗi nặng khi kiểm tra..."
+          <Form.Item name="status" label="Loại trạng thái">
+            <Select
+              onChange={(val) => getActiveReasonsAction(val).then(setReasons)}
+              options={[
+                { label: "Thất bại (Cần duyệt)", value: "LOSE" },
+                { label: "Tạm dừng (Frozen)", value: "FROZEN" },
+                { label: "Chờ xem xe (Pending)", value: "PENDING_VIEW" },
+              ]}
             />
+          </Form.Item>
+          <Form.Item name="reasonId" label="Lý do" rules={[{ required: true }]}>
+            <Select
+              options={reasons.map((r) => ({ label: r.content, value: r.id }))}
+            />
+          </Form.Item>
+          <Form.Item name="note" label="Ghi chú">
+            <Input.TextArea rows={3} />
           </Form.Item>
         </Form>
       </Modal>

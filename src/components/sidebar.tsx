@@ -108,6 +108,16 @@ export default function Sidebar({ role }: SidebarProps) {
       icon: <CarOutlined />,
       label: "Quản lý kho xe",
       children: [
+        role === "ADMIN" || role === "MANAGER"
+          ? {
+              key: "/dashboard/admin/approval-customer",
+              label: (
+                <Link href="/dashboard/admin/approval-customer">
+                  Duyệt yêu cầu nv
+                </Link>
+              ),
+            }
+          : null,
         {
           key: "/dashboard/cars",
           label: <Link href="/dashboard/cars">Danh sách xe</Link>,
@@ -125,29 +135,6 @@ export default function Sidebar({ role }: SidebarProps) {
       ],
     },
 
-    // --- PHẦN NGHIỆP VỤ THU MUA ---
-    role === "ADMIN" || role === "PURCHASE_STAFF"
-      ? {
-          key: "purchase-menu",
-          icon: <SolutionOutlined />,
-          label: "Nghiệp vụ thu mua",
-          children: [
-            {
-              key: "/dashboard/purchase/new",
-              label: (
-                <Link href="/dashboard/purchase/new">Tạo hồ sơ xe mới</Link>
-              ),
-            },
-            {
-              key: "/dashboard/purchase/history",
-              label: (
-                <Link href="/dashboard/purchase/history">Lịch sử thu mua</Link>
-              ),
-            },
-          ],
-        }
-      : null,
-
     // --- QUẢN LÝ DANH MỤC ---
     role === "ADMIN"
       ? {
@@ -155,6 +142,18 @@ export default function Sidebar({ role }: SidebarProps) {
           icon: <AppstoreAddOutlined />,
           label: "Danh mục hệ thống",
           children: [
+            {
+              key: "/dashboard/settings/car-setup",
+              label: (
+                <Link href="/dashboard/settings/car-setup">Setup mẫu xe</Link>
+              ),
+            },
+            {
+              key: "/dashboard/settings/reasons",
+              label: (
+                <Link href="/dashboard/settings/reasons">Setup Lý do</Link>
+              ),
+            },
             {
               key: "/dashboard/settings/departments",
               label: (

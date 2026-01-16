@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "used_car",
+  title: "Xe cũ Toyota Bình Dương",
   description: "used_car",
 };
 
