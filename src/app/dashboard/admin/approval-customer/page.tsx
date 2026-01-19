@@ -15,6 +15,7 @@ import {
   Descriptions,
   Divider,
   Badge,
+  Space,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -24,6 +25,8 @@ import {
   InfoCircleOutlined,
   DollarOutlined,
   SettingOutlined,
+  FileTextOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import {
   getPendingApprovalsAction,
@@ -44,7 +47,6 @@ export default function ApprovalsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Chạy song song cả 2 API để tối ưu tốc độ
       const [resApprovals, resModels] = await Promise.all([
         getPendingApprovalsAction(),
         getCarModelsAction(),
@@ -68,17 +70,20 @@ export default function ApprovalsPage() {
     }
 
     try {
+      setLoading(true);
       await approveCarPurchase(selectedActivity.id, decision, rejectReason);
       message.success(
         decision === "APPROVE"
           ? "Đã phê duyệt thành công"
-          : "Đã từ chối yêu cầu"
+          : "Đã từ chối yêu cầu",
       );
       setIsModalOpen(false);
       setRejectReason("");
       loadData();
     } catch (error: any) {
       message.error(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,40 +95,74 @@ export default function ApprovalsPage() {
   const renderCarDetail = (note: string) => {
     try {
       const parsed = JSON.parse(note);
-      const car = parsed.carData || parsed; // Hỗ trợ cả cấu trúc CAR_PURCHASE và CAR_SALE
-      // ĐÂY LÀ CHỖ QUAN TRỌNG: Lấy ID từ JSON và tìm tên từ danh mục carModels
+      // Trích xuất dữ liệu từ cấu trúc: { carData, contractData }
+      const car = parsed.carData || parsed;
+      const contract = parsed.contractData || {};
       const displayModelName = getModelName(car.carModelId);
+
       return (
-        <div className="max-h-[70vh] overflow-y-auto px-2">
-          {/* Nhóm 1: Thông tin định danh */}
+        <div className="max-h-[75vh] overflow-y-auto px-2">
+          {/* PHẦN 1: THÔNG TIN HỢP ĐỒNG */}
           <Descriptions
             title={
-              <>
-                <InfoCircleOutlined /> Thông tin định danh
-              </>
+              <Space>
+                <FileTextOutlined className="text-blue-600" />
+                <span>THÔNG TIN HỢP ĐỒNG GIAO DỊCH</span>
+              </Space>
+            }
+            bordered
+            size="small"
+            className="mb-6 bg-blue-50/30"
+            column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
+          >
+            <Descriptions.Item label="Số hợp đồng" span={1}>
+              <Text strong className="text-blue-700">
+                {contract.contractNo || "CHƯA CẬP NHẬT"}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Giá trị chốt (VNĐ)" span={1}>
+              <Text strong className="text-red-600 text-lg">
+                {Number(
+                  contract.price || car.price || car.costPrice || 0,
+                ).toLocaleString()}{" "}
+                đ
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Ghi chú điều khoản" span={2}>
+              <div className="italic text-gray-600">
+                {contract.note || "Không có ghi chú thêm"}
+              </div>
+            </Descriptions.Item>
+          </Descriptions>
+
+          {/* PHẦN 2: THÔNG TIN ĐỊNH DANH XE */}
+          <Descriptions
+            title={
+              <Space>
+                <InfoCircleOutlined />
+                <span>THÔNG TIN ĐỊNH DANH XE</span>
+              </Space>
             }
             bordered
             size="small"
             column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
           >
             <Descriptions.Item label="Dòng xe (Model)" span={2}>
-              <div className="flex flex-col">
-                <Text strong className="text-lg text-blue-700">
-                  {displayModelName || "Chưa xác định"}
-                </Text>
-              </div>
+              <Text strong className="text-lg text-blue-900">
+                {displayModelName}
+              </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Biển kiểm soát">
-              <Tag color="cyan" className="font-mono text-base">
-                {car.licensePlate || "Chưa có"}
+              <Tag color="geekblue" className="font-mono text-base m-0">
+                {car.licensePlate || "N/A"}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Năm sản xuất">
-              {car.year}
+              {car.year || "N/A"}
             </Descriptions.Item>
-            <Descriptions.Item label="Số khung (VIN)">
+            <Descriptions.Item label="Số khung (VIN)" span={2}>
               <Text copyable className="font-mono">
-                {car.vin}
+                {car.vin || "N/A"}
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Số máy">
@@ -131,84 +170,78 @@ export default function ApprovalsPage() {
             </Descriptions.Item>
           </Descriptions>
 
-          <Divider style={{ margin: "16px 0" }} />
+          <Divider dashed style={{ margin: "16px 0" }} />
 
-          {/* Nhóm 2: Thông số kỹ thuật */}
+          {/* PHẦN 3: THÔNG SỐ KỸ THUẬT */}
           <Descriptions
             title={
-              <>
-                <SettingOutlined /> Thông số kỹ thuật chi tiết
-              </>
+              <Space>
+                <SettingOutlined />
+                <span>THÔNG SỐ KỸ THUẬT CHI TIẾT</span>
+              </Space>
             }
             bordered
             size="small"
             column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
           >
             <Descriptions.Item label="Số KM (ODO)">
-              <Text strong color="orange">
-                {Number(car.odo).toLocaleString()} km
+              <Text strong className="text-orange-600">
+                {Number(car.odo || 0).toLocaleString()} km
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Hộp số">
-              <Tag color="blue">{car.transmission}</Tag>
+              <Tag color="processing">{car.transmission || "N/A"}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Nhiên liệu">
-              {car.fuelType}
+              {car.fuelType || "N/A"}
             </Descriptions.Item>
             <Descriptions.Item label="Kiểu dáng">
-              {car.carType}
+              {car.carType || "N/A"}
             </Descriptions.Item>
-            <Descriptions.Item label="Dung tích động cơ">
+            <Descriptions.Item label="Dung tích">
               {car.engineSize || "N/A"}
             </Descriptions.Item>
             <Descriptions.Item label="Hệ dẫn động">
               {car.driveTrain || "N/A"}
             </Descriptions.Item>
-            <Descriptions.Item label="Màu ngoại thất">
-              {car.color}
+            <Descriptions.Item label="Màu sắc (Ngoại/Nội)">
+              {car.color || "N/A"} / {car.interiorColor || "N/A"}
             </Descriptions.Item>
-            <Descriptions.Item label="Màu nội thất">
-              {car.interiorColor || "N/A"}
+            <Descriptions.Item label="Nguồn gốc">
+              {car.origin || "Trong nước"}
             </Descriptions.Item>
             <Descriptions.Item label="Số chỗ ngồi">
-              {car.seats} chỗ
-            </Descriptions.Item>
-            <Descriptions.Item label="Xuất xứ">
-              {car.origin || "N/A"}
+              {car.seats ? `${car.seats} chỗ` : "N/A"}
             </Descriptions.Item>
           </Descriptions>
 
-          <Divider style={{ margin: "16px 0" }} />
+          <Divider dashed style={{ margin: "16px 0" }} />
 
-          {/* Nhóm 3: Thương mại & Mô tả */}
+          {/* PHẦN 4: TIỆN ÍCH & MÔ TẢ */}
           <Descriptions
             title={
-              <>
-                <DollarOutlined /> Thông tin thương mại & Tình trạng
-              </>
+              <Space>
+                <CarOutlined />
+                <span>TRẠNG THÁI THỰC TẾ & MÔ TẢ</span>
+              </Space>
             }
             bordered
             size="small"
             column={1}
           >
-            <Descriptions.Item label="Giá thu mua đề xuất">
-              <Text strong className="text-red-600 text-lg">
-                {Number(car.price || car.costPrice).toLocaleString()} VNĐ
-              </Text>
-            </Descriptions.Item>
             <Descriptions.Item label="Trang bị nổi bật">
-              {car.features || "Không có thông tin"}
+              {car.features || "Chưa cập nhật tiện ích"}
             </Descriptions.Item>
             <Descriptions.Item label="Mô tả chi tiết tình trạng">
-              <div className="whitespace-pre-wrap italic text-gray-600">
-                {car.description || "Chưa có mô tả"}
+              <div className="whitespace-pre-wrap text-gray-600 italic">
+                {car.description || "Không có mô tả chi tiết."}
               </div>
             </Descriptions.Item>
           </Descriptions>
         </div>
       );
     } catch (e) {
-      return <Text type="danger">Lỗi định dạng dữ liệu: {note}</Text>;
+      return <Text type="danger">Dữ liệu hồ sơ bị lỗi định dạng JSON</Text>;
     }
   };
 
@@ -218,37 +251,49 @@ export default function ApprovalsPage() {
       dataIndex: ["customer", "fullName"],
       key: "customer",
       render: (text: string, record: any) => (
-        <div>
-          <div className="font-bold">{text}</div>
-          <Text type="secondary" className="text-xs">
-            {record.customer.phone}
+        <Space direction="vertical" size={0}>
+          <Text strong>{text}</Text>
+          <Text type="secondary" style={{ fontSize: "12px" }}>
+            {record.customer?.phone}
           </Text>
-        </div>
+        </Space>
       ),
     },
     {
-      title: "Loại yêu cầu",
-      dataIndex: "status",
-      key: "status",
-      render: (status: string, record: any) => {
-        const noteObj = JSON.parse(record.note || "{}");
-        const isPurchase = noteObj.requestType === "CAR_PURCHASE";
-        return (
-          <Badge
-            status={isPurchase ? "processing" : "warning"}
-            text={isPurchase ? "THU MUA" : "BÁN XE"}
-          />
-        );
+      title: "Nghiệp vụ",
+      dataIndex: "note",
+      key: "type",
+      render: (note: string) => {
+        try {
+          const parsed = JSON.parse(note);
+          const isPurchase =
+            parsed.carData !== undefined ||
+            parsed.requestType === "CAR_PURCHASE";
+          return (
+            <Tag
+              color={isPurchase ? "blue" : "orange"}
+              className="rounded-full px-3"
+            >
+              {isPurchase ? "THU MUA" : "BÁN XE"}
+            </Tag>
+          );
+        } catch {
+          return <Tag>N/A</Tag>;
+        }
       },
     },
     {
       title: "Nhân viên đề xuất",
-      dataIndex: ["createdBy", "fullName"],
+      dataIndex: ["user", "fullName"], // SỬA TẠI ĐÂY: Prisma trả về 'user', không phải 'createdBy'
       key: "staff",
-      render: (text: string) => <Tag icon={<CarOutlined />}>{text}</Tag>,
+      render: (text: string) => (
+        <Tag color="blue" icon={<UserOutlined />}>
+          {text || "Hệ thống"}
+        </Tag>
+      ),
     },
     {
-      title: "Thời gian",
+      title: "Thời gian gửi",
       dataIndex: "createdAt",
       key: "createdAt",
       render: (date: Date) => (
@@ -257,11 +302,11 @@ export default function ApprovalsPage() {
     },
     {
       title: "Thao tác",
+      align: "right" as const,
       key: "action",
       render: (record: any) => (
         <Button
           type="primary"
-          ghost
           icon={<EyeOutlined />}
           onClick={() => {
             setSelectedActivity(record);
@@ -274,14 +319,22 @@ export default function ApprovalsPage() {
     },
   ];
 
+  const handleDecisionClick = (type: "APPROVE" | "REJECT") => {
+    handleDecision(type);
+  };
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-8 bg-[#f8fafc] min-h-screen">
       <Card
-        className="shadow-md rounded-lg"
+        bordered={false}
+        className="shadow-sm rounded-xl"
         title={
-          <Title level={4} style={{ margin: 0 }}>
-            <CarOutlined className="mr-2" /> Danh sách yêu cầu chờ phê duyệt
-          </Title>
+          <div className="flex items-center gap-2">
+            <CheckCircleOutlined className="text-green-500 text-xl" />
+            <Title level={4} style={{ margin: 0 }}>
+              Trung tâm Phê duyệt Hồ sơ
+            </Title>
+          </div>
         }
       >
         <Table
@@ -295,55 +348,61 @@ export default function ApprovalsPage() {
 
       <Modal
         title={
-          <div className="border-b pb-2">
-            <Title level={5} style={{ margin: 0 }}>
-              CHI TIẾT HỒ SƠ XE TRÌNH DUYỆT
+          <div className="pb-3 border-b border-gray-100">
+            <Title
+              level={5}
+              className="!m-0 uppercase tracking-wide text-gray-800"
+            >
+              Chi tiết hồ sơ trình duyệt
             </Title>
-            <Text type="secondary">
-              Vui lòng kiểm tra kỹ thông số trước khi nhập kho
-            </Text>
           </div>
         }
         open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        width={850}
+        onCancel={() => {
+          setIsModalOpen(false);
+          setRejectReason("");
+        }}
+        width={900}
         centered
         footer={[
           <Button key="close" onClick={() => setIsModalOpen(false)}>
-            Đóng
+            Hủy bỏ
           </Button>,
           <Button
             key="reject"
             danger
             icon={<CloseCircleOutlined />}
-            onClick={() => handleDecision("REJECT")}
+            onClick={() => handleDecisionClick("REJECT")}
+            loading={loading}
           >
-            Từ chối yêu cầu
+            Từ chối hồ sơ
           </Button>,
           <Button
             key="approve"
             type="primary"
+            className="bg-green-600"
             icon={<CheckCircleOutlined />}
-            onClick={() => handleDecision("APPROVE")}
+            onClick={() => handleDecisionClick("APPROVE")}
+            loading={loading}
           >
             Phê duyệt & Nhập kho
           </Button>,
         ]}
       >
         {selectedActivity && (
-          <div className="py-4">
+          <div className="py-2">
             {renderCarDetail(selectedActivity.note)}
 
-            <div className="mt-6 p-4 bg-red-50 rounded-lg border border-red-100">
-              <Text strong className="text-red-800">
-                Ý kiến chỉ đạo/Lý do từ chối:
+            <div className="mt-6 p-5 bg-gray-50 rounded-xl border border-gray-200">
+              <Text strong className="block mb-2 text-gray-700">
+                Ý kiến chỉ đạo / Lý do phản hồi:
               </Text>
               <Input.TextArea
                 rows={3}
-                className="mt-2"
-                placeholder="Nhập ghi chú phản hồi cho nhân viên tại đây..."
+                placeholder="Nhập nội dung phản hồi cho nhân viên tại đây (Bắt buộc nếu từ chối)..."
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
+                className="rounded-lg"
               />
             </div>
           </div>

@@ -9,6 +9,20 @@ datasource db {
 
 // --- HỆ THỐNG ĐƠN VỊ ---
 
+model LeadSetting {
+  id        String   @id @default("lead_config")
+  hotDays   Int      @default(3) // Ví dụ: dưới 3 ngày là Hot
+  warmDays  Int      @default(7) // Ví dụ: từ 3 - 7 ngày là Warm
+  // Cool sẽ là trên warmDays
+  updatedAt DateTime @updatedAt
+}
+
+enum UrgencyType {
+  HOT
+  WARM
+  COOL
+}
+
 model Branch {
   id      String @id @default(cuid())
   name    String @unique // Tên chi nhánh (VD: Toyota Bình Dương)
@@ -136,6 +150,8 @@ model Car {
   carModel      CarModel? @relation(fields: [carModelId], references: [id])
   carModelId    String?
 
+  ownerHistory CarOwnerHistory[]
+
   @@index([branchId])
   @@index([purchaserId])
   @@index([referrerId])
@@ -181,6 +197,12 @@ model Customer {
   budget        String? // Ngân sách (Dành cho Mua xe)
   expectedPrice String? // Giá mong muốn (Dành cho Định giá)
 
+  assignedAt     DateTime? // Thời điểm bàn giao khách cho NV
+  firstContactAt DateTime? // Thời điểm thực hiện cuộc gọi/liên hệ đầu tiên
+  lastContactAt  DateTime? // Lần liên hệ gần nhất
+  nextContactAt  DateTime? // Lần liên hệ tiếp theo (Hẹn gọi lại)
+  urgencyLevel   UrgencyType? // Lưu trạng thái Hot/Warm/Cool lúc mới tiếp cận
+
   // Lưu trữ link hình ảnh (sau khi upload lên Cloudinary/S3)
   carImages         String? @db.Text // JSON string hoặc danh sách link ảnh xe
   registrationImage String? @db.Text // Ảnh đăng kiểm
@@ -204,7 +226,8 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  activities LeadActivity[]
+  activities        LeadActivity[]
+  carOwnerHistories CarOwnerHistory[]
 
   // Thêm index cho status để tăng tốc độ truy vấn khi lọc khách hàng
   @@index([status])
@@ -280,4 +303,17 @@ enum CarStatus {
   READY_FOR_SALE // Đã sẵn sàng trưng bày bán
   BOOKED // Khách đã đặt cọc
   SOLD // Đã bàn giao xe cho khách
+}
+
+model CarOwnerHistory {
+  id         String   @id @default(cuid())
+  carId      String
+  car        Car      @relation(fields: [carId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  type       String // "PURCHASE" (Mua vào) hoặc "SALE" (Bán ra)
+  contractNo String?
+  price      Decimal  @db.Decimal(15, 2)
+  date       DateTime @default(now())
+  note       String?
 }

@@ -151,7 +151,15 @@ export default function Sidebar({ role }: SidebarProps) {
             {
               key: "/dashboard/settings/reasons",
               label: (
-                <Link href="/dashboard/settings/reasons">Setup Lý do</Link>
+                <Link href="/dashboard/settings/reasons">Setup lý do</Link>
+              ),
+            },
+            {
+              key: "/dashboard/settings/lead",
+              label: (
+                <Link href="/dashboard/settings/lead">
+                  Trạng thái khách hàng
+                </Link>
               ),
             },
             {

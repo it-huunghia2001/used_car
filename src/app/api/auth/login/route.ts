@@ -4,7 +4,7 @@ import { SignJWT } from "jose"; // Dùng jose để đồng bộ với Middlewar
 import { db } from "@/lib/db";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "supersecretkey"
+  process.env.JWT_SECRET || "supersecretkey",
 );
 const APP_NAME = "used-car"; // Phải khớp với Middleware
 
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     if (!username || !password) {
       return NextResponse.json(
         { message: "Vui lòng nhập đầy đủ thông tin" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (!user || !user.active) {
       return NextResponse.json(
         { message: "Tài khoản không tồn tại hoặc bị khóa" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     if (!isMatch) {
       return NextResponse.json(
         { message: "Mã nhân viên hoặc mật khẩu sai" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
           position: user.position?.name,
         },
       },
-      { status: 200 }
+      { status: 200 },
     );
 
     response.cookies.set("used-car", token, {

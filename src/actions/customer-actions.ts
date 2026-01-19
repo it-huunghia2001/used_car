@@ -9,7 +9,7 @@ import {
   staffAssignmentEmailTemplate,
 } from "@/lib/mail-templates";
 import { sendMail } from "@/lib/mail-service";
-import { LeadStatus, ReferralType } from "@prisma/client";
+import { LeadStatus, ReferralType, UrgencyType } from "@prisma/client";
 
 interface CreateCustomerInput {
   fullName: string;
@@ -75,6 +75,8 @@ export async function createCustomerAction(data: CreateCustomerInput) {
       }
     }
 
+    const now = new Date();
+
     // --- TẠO DỮ LIỆU ---
     const newCustomer = await db.customer.create({
       data: {
@@ -84,6 +86,8 @@ export async function createCustomerAction(data: CreateCustomerInput) {
         carYear: data.carYear ? String(data.carYear) : null,
         status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
         assignedToId: assignedStaffId,
+        // GHI NHẬN THỜI GIAN GIAO KHÁCH KHI GỬI THÔNG BÁO/GIAO VIỆC
+        assignedAt: assignedStaffId ? now : null,
       },
       include: {
         referrer: { include: { branch: true } },
@@ -95,12 +99,12 @@ export async function createCustomerAction(data: CreateCustomerInput) {
     if (assignedStaffId) {
       await db.user.update({
         where: { id: assignedStaffId },
-        data: { lastAssignedAt: new Date() },
+        data: { lastAssignedAt: now },
       });
     }
 
     // --- GỬI THÔNG BÁO ---
-    // (Giữ nguyên logic gửi email của bạn ở đây...)
+    // (Logic email của bạn...)
 
     revalidatePath("/dashboard/customers");
     return { success: true };
@@ -110,20 +114,58 @@ export async function createCustomerAction(data: CreateCustomerInput) {
 }
 
 /**
- * 2. CẬP NHẬT TRẠNG THÁI KÈM LÝ DO (LOSE, FROZEN, PENDING_VIEW, etc.)
+ * 2. CẬP NHẬT TRẠNG THÁI KÈM LÝ DO & TÍNH TOÁN ĐỘ GẤP (URGENCY)
  */
 export async function updateCustomerStatusAction(
   customerId: string,
   status: LeadStatus,
   note: string,
-  userId: string
+  userId: string,
+  nextContactAt?: Date, // Cho phép hẹn ngày gọi lại
 ) {
   try {
+    const now = new Date();
+
     await db.$transaction(async (tx) => {
-      // 1. Cập nhật trạng thái khách
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        select: { assignedAt: true, firstContactAt: true, urgencyLevel: true },
+      });
+
+      const updateData: any = { status, lastContactAt: now };
+
+      if (nextContactAt) {
+        updateData.nextContactAt = nextContactAt;
+      }
+
+      // LOGIC TÍNH URGENCY KHI LIÊN HỆ LẦN ĐẦU (Chuyển sang CONTACTED)
+      if (
+        status === LeadStatus.CONTACTED &&
+        !customer?.firstContactAt &&
+        customer?.assignedAt
+      ) {
+        // Lấy config từ Admin, nếu không có mặc định là 1 ngày cho HOT, 3 ngày cho WARM
+        const config = await tx.leadSetting.findFirst();
+        const hotDays = config?.hotDays || 1;
+        const warmDays = config?.warmDays || 3;
+
+        const diffTime = Math.abs(
+          now.getTime() - customer.assignedAt.getTime(),
+        );
+        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+        let urgency: UrgencyType = UrgencyType.COOL;
+        if (diffDays <= hotDays) urgency = UrgencyType.HOT;
+        else if (diffDays <= warmDays) urgency = UrgencyType.WARM;
+
+        updateData.firstContactAt = now;
+        updateData.urgencyLevel = urgency;
+      }
+
+      // 1. Cập nhật khách hàng
       await tx.customer.update({
         where: { id: customerId },
-        data: { status },
+        data: updateData,
       });
 
       // 2. Ghi log vào bảng LeadActivity
@@ -140,57 +182,33 @@ export async function updateCustomerStatusAction(
     revalidatePath("/dashboard/customers");
     return { success: true };
   } catch (error: any) {
-    throw new Error("Không thể cập nhật trạng thái khách hàng.");
+    throw new Error(
+      error.message || "Không thể cập nhật trạng thái khách hàng.",
+    );
   }
 }
 
 /**
- * 3. RÃ BĂNG KHÁCH HÀNG (CHỈ ADMIN/MANAGER)
- */
-export async function unfreezeCustomerAction(
-  customerId: string,
-  userId: string
-) {
-  try {
-    await db.$transaction(async (tx) => {
-      await tx.customer.update({
-        where: { id: customerId },
-        data: { status: LeadStatus.CONTACTED },
-      });
-
-      await tx.leadActivity.create({
-        data: {
-          customerId,
-          status: LeadStatus.CONTACTED,
-          note: "Rã băng khách hàng từ trạng thái đóng băng.",
-          createdById: userId,
-        },
-      });
-    });
-
-    revalidatePath("/dashboard/customers");
-    return { success: true };
-  } catch (error) {
-    throw new Error("Lỗi khi rã băng khách hàng.");
-  }
-}
-
-/**
- * 4. PHÂN BỔ THỦ CÔNG
+ * 4. PHÂN BỔ THỦ CÔNG (CŨNG TÍNH THỜI GIAN GIAO)
  */
 export async function assignCustomerAction(
   customerId: string,
-  staffId: string
+  staffId: string,
 ) {
   try {
+    const now = new Date();
     await db.customer.update({
       where: { id: customerId },
-      data: { assignedToId: staffId, status: LeadStatus.ASSIGNED },
+      data: {
+        assignedToId: staffId,
+        status: LeadStatus.ASSIGNED,
+        assignedAt: now, // Reset lại thời gian tính cho nhân viên mới
+      },
     });
 
     await db.user.update({
       where: { id: staffId },
-      data: { lastAssignedAt: new Date() },
+      data: { lastAssignedAt: now },
     });
 
     revalidatePath("/dashboard/customers");
@@ -201,7 +219,7 @@ export async function assignCustomerAction(
 }
 
 /**
- * 5. LẤY DANH SÁCH (FULL DATA CHO ADMIN)
+ * 5. LẤY DANH SÁCH (Bổ sung các trường thời gian mới)
  */
 export async function getCustomersAction() {
   return await db.customer.findMany({
@@ -217,19 +235,9 @@ export async function getCustomersAction() {
       assignedTo: { select: { fullName: true, id: true } },
       activities: {
         orderBy: { createdAt: "desc" },
-        include: { customer: { select: { fullName: true } } },
+        include: { user: { select: { fullName: true } } },
       },
     },
-    orderBy: { createdAt: "desc" },
-  });
-}
-
-/**
- * 6. LẤY CHI TIẾT HOẠT ĐỘNG CỦA MỘT KHÁCH
- */
-export async function getCustomerActivitiesAction(customerId: string) {
-  return await db.leadActivity.findMany({
-    where: { customerId },
     orderBy: { createdAt: "desc" },
   });
 }
