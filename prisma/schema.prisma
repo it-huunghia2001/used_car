@@ -23,6 +23,11 @@ enum UrgencyType {
   COOL
 }
 
+enum OwnerType {
+  PERSONAL // Xe cá nhân
+  COMPANY // Xe công ty (Có xuất hóa đơn VAT)
+}
+
 model Branch {
   id      String @id @default(cuid())
   name    String @unique // Tên chi nhánh (VD: Toyota Bình Dương)
@@ -53,6 +58,7 @@ model CarModel {
   id        String     @id @default(cuid())
   name      String     @unique
   customers Customer[] // Quan hệ ngược lại
+  grade     String? // Mã xe (A, B, C, D...)
   cars      Car[] // Dùng cho cả bảng xe trong kho
 }
 
@@ -117,6 +123,7 @@ model Car {
   interiorColor String? // Màu nội thất
   seats         Int          @default(5) // Số chỗ ngồi
   origin        String? // Xuất xứ (VD: Nhập khẩu Thái Lan, Lắp ráp trong nước)
+  ownerType     OwnerType    @default(PERSONAL) // Xe cá nhân hay công ty
 
   // --- THÔNG TIN THƯƠNG MẠI ---
   sellingPrice  Decimal? @db.Decimal(15, 2) // Giá niêm yết trên Web
@@ -202,6 +209,9 @@ model Customer {
   lastContactAt  DateTime? // Lần liên hệ gần nhất
   nextContactAt  DateTime? // Lần liên hệ tiếp theo (Hẹn gọi lại)
   urgencyLevel   UrgencyType? // Lưu trạng thái Hot/Warm/Cool lúc mới tiếp cận
+
+  isPublished Boolean   @default(false) // Admin tích vào đây xe mới hiện lên web
+  displayDate DateTime? // Ngày bắt đầu cho hiện showroom (để sort xe mới về)
 
   // Lưu trữ link hình ảnh (sau khi upload lên Cloudinary/S3)
   carImages         String? @db.Text // JSON string hoặc danh sách link ảnh xe

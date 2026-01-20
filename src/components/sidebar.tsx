@@ -11,7 +11,8 @@ import {
   LogoutOutlined,
   LineChartOutlined,
   AppstoreAddOutlined,
-  UserAddOutlined, // Icon mới cho giới thiệu
+  UserAddOutlined,
+  HomeOutlined, // Icon mới cho giới thiệu
 } from "@ant-design/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -44,6 +45,11 @@ export default function Sidebar({ role }: SidebarProps) {
       key: "/dashboard",
       icon: <DashboardOutlined />,
       label: <Link href="/dashboard">Tổng quan</Link>,
+    },
+    {
+      key: "/dashboard/showroom",
+      icon: <HomeOutlined />,
+      label: <Link href="/dashboard/showroom">Showroom</Link>,
     },
 
     // --- MỤC MỚI: GIỚI THIỆU KHÁCH HÀNG (Dành cho tất cả mọi người) ---
@@ -257,7 +263,7 @@ export default function Sidebar({ role }: SidebarProps) {
           "admin-settings",
         ]}
         items={menuItems}
-        className="font-medium"
+        className="font-medium h-[calc(100vh-210px)] overflow-y-auto"
       />
     </Sider>
   );

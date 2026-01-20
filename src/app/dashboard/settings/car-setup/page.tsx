@@ -45,6 +45,7 @@ export default function CarSetupPage() {
   const [inputValue, setInputValue] = useState("");
   const [searchText, setSearchText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [grade, setGrade] = useState<string | null>(null);
 
   // --- Load Data ---
   const loadModels = async () => {
@@ -68,9 +69,11 @@ export default function CarSetupPage() {
     if (record) {
       setEditingModel(record);
       setInputValue(record.name);
+      setGrade(record.grade || null);
     } else {
       setEditingModel(null);
       setInputValue("");
+      setGrade(null);
     }
     setIsModalOpen(true);
   };
@@ -80,13 +83,17 @@ export default function CarSetupPage() {
       return message.warning("Vui lòng nhập tên mẫu xe");
     }
 
+    if (!grade) {
+      return message.warning("Vui lòng nhập Grade xe");
+    }
+
     setSubmitting(true);
     try {
       if (editingModel) {
-        await updateCarModelAction(editingModel.id, inputValue.trim());
+        await updateCarModelAction(editingModel.id, inputValue.trim(), grade);
         message.success("Cập nhật mẫu xe thành công");
       } else {
-        await createCarModelAction(inputValue.trim());
+        await createCarModelAction(inputValue.trim(), grade);
         message.success("Đã thêm mẫu xe mới");
       }
       setIsModalOpen(false);
@@ -106,14 +113,14 @@ export default function CarSetupPage() {
     } catch (error: any) {
       // Lỗi này thường xảy ra khi xe đã có Khách hàng (Foreign Key constraint)
       message.error(
-        "Không thể xóa: Mẫu xe này đang được sử dụng trong dữ liệu khách hàng"
+        "Không thể xóa: Mẫu xe này đang được sử dụng trong dữ liệu khách hàng",
       );
     }
   };
 
   // --- Filter Logic ---
   const filteredModels = models.filter((m) =>
-    m.name.toLowerCase().includes(searchText.toLowerCase())
+    m.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
   // --- Table Columns ---
@@ -141,6 +148,19 @@ export default function CarSetupPage() {
           </div>
           <Text strong className="text-gray-800">
             {name}
+          </Text>
+        </Space>
+      ),
+    },
+
+    {
+      title: "Grade",
+      dataIndex: "grade",
+      key: "grade",
+      render: (grade: string) => (
+        <Space>
+          <Text strong className="text-gray-800">
+            {grade}
           </Text>
         </Space>
       ),
@@ -289,6 +309,18 @@ export default function CarSetupPage() {
               onPressEnter={handleSave}
               autoFocus
             />
+            <Text strong className="text-gray-600 mb-2 block mt-4">
+              Grade
+            </Text>
+
+            <Input
+              value={grade ?? ""}
+              onChange={(e) => setGrade(e.target.value)}
+              placeholder="VD: G, V, Q, AT, MT, HEV..."
+              size="large"
+              className="rounded-lg"
+            />
+
             <div className="mt-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
               <Text type="secondary" className="text-xs">
                 💡 **Mẹo:** Nên nhập đầy đủ tên dòng xe để nhân viên kinh doanh

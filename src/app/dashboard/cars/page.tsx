@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -8,288 +9,235 @@ import {
   Tag,
   Typography,
   Space,
-  Modal,
-  Descriptions,
+  Button,
+  Row,
+  Col,
+  message,
   Divider,
-  Empty,
-  Badge,
+  Tooltip,
+  Input,
 } from "antd";
 import {
   CarOutlined,
-  ShopOutlined,
+  EditOutlined,
+  SearchOutlined,
+  ReloadOutlined,
   InfoCircleOutlined,
-  CalendarOutlined,
   DashboardOutlined,
+  TeamOutlined,
+  DollarOutlined,
+  EnvironmentOutlined,
 } from "@ant-design/icons";
-import { getInventory } from "@/actions/car-actions";
+import { getInventory, updateCarAction } from "@/actions/car-actions";
+import EditCarModal from "@/components/cars/EditCarModal";
+import { getEligibleStaffAction } from "@/actions/user-actions";
+import { getBranchesAction } from "@/actions/branch-actions";
 
 const { Title, Text } = Typography;
+interface Staff {
+  id: string;
+  fullName: string | null;
+  role: string;
+  branch?: { name: string } | null;
+}
+
+interface Branch {
+  id: string;
+  name: string;
+  address?: string | null;
+}
 
 export default function InventoryPage() {
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [cars, setCars] = useState<any[]>([]);
-
-  // State quản lý Modal chi tiết
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCar, setSelectedCar] = useState<any>(null);
+  const [searchText, setSearchText] = useState("");
+  // Khai báo State với kiểu dữ liệu rõ ràng thay vì []
+  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
 
+  const fetchAllMetadata = async () => {
+    setLoading(true);
+    try {
+      // Chạy song song cả 2 để tối ưu tốc độ load
+      const [staffData, branchData] = await Promise.all([
+        getEligibleStaffAction(),
+        getBranchesAction(),
+      ]);
+
+      // Ép kiểu dữ liệu trả về để khớp với State
+      setStaffList(staffData as Staff[]);
+      setBranches(branchData as Branch[]);
+    } catch (error) {
+      console.error("Lỗi khi tải metadata:", error);
+      message.error("Không thể tải danh sách nhân viên hoặc chi nhánh");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Gọi hàm khi component mount
+  useEffect(() => {
+    fetchAllMetadata();
+  }, []);
   const loadCars = async () => {
     setLoading(true);
-    const res = await getInventory();
-    setCars(res);
-    setLoading(false);
+    try {
+      const res = await getInventory();
+      setCars(res);
+    } catch (err) {
+      message.error("Không thể tải danh sách xe");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadCars();
   }, []);
 
-  // Hàm mở xem chi tiết
-  const showDetail = (record: any) => {
-    setSelectedCar(record);
-    setIsDetailOpen(true);
+  const statusMap: any = {
+    PENDING: {
+      color: "warning",
+      text: "Chờ kiểm định",
+      icon: <InfoCircleOutlined />,
+    },
+    REFURBISHING: {
+      color: "processing",
+      text: "Đang tân trang",
+      icon: <ReloadOutlined />,
+    },
+    READY_FOR_SALE: {
+      color: "success",
+      text: "Sẵn sàng bán",
+      icon: <CarOutlined />,
+    },
+    BOOKED: {
+      color: "purple",
+      text: "Khách đã đặt cọc",
+      icon: <DollarOutlined />,
+    },
+    SOLD: { color: "error", text: "Đã giao khách", icon: <TeamOutlined /> },
   };
 
-  const columns = [
-    {
-      title: "THÔNG TIN XE",
-      key: "carInfo",
-      render: (record: any) => (
-        <div
-          className="cursor-pointer hover:text-blue-600 transition-colors"
-          onClick={() => showDetail(record)}
-        >
-          <Space direction="vertical" size={0}>
-            <Text strong>
-              <CarOutlined /> {record.modelName}
-            </Text>
-            <Text type="secondary" className="text-[12px]">
-              VIN: {record.vin}
-            </Text>
-          </Space>
-        </div>
-      ),
-    },
-    {
-      title: "CHI NHÁNH",
-      dataIndex: ["branch", "name"],
-      key: "branch",
-      render: (text: string) => (
-        <Tag icon={<ShopOutlined />} color="blue">
-          {text}
-        </Tag>
-      ),
-    },
-    {
-      title: "TRẠNG THÁI",
-      dataIndex: "status",
-      render: (status: string) => {
-        const statusMap: any = {
-          READY_FOR_SALE: { color: "green", text: "Sẵn sàng bán" },
-          PENDING: { color: "orange", text: "Chờ kiểm định" },
-          REFURBISHING: { color: "cyan", text: "Đang làm đẹp" },
-          SOLD: { color: "red", text: "Đã bán" },
-          BOOKED: { color: "purple", text: "Đã đặt cọc" },
-        };
-        const config = statusMap[status] || { color: "default", text: status };
-        return <Badge status={config.color} text={config.text} />;
-      },
-    },
-    {
-      title: "GIÁ BÁN",
-      dataIndex: "sellingPrice",
-      align: "right" as const,
-      render: (price: any) => (
-        <Text strong className="text-red-600">
-          {price ? `${Number(price).toLocaleString()} VNĐ` : "Chưa định giá"}
-        </Text>
-      ),
-    },
-    {
-      title: "NĂM SX",
-      dataIndex: "year",
-      align: "center" as const,
-    },
-    {
-      title: "THAO TÁC",
-      key: "action",
-      align: "right" as const,
-      render: (record: any) => (
-        <Button type="link" onClick={() => showDetail(record)}>
-          Xem chi tiết
-        </Button>
-      ),
-    },
-  ];
+  const onFinish = async (values: any) => {
+    setSubmitting(true);
+    try {
+      const updated = await updateCarAction(selectedCar.id, values);
+      message.success("Cập nhật thành công!");
+      setCars((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setIsModalOpen(false);
+    } catch (error) {
+      message.error("Lỗi khi lưu dữ liệu");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const filteredCars = cars.filter(
+    (car) =>
+      car.modelName.toLowerCase().includes(searchText.toLowerCase()) ||
+      car.vin.toLowerCase().includes(searchText.toLowerCase()),
+  );
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <Card
-        title={
-          <Space>
-            <CarOutlined className="text-blue-500" />
-            <Title level={4} style={{ margin: 0 }}>
-              Quản lý kho xe hệ thống
-            </Title>
-          </Space>
-        }
-        extra={<Text type="secondary">Tổng số: {cars.length} xe</Text>}
-        className="shadow-sm"
-      >
+    <div className="p-4 md:p-8 bg-[#f0f2f5] min-h-screen">
+      {/* HEADER & STATS (Giữ nguyên như cũ) */}
+      <div className="flex justify-between items-center mb-6">
+        <Title level={2}>
+          <CarOutlined className="mr-2 text-blue-600" /> Hệ Thống Kho Xe
+        </Title>
+        <Space>
+          <Input
+            placeholder="Tìm kiếm..."
+            prefix={<SearchOutlined />}
+            onChange={(e) => setSearchText(e.target.value)}
+            className="rounded-full w-64"
+          />
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={loadCars}
+            loading={loading}
+          >
+            Làm mới
+          </Button>
+        </Space>
+      </div>
+
+      {/* TABLE */}
+      <Card bordered={false} className="shadow-md rounded-2xl">
         <Table
-          dataSource={cars}
-          columns={columns}
+          dataSource={filteredCars}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 10 }}
+          scroll={{ x: 1200 }}
+          columns={[
+            {
+              title: "THÔNG TIN XE",
+              render: (_, r) => (
+                <div className="py-1">
+                  <Text strong className="text-base">
+                    {r.modelName}
+                  </Text>
+                  <div className="text-xs text-gray-500">
+                    VIN: {r.vin.slice(-6)} | {r.year}
+                  </div>
+                </div>
+              ),
+            },
+            {
+              title: "TRẠNG THÁI",
+              dataIndex: "status",
+              render: (s) => (
+                <Tag color={statusMap[s]?.color} className="rounded-full px-3">
+                  {statusMap[s]?.icon} {statusMap[s]?.text}
+                </Tag>
+              ),
+            },
+            {
+              title: "GIÁ NIÊM YẾT",
+              dataIndex: "sellingPrice",
+              align: "right",
+              render: (p) => (
+                <Text strong className="text-red-600">
+                  {Number(p).toLocaleString()} đ
+                </Text>
+              ),
+            },
+            {
+              title: "HÀNH ĐỘNG",
+              fixed: "right",
+              width: 120,
+              render: (r) => (
+                <Button
+                  type="primary"
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    setSelectedCar(r);
+                    setIsModalOpen(true);
+                  }}
+                >
+                  Quản lý
+                </Button>
+              ),
+            },
+          ]}
         />
       </Card>
 
-      {/* MODAL CHI TIẾT XE */}
-      <Modal
-        title={
-          <Space>
-            <InfoCircleOutlined className="text-blue-500" />
-            <span>CHI TIẾT XE: {selectedCar?.modelName}</span>
-          </Space>
-        }
-        open={isDetailOpen}
-        onCancel={() => setIsDetailOpen(false)}
-        footer={null}
-        width={900}
-        centered
-      >
-        {selectedCar ? (
-          <div className="py-2">
-            <Descriptions
-              bordered
-              size="small"
-              column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
-            >
-              <Descriptions.Item label="Tên Model" span={2}>
-                <Text strong className="text-blue-600">
-                  {selectedCar.modelName}
-                </Text>
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Số khung (VIN)">
-                <Text className="font-mono uppercase">{selectedCar.vin}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Số máy">
-                {selectedCar.engineNumber || "N/A"}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Biển số">
-                <Tag color="default">
-                  {selectedCar.licensePlate || "Chưa có"}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Năm sản xuất">
-                <CalendarOutlined /> {selectedCar.year}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Số ODO (Km)">
-                <DashboardOutlined /> {selectedCar.odo?.toLocaleString()} km
-              </Descriptions.Item>
-              <Descriptions.Item label="Nguồn gốc">
-                {selectedCar.origin || "Trong nước"}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Hộp số">
-                <Tag color="geekblue">{selectedCar.transmission}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Nhiên liệu">
-                <Tag color="volcano">{selectedCar.fuelType}</Tag>
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Kiểu dáng">
-                {selectedCar.carType}
-              </Descriptions.Item>
-              <Descriptions.Item label="Màu sắc (Ngoại/Nội)">
-                {selectedCar.color} / {selectedCar.interiorColor || "N/A"}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Giá niêm yết (Web)" span={2}>
-                <Title level={4} style={{ color: "#cf1322", margin: 0 }}>
-                  {selectedCar.sellingPrice
-                    ? `${Number(selectedCar.sellingPrice).toLocaleString()} VNĐ`
-                    : "Chưa cập nhật"}
-                </Title>
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Vị trí bãi xe">
-                <Text strong>
-                  <ShopOutlined /> {selectedCar.branch?.name}
-                </Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Địa chỉ">
-                <Text type="secondary" className="text-[12px]">
-                  {selectedCar.branch?.address}
-                </Text>
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Ghi chú khuyến mãi" span={2}>
-                {selectedCar.promotionNote ||
-                  "Không có chương trình khuyến mãi"}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Đặc điểm nổi bật" span={2}>
-                <div className="whitespace-pre-wrap">
-                  {selectedCar.features || "Chưa cập nhật tính năng"}
-                </div>
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Mô tả tình trạng" span={2}>
-                <div className="bg-gray-50 p-2 rounded italic text-gray-600">
-                  {selectedCar.description ||
-                    "Chưa có mô tả chi tiết từ nhân viên thu mua."}
-                </div>
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Divider orientation="horizontal">Thông tin thời gian</Divider>
-            <Row gutter={16}>
-              <Col span={8}>
-                <Space direction="vertical" size={0}>
-                  <Text type="secondary">Ngày nhập kho</Text>
-                  <Text>
-                    {selectedCar.createdAt
-                      ? new Date(selectedCar.createdAt).toLocaleDateString(
-                          "vi-VN"
-                        )
-                      : "N/A"}
-                  </Text>
-                </Space>
-              </Col>
-              <Col span={8}>
-                <Space direction="vertical" size={0}>
-                  <Text type="secondary">Cập nhật cuối</Text>
-                  <Text>
-                    {new Date(selectedCar.updatedAt).toLocaleDateString(
-                      "vi-VN"
-                    )}
-                  </Text>
-                </Space>
-              </Col>
-              <Col span={8}>
-                <Space direction="vertical" size={0}>
-                  <Text type="secondary">Ngày bán xe</Text>
-                  <Text>
-                    {selectedCar.soldAt
-                      ? new Date(selectedCar.soldAt).toLocaleDateString("vi-VN")
-                      : "Chưa bán"}
-                  </Text>
-                </Space>
-              </Col>
-            </Row>
-          </div>
-        ) : (
-          <Empty description="Không tìm thấy thông tin xe" />
-        )}
-      </Modal>
+      {/* MODAL ĐÃ ĐƯỢC TÁCH */}
+      <EditCarModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        car={selectedCar}
+        onSave={onFinish}
+        submitting={submitting}
+        statusMap={statusMap}
+        staffList={staffList}
+        branches={branches}
+      />
     </div>
   );
 }
-
-// Thêm Button để import nếu chưa có
-import { Button, Row, Col } from "antd";

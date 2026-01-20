@@ -46,8 +46,8 @@ export async function getMyAssignedLeads() {
   const config = await db.leadSetting.findUnique({
     where: { id: "lead_config" },
   });
-  const HOT_DAYS = config?.hotDays ?? 3;
-  const WARM_DAYS = config?.warmDays ?? 7;
+  const HOT_DAYS = config?.hotDays ?? 1;
+  const WARM_DAYS = config?.warmDays ?? 3;
 
   // 2. Lấy danh sách khách hàng
   const leads = await db.customer.findMany({
@@ -64,13 +64,23 @@ export async function getMyAssignedLeads() {
 
   // 3. Xử lý dữ liệu trước khi trả về: Nếu urgencyLevel rỗng thì tự tính dựa trên thời gian thực
   return leads.map((lead) => {
-    if (lead.urgencyLevel) return lead; // Nếu đã có trong DB thì dùng luôn
-
     // Nếu chưa có (khách mới), tính toán dựa trên assignedAt
-    if (lead.assignedAt) {
+    console.log("-------------------------");
+    if (lead.lastContactAt) {
+      const diffInDays =
+        (new Date().getTime() - new Date(lead.lastContactAt).getTime()) /
+        (1000 * 3600 * 24);
+      console.log(lead.lastContactAt);
+      let tempUrgency: UrgencyType = UrgencyType.COOL;
+      if (diffInDays <= HOT_DAYS) tempUrgency = UrgencyType.HOT;
+      else if (diffInDays <= WARM_DAYS) tempUrgency = UrgencyType.WARM;
+
+      return { ...lead, urgencyLevel: tempUrgency };
+    } else if (lead.assignedAt) {
       const diffInDays =
         (new Date().getTime() - new Date(lead.assignedAt).getTime()) /
         (1000 * 3600 * 24);
+      console.log(lead.assignedAt);
 
       let tempUrgency: UrgencyType = UrgencyType.COOL;
       if (diffInDays <= HOT_DAYS) tempUrgency = UrgencyType.HOT;

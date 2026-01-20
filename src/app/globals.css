@@ -143,3 +143,8 @@ button {
   border-radius: 8px;
   background-color: #080c14;
 }
+
+.ant-image {
+  height: 100%;
+  width: 100%;
+}
