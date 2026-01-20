@@ -5,6 +5,7 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { Role } from "@prisma/client";
 
 /**
  * 1. LẤY DANH SÁCH NGƯỜI DÙNG (Cập nhật hỗ trợ Filter & Pagination)
@@ -102,8 +103,10 @@ export async function getEligibleStaffAction() {
 }
 
 /**
- * 3. TẠO HOẶC CẬP NHẬT NGƯỜI DÙNG (UPSERT)
- * Tích hợp Role và isGlobalManager
+ * TẠO HOẶC CẬP NHẬT NGƯỜI DÙNG (UPSERT)
+ * - Hỗ trợ Role
+ * - Hỗ trợ Global Manager
+ * - Chuẩn Prisma v6 (connect / disconnect)
  */
 export async function upsertUserAction(data: any) {
   try {
@@ -115,52 +118,88 @@ export async function upsertUserAction(data: any) {
       role,
       isGlobalManager,
       branchId,
-      ...rest
+      departmentId,
+      positionId,
+
+      // ⚠️ map lại đúng tên field Prisma
+      extension,
+      extensionPassword,
+
+      // chỉ lấy field cho phép
+      fullName,
+      phone,
+      active,
     } = data;
 
-    // Chuẩn bị object dữ liệu sạch
+    // ==============================
+    // 1. BASE DATA (WHITELIST)
+    // ==============================
     const userData: any = {
-      ...rest,
+      fullName,
+      phone,
+      active: active ?? true,
+      extension,
+      extensionPwd: extensionPassword, // ✅ FIX CHÍNH Ở ĐÂY
       username: username?.trim(),
       email: email?.trim().toLowerCase(),
-      role: role || "STAFF", // Mặc định là STAFF nếu không chọn
-      isGlobalManager: Boolean(isGlobalManager), // Đảm bảo kiểu Boolean
-      branchId: branchId || null, // Nếu là Global Manager có thể không thuộc chi nhánh nào cụ thể
+      role: role ?? Role.REFERRER,
+      isGlobalManager: Boolean(isGlobalManager),
     };
 
-    // Xử lý logic Mật khẩu
-    if (password && password.trim() !== "") {
-      // Nếu có nhập pass mới -> Hash
+    // ==============================
+    // 2. RELATIONS
+    // ==============================
+    if (isGlobalManager) {
+      userData.branch = { disconnect: true };
+    } else if (branchId) {
+      userData.branch = { connect: { id: branchId } };
+    }
+
+    if (departmentId) {
+      userData.department = { connect: { id: departmentId } };
+    }
+
+    if (positionId) {
+      userData.position = { connect: { id: positionId } };
+    }
+
+    // ==============================
+    // 3. PASSWORD
+    // ==============================
+    if (password?.trim()) {
       userData.password = await bcrypt.hash(password.trim(), 10);
     }
 
+    // ==============================
+    // 4. UPDATE
+    // ==============================
     if (id) {
-      // --- TRƯỜNG HỢP CẬP NHẬT (UPDATE) ---
       await db.user.update({
         where: { id },
         data: userData,
       });
     } else {
-      // --- TRƯỜNG HỢP TẠO MỚI (CREATE) ---
-      // Kiểm tra trùng mã nhân viên (username)
+      // ==============================
+      // 5. CREATE
+      // ==============================
       const existing = await db.user.findUnique({
         where: { username: userData.username },
       });
-      if (existing) throw new Error("Mã nhân viên (Username) này đã tồn tại");
+
+      if (existing) {
+        throw new Error("Mã nhân viên (Username) đã tồn tại");
+      }
 
       await db.user.create({
         data: {
           ...userData,
-          // Nếu tạo mới mà không nhập pass, dùng pass mặc định của hệ thống
           password: userData.password || (await bcrypt.hash("Toyota@123", 10)),
-          active: true,
         },
       });
     }
 
-    // Làm mới cache các trang liên quan
     revalidatePath("/dashboard/users");
-    revalidatePath("/dashboard/customers"); // Revalidate vì Manager có thể thay đổi phạm vi quản lý
+    revalidatePath("/dashboard/customers");
 
     return { success: true };
   } catch (error: any) {
@@ -168,7 +207,6 @@ export async function upsertUserAction(data: any) {
     throw new Error(error.message || "Lỗi xử lý dữ liệu người dùng");
   }
 }
-
 /**
  * 4. XÓA NGƯỜI DÙNG
  */

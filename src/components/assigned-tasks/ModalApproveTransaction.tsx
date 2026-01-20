@@ -89,7 +89,9 @@ export default function ModalApproveTransaction({
               showSearch
               placeholder="Tìm xe theo tên hoặc biển số..."
               options={inventory.map((c: any) => ({
-                label: `🚗 ${c.modelName} [${c.licensePlate || "Chưa biển"}] - ${Number(c.sellingPrice).toLocaleString()}đ`,
+                label: `🚗 ${c.modelName} [${
+                  c.licensePlate || "Chưa biển"
+                }] - ${Number(c.sellingPrice).toLocaleString()}đ`,
                 value: c.id,
               }))}
             />
@@ -119,7 +121,31 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="licensePlate" label="Biển số">
+                  <Form.Item
+                    name="licensePlate"
+                    label="Biển số"
+                    getValueFromEvent={
+                      (e) =>
+                        e.target.value
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9]/g, "")
+                          .slice(0, 9) // ✅ CHẶN TỐI ĐA 9 KÝ TỰ
+                    }
+                    rules={[
+                      {
+                        required: true,
+                        message: "Vui lòng nhập biển số",
+                      },
+                      {
+                        min: 5,
+                        message: "Biển số không hợp lệ",
+                      },
+                      {
+                        max: 9,
+                        message: "Biển số tối đa 9 ký tự",
+                      },
+                    ]}
+                  >
                     <Input className="uppercase" />
                   </Form.Item>
                 </Col>
@@ -129,35 +155,28 @@ export default function ModalApproveTransaction({
                     label="Năm SX"
                     rules={[{ required: true }]}
                   >
-                    <InputNumber className="w-full" />
+                    <InputNumber className="w-full!" />
                   </Form.Item>
                 </Col>
-                <Col xs={24} md={8}>
-                  <Form.Item
-                    name="vin"
-                    label="Số khung (VIN)"
-                    rules={[{ required: true }]}
-                  >
+                <Col xs={12} md={6}>
+                  <Form.Item name="vin" label="Số khung (VIN)">
                     <Input className="uppercase" />
                   </Form.Item>
                 </Col>
-                <Col xs={12} md={8}>
+                <Col xs={12} md={6}>
                   <Form.Item name="engineNumber" label="Số máy">
                     <Input className="uppercase" />
                   </Form.Item>
                 </Col>
-                <Col xs={12} md={8}>
+                <Col xs={12} md={6}>
                   <Form.Item
                     name="odo"
                     label="Số Km (ODO)"
                     rules={[{ required: true }]}
                   >
-                    <InputNumber className="w-full" />
+                    <InputNumber className="w-full!" />
                   </Form.Item>
                 </Col>
-              </Row>
-
-              <Row gutter={16}>
                 <Col xs={12} md={6}>
                   <Form.Item name="transmission" label="Hộp số">
                     <Select
@@ -168,6 +187,9 @@ export default function ModalApproveTransaction({
                     />
                   </Form.Item>
                 </Col>
+              </Row>
+
+              <Row gutter={16}>
                 <Col xs={12} md={6}>
                   <Form.Item name="fuelType" label="Nhiên liệu">
                     <Select
@@ -184,7 +206,12 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="color" label="Màu sắc">
+                  <Form.Item name="color" label="Màu ngoại thất">
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="interiorColor" label="Màu nội thất">
                     <Input />
                   </Form.Item>
                 </Col>
@@ -232,9 +259,9 @@ export default function ModalApproveTransaction({
               rules={[{ required: true }]}
             >
               <InputNumber
-                className="w-full"
+                className="w-full!"
                 formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                addonAfter="đ"
+                addonAfter="VNĐ"
               />
             </Form.Item>
           </Col>

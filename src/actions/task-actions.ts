@@ -58,10 +58,22 @@ export async function getMyAssignedLeads() {
     include: {
       carModel: { select: { id: true, name: true } },
       referrer: { select: { id: true, fullName: true, phone: true } },
+      // Chỉ lấy 1 hoạt động mới nhất để hiển thị nhanh "Ghi chú lần cuối"
+      activities: {
+        take: 1,
+        orderBy: { createdAt: "desc" },
+        include: {
+          reason: { select: { content: true } },
+        },
+      },
     },
-    orderBy: [{ urgencyLevel: "asc" }, { updatedAt: "desc" }],
+    // Sắp xếp: Ưu tiên những người có lịch hẹn (nextContactAt) sắp đến hoặc đã quá hạn
+    orderBy: [
+      { nextContactAt: "asc" },
+      { urgencyLevel: "asc" },
+      { updatedAt: "desc" },
+    ],
   });
-
   // 3. Xử lý dữ liệu trước khi trả về: Nếu urgencyLevel rỗng thì tự tính dựa trên thời gian thực
   return leads.map((lead) => {
     // Nếu chưa có (khách mới), tính toán dựa trên assignedAt
@@ -133,7 +145,7 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
 export async function approveCarPurchase(
   activityId: string,
   decision: "APPROVE" | "REJECT",
-  reason?: string,
+  reason?: string
 ) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
@@ -221,7 +233,9 @@ export async function approveCarPurchase(
           data: {
             customerId: activity.customerId,
             status: LeadStatus.CONTACTED,
-            note: `Yêu cầu thu mua bị từ chối: ${reason || "Không đạt tiêu chuẩn"}`,
+            note: `Yêu cầu thu mua bị từ chối: ${
+              reason || "Không đạt tiêu chuẩn"
+            }`,
             createdById: auth.id,
           },
         });
@@ -242,7 +256,7 @@ export async function processLeadStatusUpdate(
   leadId: string,
   status: LeadStatus,
   reasonId: string,
-  note: string,
+  note: string
 ) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
@@ -283,7 +297,7 @@ export async function getPendingApprovalsAction() {
 export async function requestSaleApproval(
   leadId: string,
   carId: string,
-  contractData: any,
+  contractData: any
 ) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
@@ -315,7 +329,7 @@ export async function requestSaleApproval(
 export async function requestLoseApproval(
   leadId: string,
   reasonId: string,
-  note: string,
+  note: string
 ) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
@@ -358,7 +372,7 @@ export async function updateCustomerStatusAction(
   customerId: string,
   status: LeadStatus,
   note: string,
-  nextContactAt?: Date,
+  nextContactAt?: Date
 ) {
   try {
     const now = new Date();

@@ -146,7 +146,7 @@ export default function AssignedTasksPage() {
         selectedLead.id,
         "CONTACTED" as LeadStatus,
         values.note,
-        values.nextContactAt ? values.nextContactAt.toDate() : null,
+        values.nextContactAt ? values.nextContactAt.toDate() : null
       );
       messageApi.success("Đã ghi nhận tương tác!");
       setIsContactModalOpen(false);
@@ -199,7 +199,7 @@ export default function AssignedTasksPage() {
       await requestLoseApproval(
         selectedLead.id,
         values.reasonId,
-        values.note || "",
+        values.note || ""
       );
       messageApi.success("Đã cập nhật trạng thái dừng chăm sóc");
       setIsFailModalOpen(false);
@@ -275,7 +275,23 @@ export default function AssignedTasksPage() {
       render: (record: any) => (
         <div className="max-w-[140px] sm:max-w-none">
           <Space size={4} align="start">
-            <Text strong className="text-indigo-700 truncate block">
+            <Text
+              strong
+              color={
+                record.urgencyLevel === "HOT"
+                  ? "error"
+                  : record.urgencyLevel === "WARM"
+                  ? "warning"
+                  : "processing"
+              }
+              className={`truncate block ${
+                record.urgencyLevel === "HOT"
+                  ? "text-red-600!"
+                  : record.urgencyLevel === "WARM"
+                  ? "text-yellow-600!"
+                  : "text-[#0958d9]!"
+              }`}
+            >
               {record.fullName}
             </Text>
             <UrgencyBadge type={record.urgencyLevel} />
@@ -414,13 +430,12 @@ export default function AssignedTasksPage() {
         </header>
 
         <Card
-          bordered={false}
           className="shadow-sm rounded-xl overflow-hidden"
-          bodyStyle={{ padding: isMobile ? "0px" : "24px" }} // Mobile thì sát biên
+          style={{ padding: isMobile ? "0px" : "24px" }} // Mobile thì sát biên
         >
           <Table
             dataSource={data.filter(
-              (i: any) => filterType === "ALL" || i.type === filterType,
+              (i: any) => filterType === "ALL" || i.type === filterType
             )}
             columns={columns}
             rowKey="id"

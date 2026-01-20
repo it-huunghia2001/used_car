@@ -72,10 +72,8 @@ export default function Sidebar({ role }: SidebarProps) {
             }
           : null,
         {
-          key: "/dashboard/referrals/history",
-          label: (
-            <Link href="/dashboard/referrals/history">Lịch sử của tôi</Link>
-          ),
+          key: "/dashboard/my-referrals",
+          label: <Link href="/dashboard/my-referrals">Lịch sử của tôi</Link>,
         },
       ].filter(Boolean),
     },
@@ -109,37 +107,41 @@ export default function Sidebar({ role }: SidebarProps) {
       : null,
 
     // --- PHẦN QUẢN LÝ XE ---
-    {
-      key: "cars-management",
-      icon: <CarOutlined />,
-      label: "Quản lý kho xe",
-      children: [
-        role === "ADMIN" || role === "MANAGER"
-          ? {
+    role === "ADMIN" || role === "MANAGER"
+      ? {
+          key: "cars-management",
+          icon: <CarOutlined />,
+          label: "Quản lý kho xe",
+          children: [
+            {
               key: "/dashboard/admin/approval-customer",
               label: (
                 <Link href="/dashboard/admin/approval-customer">
                   Duyệt yêu cầu nv
                 </Link>
               ),
-            }
-          : null,
-        {
-          key: "/dashboard/cars",
-          label: <Link href="/dashboard/cars">Danh sách xe</Link>,
-        },
-        {
-          key: "/dashboard/cars/pending",
-          label: <Link href="/dashboard/cars/pending">Xe chờ định giá</Link>,
-        },
-        {
-          key: "/dashboard/cars/refurbishing",
-          label: (
-            <Link href="/dashboard/cars/refurbishing">Xe đang tân trang</Link>
-          ),
-        },
-      ],
-    },
+            },
+            {
+              key: "/dashboard/cars",
+              label: <Link href="/dashboard/cars">Danh sách xe</Link>,
+            },
+            {
+              key: "/dashboard/cars/pending",
+              label: (
+                <Link href="/dashboard/cars/pending">Xe chờ định giá</Link>
+              ),
+            },
+            {
+              key: "/dashboard/cars/refurbishing",
+              label: (
+                <Link href="/dashboard/cars/refurbishing">
+                  Xe đang tân trang
+                </Link>
+              ),
+            },
+          ],
+        }
+      : null,
 
     // --- QUẢN LÝ DANH MỤC ---
     role === "ADMIN"
@@ -196,19 +198,6 @@ export default function Sidebar({ role }: SidebarProps) {
           label: <Link href="/dashboard/users">Quản lý nhân viên</Link>,
         }
       : null,
-
-    // --- BÁO CÁO ---
-    {
-      key: "reports",
-      icon: <LineChartOutlined />,
-      label: "Báo cáo thống kê",
-      children: [
-        {
-          key: "/dashboard/reports/kpis",
-          label: <Link href="/dashboard/reports/kpis">KPIs Cá nhân</Link>,
-        },
-      ],
-    },
 
     // --- TÀI KHOẢN ---
     {

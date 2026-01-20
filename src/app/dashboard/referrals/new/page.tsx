@@ -222,21 +222,34 @@ export default function NewReferralPage() {
                           Hệ thống sẽ kiểm tra trùng lặp dựa trên biển số này
                         </span>
                       }
-                      getValueFromEvent={(e) =>
-                        e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
+                      getValueFromEvent={
+                        (e) =>
+                          e.target.value
+                            .toUpperCase()
+                            .replace(/[^A-Z0-9]/g, "")
+                            .slice(0, 9) // ✅ CHẶN TỐI ĐA 9 KÝ TỰ
                       }
                       rules={[
                         {
                           required: true,
-                          message: "Nhập biển số để kiểm tra trùng lặp",
+                          message: "Vui lòng nhập biển số xe!",
                         },
-                        { min: 5, message: "Biển số không hợp lệ" },
+                        {
+                          min: 5,
+                          message: "Biển số không hợp lệ",
+                        },
+                        {
+                          max: 9,
+                          message: "Biển số tối đa 9 ký tự",
+                        },
                       ]}
                     >
                       <Input
                         prefix={<AuditOutlined className="text-gray-300" />}
                         placeholder="Vd: 61A12345"
                         className="uppercase font-bold text-blue-600"
+                        maxLength={9} // ✅ CHẶN NGAY TỪ INPUT
+                        showCount // (tuỳ chọn) hiển thị số ký tự
                       />
                     </Form.Item>
                   </Col>
