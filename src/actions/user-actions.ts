@@ -193,6 +193,7 @@ export async function upsertUserAction(data: any) {
       await db.user.create({
         data: {
           ...userData,
+          extension: extension || null,
           password: userData.password || (await bcrypt.hash("Toyota@123", 10)),
         },
       });
