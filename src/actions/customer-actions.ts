@@ -10,6 +10,7 @@ import {
 } from "@/lib/mail-templates";
 import { sendMail } from "@/lib/mail-service";
 import { LeadStatus, ReferralType, UrgencyType } from "@prisma/client";
+import { getCurrentUser } from "@/lib/session-server";
 
 interface CreateCustomerInput {
   fullName: string;
@@ -33,9 +34,9 @@ export async function createCustomerAction(data: CreateCustomerInput) {
   try {
     const cleanPlate = data.licensePlate
       ? data.licensePlate.toUpperCase().replace(/[^A-Z0-9]/g, "")
-      : null;
+      : undefined;
 
-    // --- 1. KIỂM TRA TRÙNG LẶP --- (Giữ nguyên logic của bạn)
+    // --- 1. KIỂM TRA TRÙNG LẶP ---
     const duplicate = await db.customer.findFirst({
       where: {
         OR: [...(cleanPlate ? [{ licensePlate: cleanPlate }] : [])],
@@ -47,34 +48,47 @@ export async function createCustomerAction(data: CreateCustomerInput) {
     if (duplicate) {
       const refName =
         duplicate.referrer.fullName || duplicate.referrer.username;
-      throw new Error(`Thông tin này đã được giới thiệu bởi [${refName}].`);
+      throw new Error(
+        `Khách hàng/Biển số này đã có trên hệ thống, được giới thiệu bởi [${refName}].`,
+      );
     }
 
-    // --- 2. PHÂN BỔ NHÂN VIÊN (ROUND ROBIN) --- (Giữ nguyên logic của bạn)
-    let assignedStaffId: string | null = null;
+    // --- 2. XÁC ĐỊNH ROLE CẦN PHÂN BỔ ---
+    // SELL, VALUATION -> PURCHASE_STAFF
+    // BUY -> SALES_STAFF
+    const targetRole =
+      data.type === "SELL" || data.type === "VALUATION"
+        ? "PURCHASE_STAFF"
+        : "SALES_STAFF";
+
+    // --- 3. TÌM NGƯỜI GIỚI THIỆU ĐỂ LẤY CHI NHÁNH ---
     const referrer = await db.user.findUnique({
       where: { id: data.referrerId },
       select: { branchId: true, fullName: true, username: true },
     });
 
-    if (
-      (data.type === "SELL" || data.type === "VALUATION") &&
-      referrer?.branchId
-    ) {
+    let assignedStaffId: string | null = null;
+
+    // --- 4. THỰC HIỆN CHIA ĐỀU (ROUND ROBIN) ---
+    if (referrer?.branchId) {
       const staff = await db.user.findFirst({
         where: {
           branchId: referrer.branchId,
-          role: "PURCHASE_STAFF",
+          role: targetRole,
           active: true,
         },
+        // Quan trọng: Người nào có lastAssignedAt cũ nhất (đợi lâu nhất) sẽ nhận khách
         orderBy: { lastAssignedAt: "asc" },
       });
-      if (staff) assignedStaffId = staff.id;
+
+      if (staff) {
+        assignedStaffId = staff.id;
+      }
     }
 
     const now = new Date();
 
-    // --- 3. TẠO DỮ LIỆU ---
+    // --- 5. TẠO DỮ LIỆU KHÁCH HÀNG ---
     const newCustomer = await db.customer.create({
       data: {
         ...data,
@@ -91,7 +105,7 @@ export async function createCustomerAction(data: CreateCustomerInput) {
       },
     });
 
-    // Cập nhật lượt phân bổ cho nhân viên
+    // --- 6. CẬP NHẬT THỜI GIAN PHÂN BỔ CỦA NHÂN VIÊN ---
     if (assignedStaffId) {
       await db.user.update({
         where: { id: assignedStaffId },
@@ -99,42 +113,54 @@ export async function createCustomerAction(data: CreateCustomerInput) {
       });
     }
 
-    // --- 4. GỬI MAIL THÔNG BÁO ---
-    // Chúng ta bọc trong try-catch riêng để nếu lỗi mail cũng không làm fail transaction chính
+    // --- 7. GỬI MAIL THÔNG BÁO ---
     try {
       const typeLabel =
         data.type === "SELL"
           ? "BÁN XE"
           : data.type === "BUY"
-          ? "MUA XE"
-          : "ĐỊNH GIÁ XE";
+            ? "MUA XE"
+            : "ĐỊNH GIÁ XE";
 
-      const details = `Dòng xe: ${
-        newCustomer.carModel?.name || data.carYear || "Không rõ"
-      }\nBiển số: ${cleanPlate || "Chưa có"}\nGhi chú: ${
-        data.note || "Không có"
-      }`;
+      const details = `Dòng xe: ${newCustomer.carModel?.name || data.carYear || "Không rõ"}\nBiển số: ${cleanPlate || "Chưa có"}\nGhi chú: ${data.note || "Không có"}`;
 
-      // A. Gửi cho Quản lý (Thông báo có khách mới vào hệ thống)
-      const managerEmail =
-        process.env.MANAGER_EMAIL || "admin@toyotabinhduong.com.vn";
-      await sendMail({
-        to: managerEmail,
-        subject: `[CRM] Khách hàng mới: ${newCustomer.fullName.toUpperCase()}`,
-        html: referralEmailTemplate({
-          customerName: newCustomer.fullName,
-          typeLabel: typeLabel,
-          referrerName: referrer?.fullName || referrer?.username || "N/A",
-          details: details,
-          branchName: newCustomer.referrer?.branch?.name,
-        }),
+      // A. LẤY DANH SÁCH EMAIL QUẢN LÝ
+      const managers = await db.user.findMany({
+        where: {
+          OR: [
+            { isGlobalManager: true }, // Quản lý tổng
+            {
+              role: "MANAGER",
+              branchId: referrer?.branchId, // Quản lý chi nhánh
+              active: true,
+            },
+          ],
+        },
+        select: { email: true },
       });
 
-      // B. Gửi cho Nhân viên (Thông báo nhận nhiệm vụ)
+      const managerEmails = managers.map((m) => m.email).filter(Boolean);
+
+      // B. Gửi cho các Quản lý (Nếu có)
+      if (managerEmails.length > 0) {
+        await sendMail({
+          to: managerEmails.join(","), // Gửi đồng loạt (hoặc dùng bcc tùy cấu hình sendMail của bạn)
+          subject: `[CRM] Khách hàng mới - Chi nhánh ${newCustomer.referrer?.branch?.name || "Hệ thống"}`,
+          html: referralEmailTemplate({
+            customerName: newCustomer.fullName,
+            typeLabel: typeLabel,
+            referrerName: referrer?.fullName || referrer?.username || "N/A",
+            details: details,
+            branchName: newCustomer.referrer?.branch?.name,
+          }),
+        });
+      }
+
+      // B. Gửi cho Nhân viên được chỉ định (Dù là Purchase hay Sales)
       if (newCustomer.assignedTo?.email) {
         await sendMail({
           to: newCustomer.assignedTo.email,
-          subject: `[NHIỆM VỤ] Chăm sóc khách hàng ${newCustomer.fullName.toUpperCase()}`,
+          subject: `[NHIỆM VỤ MỚI] Chăm sóc khách hàng ${newCustomer.fullName.toUpperCase()}`,
           html: staffAssignmentEmailTemplate({
             customerName: newCustomer.fullName,
             customerPhone: newCustomer.phone,
@@ -162,7 +188,7 @@ export async function updateCustomerStatusAction(
   status: LeadStatus,
   note: string,
   userId: string,
-  nextContactAt?: Date // Cho phép hẹn ngày gọi lại
+  nextContactAt?: Date, // Cho phép hẹn ngày gọi lại
 ) {
   try {
     const now = new Date();
@@ -191,7 +217,7 @@ export async function updateCustomerStatusAction(
         const warmDays = config?.warmDays || 3;
 
         const diffTime = Math.abs(
-          now.getTime() - customer.assignedAt.getTime()
+          now.getTime() - customer.assignedAt.getTime(),
         );
         const diffDays = diffTime / (1000 * 60 * 60 * 24);
 
@@ -224,7 +250,7 @@ export async function updateCustomerStatusAction(
     return { success: true };
   } catch (error: any) {
     throw new Error(
-      error.message || "Không thể cập nhật trạng thái khách hàng."
+      error.message || "Không thể cập nhật trạng thái khách hàng.",
     );
   }
 }
@@ -234,7 +260,7 @@ export async function updateCustomerStatusAction(
  */
 export async function assignCustomerAction(
   customerId: string,
-  staffId: string
+  staffId: string,
 ) {
   try {
     const now = new Date();
@@ -281,4 +307,45 @@ export async function getCustomersAction() {
     },
     orderBy: { createdAt: "desc" },
   });
+}
+
+export async function getMyReferralsAction() {
+  const auth = await getCurrentUser();
+  if (!auth) throw new Error("Unauthorized");
+
+  try {
+    const referrals = await db.customer.findMany({
+      where: {
+        referrerId: auth.id,
+      },
+      include: {
+        // Lấy thông tin dòng xe quan tâm
+        carModel: {
+          select: { name: true },
+        },
+        // Lấy thông tin giao dịch nếu deal đã xong
+        carOwnerHistories: {
+          include: {
+            car: {
+              select: {
+                stockCode: true,
+                modelName: true,
+                licensePlate: true,
+              },
+            },
+          },
+          orderBy: { date: "desc" },
+          take: 1,
+        },
+      },
+      orderBy: {
+        createdAt: "desc", // Khách mới nhất lên đầu
+      },
+    });
+
+    return referrals;
+  } catch (error: any) {
+    console.error("Error fetching referrals:", error);
+    throw new Error("Không thể tải lịch sử giới thiệu");
+  }
 }

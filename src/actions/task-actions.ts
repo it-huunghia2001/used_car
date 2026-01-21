@@ -145,7 +145,7 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
 export async function approveCarPurchase(
   activityId: string,
   decision: "APPROVE" | "REJECT",
-  reason?: string
+  reason?: string,
 ) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
@@ -173,23 +173,42 @@ export async function approveCarPurchase(
         const branchId = staff.branchId;
         if (!branchId) throw new Error("Nhân viên không thuộc chi nhánh nào.");
 
-        // A. Tạo xe chính thức
+        // --- 1. LOGIC SINH MÃ XE (STOCK CODE) TỰ ĐỘNG ---
+        const carTypePrefix = (carData.carModel.grade || "CAR")
+          .substring(0, 3)
+          .toUpperCase();
+        const yearSuffix = new Date().getFullYear().toString().slice(-2);
+
+        // Đếm số lượng xe cùng loại trong năm để lấy STT
+        const count = await tx.car.count({
+          where: {
+            stockCode: {
+              startsWith: `${carTypePrefix}-${yearSuffix}`,
+            },
+          },
+        });
+
+        const sequence = (count + 1).toString().padStart(3, "0");
+        const generatedStockCode = `${carTypePrefix}-${yearSuffix}-${sequence}`;
+        // VD: SUV-24-001, SED-24-015
+
+        // --- 2. TẠO XE CHÍNH THỨC ---
         const createdCar = await tx.car.create({
           data: {
+            stockCode: generatedStockCode, // Lưu mã định danh mới
             modelName: carData.modelName || "Xe nhập từ Lead",
             vin: carData.vin?.toUpperCase() || "CHUA_CO_VIN",
             licensePlate: carData.licensePlate?.toUpperCase() || null,
             year: parseInt(carData.year) || 0,
             odo: parseInt(carData.odo) || 0,
-            transmission:
-              (carData.transmission as Transmission) || Transmission.AUTOMATIC,
-            fuelType: (carData.fuelType as FuelType) || FuelType.GASOLINE,
-            carType: (carData.carType as CarType) || CarType.SUV,
+            transmission: (carData.transmission as Transmission) || "AUTOMATIC",
+            fuelType: (carData.fuelType as FuelType) || "GASOLINE",
+            carType: (carData.carType as CarType) || "SUV",
             color: carData.color || null,
             interiorColor: carData.interiorColor || null,
             seats: parseInt(carData.seats) || 5,
             costPrice: contractData.price ? parseFloat(contractData.price) : 0,
-            status: CarStatus.REFURBISHING,
+            status: "REFURBISHING",
             branchId: branchId,
             carModelId: carData.carModelId || null,
             purchaserId: staff.id,
@@ -198,7 +217,7 @@ export async function approveCarPurchase(
           },
         });
 
-        // B. Tạo Hợp đồng / Lịch sử sở hữu (CarOwnerHistory)
+        // --- 3. TẠO LỊCH SỬ SỞ HỮU ---
         await tx.carOwnerHistory.create({
           data: {
             carId: createdCar.id,
@@ -211,31 +230,31 @@ export async function approveCarPurchase(
           },
         });
 
+        // Cập nhật trạng thái khách hàng và Activity
         await tx.customer.update({
           where: { id: activity.customerId },
-          data: { status: LeadStatus.DEAL_DONE },
+          data: { status: "DEAL_DONE" },
         });
 
         await tx.leadActivity.update({
           where: { id: activityId },
           data: {
-            status: LeadStatus.DEAL_DONE,
-            note: `Đã duyệt nhập kho & tạo hợp đồng ${contractData.contractNo}`,
+            status: "DEAL_DONE",
+            note: `Đã duyệt nhập kho với mã [${generatedStockCode}] & tạo hợp đồng ${contractData.contractNo}`,
           },
         });
       } else {
+        // ... Logic khi REJECT giữ nguyên ...
         await tx.customer.update({
           where: { id: activity.customerId },
-          data: { status: LeadStatus.CONTACTED },
+          data: { status: "CONTACTED" },
         });
 
         await tx.leadActivity.create({
           data: {
             customerId: activity.customerId,
-            status: LeadStatus.CONTACTED,
-            note: `Yêu cầu thu mua bị từ chối: ${
-              reason || "Không đạt tiêu chuẩn"
-            }`,
+            status: "CONTACTED",
+            note: `Yêu cầu thu mua bị từ chối: ${reason || "Không đạt tiêu chuẩn"}`,
             createdById: auth.id,
           },
         });
@@ -250,13 +269,12 @@ export async function approveCarPurchase(
     throw new Error(error.message);
   }
 }
-
 // 3. Cập nhật các trạng thái thông thường (Giữ nguyên)
 export async function processLeadStatusUpdate(
   leadId: string,
   status: LeadStatus,
   reasonId: string,
-  note: string
+  note: string,
 ) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
@@ -297,7 +315,7 @@ export async function getPendingApprovalsAction() {
 export async function requestSaleApproval(
   leadId: string,
   carId: string,
-  contractData: any
+  contractData: any,
 ) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
@@ -329,7 +347,7 @@ export async function requestSaleApproval(
 export async function requestLoseApproval(
   leadId: string,
   reasonId: string,
-  note: string
+  note: string,
 ) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
@@ -362,7 +380,7 @@ export async function getAvailableCars() {
       id: true,
       modelName: true,
       licensePlate: true,
-      costPrice: true,
+      sellingPrice: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -372,7 +390,7 @@ export async function updateCustomerStatusAction(
   customerId: string,
   status: LeadStatus,
   note: string,
-  nextContactAt?: Date
+  nextContactAt?: Date,
 ) {
   try {
     const now = new Date();

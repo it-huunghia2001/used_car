@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -9,7 +10,6 @@ import {
   SolutionOutlined,
   SettingOutlined,
   LogoutOutlined,
-  LineChartOutlined,
   AppstoreAddOutlined,
   UserAddOutlined,
   HomeOutlined, // Icon mới cho giới thiệu
@@ -77,8 +77,36 @@ export default function Sidebar({ role }: SidebarProps) {
         },
       ].filter(Boolean),
     },
+    role === "ADMIN" || role === "SALES_STAFF"
+      ? {
+          key: "purchase-menu",
+          icon: <SolutionOutlined />,
+          label: "Nghiệp vụ sale",
+          children: [
+            {
+              key: "/dashboard/sales-inventory", // Đường dẫn trang bạn vừa tạo
+              label: (
+                <Link href="/dashboard/sales-inventory">Xử lý giới thiệu</Link>
+              ),
+            },
+            {
+              key: "/dashboard/purchase/new",
+              label: (
+                <Link href="/dashboard/purchase/new">Tạo hồ sơ xe mới</Link>
+              ),
+            },
+            {
+              key: "/dashboard/purchase/history",
+              label: (
+                <Link href="/dashboard/purchase/history">Lịch sử thu mua</Link>
+              ),
+            },
+          ],
+        }
+      : null,
+
     // --- PHẦN NGHIỆP VỤ THU MUA ---
-    role === "ADMIN" || role === "PURCHASE_STAFF" || role === "SALES_STAFF"
+    role === "ADMIN" || role === "PURCHASE_STAFF"
       ? {
           key: "purchase-menu",
           icon: <SolutionOutlined />,

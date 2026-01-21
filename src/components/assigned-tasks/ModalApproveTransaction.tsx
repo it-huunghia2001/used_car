@@ -38,6 +38,7 @@ export default function ModalApproveTransaction({
   carModels,
 }: ModalApproveTransactionProps) {
   const [form] = Form.useForm();
+  console.log(inventory);
 
   return (
     <Modal

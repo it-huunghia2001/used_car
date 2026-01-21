@@ -7,8 +7,6 @@ export async function getCurrentUser() {
     const cookieStore = cookies(); // ❌ KHÔNG await
     const token = (await cookieStore).get("used-car")?.value;
 
-    console.log("TOKEN:", token);
-
     if (!token) return null;
 
     return await getUserFromToken(token);

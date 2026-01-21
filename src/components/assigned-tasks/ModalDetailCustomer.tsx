@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   Button,
@@ -15,6 +16,12 @@ import {
   Col,
   Descriptions,
   Alert,
+  Timeline,
+  Card,
+  Empty,
+  Tooltip,
+  Badge,
+  Skeleton,
 } from "antd";
 import {
   IdcardOutlined,
@@ -24,39 +31,31 @@ import {
   CarOutlined,
   CalendarOutlined,
   FileImageOutlined,
+  MessageOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  InfoCircleOutlined,
+  DollarCircleOutlined,
+  EnvironmentOutlined,
+  ArrowRightOutlined,
 } from "@ant-design/icons";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
-import "dayjs/locale/vi";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import "dayjs/locale/vi";
 
-// --- CẤU HÌNH DAYJS CHO MÚI GIỜ VIỆT NAM ---
-dayjs.extend(utc);
-dayjs.extend(timezone);
+// Giả định bạn đã có hàm này trong action để lấy full lịch sử
+import { getLeadDetail } from "@/actions/profile-actions";
+
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
-dayjs.tz.setDefault("Asia/Ho_Chi_Minh");
 
-// Helper: Hiển thị ngày giờ VN
-const formatVN = (date: any) => {
-  if (!date) return "---";
-  return dayjs(date).tz("Asia/Ho_Chi_Minh").format("DD/MM/YYYY HH:mm");
-};
-
-// Helper: Hiển thị thời gian tương đối VN
-const fromNowVN = (date: any) => {
-  if (!date) return "";
-  return dayjs(date).tz("Asia/Ho_Chi_Minh").fromNow();
-};
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 interface ModalDetailCustomerProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedLead: any;
+  selectedLead: any; // Nhận object từ table để hiển thị ngay
   onContactClick: () => void;
-  // Các hàm helper truyền từ cha hoặc dùng trực tiếp
   UrgencyBadge: React.FC<{ type: any }>;
 }
 
@@ -67,196 +66,332 @@ export default function ModalDetailCustomer({
   onContactClick,
   UrgencyBadge,
 }: ModalDetailCustomerProps) {
+  const [loading, setLoading] = useState(false);
+  const [fullDetail, setFullDetail] = useState<any>(null);
+
+  // Helper Việt hóa trạng thái
+  const getStatusConfig = (status: string) => {
+    const configs: Record<string, { color: string; text: string }> = {
+      NEW: { color: "cyan", text: "Mới" },
+      ASSIGNED: { color: "blue", text: "Đã phân bổ" },
+      CONTACTED: { color: "geekblue", text: "Đã liên hệ" },
+      DEAL_DONE: { color: "green", text: "Thành công" },
+      CANCELLED: { color: "default", text: "Đã hủy" },
+      PENDING_DEAL_APPROVAL: { color: "orange", text: "Chờ duyệt Deal" },
+      PENDING_LOSE_APPROVAL: { color: "volcano", text: "Chờ duyệt Đóng" },
+      LOSE: { color: "red", text: "Thất bại" },
+      FROZEN: { color: "purple", text: "Đóng băng" },
+      PENDING_VIEW: { color: "gold", text: "Chờ xem xe" },
+    };
+    return configs[status] || { color: "default", text: status };
+  };
+
+  useEffect(() => {
+    if (isOpen && selectedLead?.id) {
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          // Gọi hàm lấy chi tiết (bao gồm cả activities)
+          const res = await getLeadDetail(selectedLead.id);
+          setFullDetail(res);
+        } catch (error) {
+          console.error("Lỗi tải chi tiết:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
+    }
+  }, [isOpen, selectedLead?.id]);
+
   if (!selectedLead) return null;
+
+  const currentStatus = getStatusConfig(selectedLead.status);
+  const dataToShow = fullDetail || selectedLead; // Ưu tiên data full từ server
 
   return (
     <Modal
       title={
-        <Space>
-          <IdcardOutlined className="text-indigo-600" />
-          <span className="font-bold">HỒ SƠ KHÁCH HÀNG CHI TIẾT</span>
-        </Space>
+        <div className="flex items-center gap-2 py-1">
+          <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
+            <IdcardOutlined className="text-indigo-600 text-lg" />
+          </div>
+          <span className="text-gray-800 font-bold tracking-tight uppercase">
+            Hồ sơ chi tiết khách hàng
+          </span>
+        </div>
       }
       open={isOpen}
       onCancel={onClose}
-      width={900}
-      style={{ top: 20 }}
+      width={1100}
+      centered
       footer={[
-        <Button key="close" onClick={onClose}>
+        <Button
+          key="close"
+          size="large"
+          onClick={onClose}
+          className="rounded-lg"
+        >
           Đóng
         </Button>,
         <Button
           key="call"
           type="primary"
+          size="large"
           icon={<PhoneOutlined />}
           onClick={onContactClick}
+          className="bg-indigo-600 hover:bg-indigo-700 rounded-lg px-6"
         >
           Ghi nhận tương tác
         </Button>,
       ]}
+      className="modal-premium"
     >
-      <div className="max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
-        {/* Header thông tin nhanh */}
-        <div className="flex flex-col sm:flex-row justify-between items-start mb-6 p-4 bg-slate-50 border-l-4 border-indigo-500 rounded-r-lg gap-4">
-          <Space size="large">
-            <Avatar
-              size={70}
-              icon={<UserOutlined />}
-              className="bg-indigo-600 shadow-md flex-shrink-0"
-            />
-            <div>
-              <Title level={3} className="!mb-0 uppercase break-words">
-                {selectedLead.fullName}
-              </Title>
-              <Space wrap split={<Divider type="vertical" />}>
-                <Text strong className="text-lg text-indigo-700">
-                  {selectedLead.phone}
-                </Text>
-                <Tag color="cyan">
-                  {selectedLead.type === "SELL"
-                    ? "THU MUA / TRAO ĐỔI"
-                    : "BÁN XE"}
-                </Tag>
-                <UrgencyBadge type={selectedLead.urgencyLevel} />
-              </Space>
-            </div>
-          </Space>
-          <div className="text-left sm:text-right w-full sm:w-auto">
-            <Text type="secondary">Trạng thái</Text>
-            <div className="mt-1">
-              <Tag color="blue" className="text-base px-3 font-bold">
-                {selectedLead.status}
+      <div className="max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar overflow-x-hidden">
+        {/* HEADER BANNER */}
+        <div className="relative mb-6 p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-2xl overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-4 opacity-10 text-white text-9xl">
+            <CarOutlined />
+          </div>
+
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+            <Space size="middle">
+              <Badge dot status="success" offset={[-10, 70]}>
+                <Avatar
+                  size={84}
+                  icon={<UserOutlined />}
+                  className="bg-white/10 backdrop-blur-md border-2 border-white/30"
+                />
+              </Badge>
+              <div>
+                <Title
+                  level={2}
+                  className="!mb-1 !text-white uppercase tracking-wider"
+                >
+                  {selectedLead.fullName}
+                </Title>
+                <div className="flex flex-wrap gap-3 items-center">
+                  <Text className="text-indigo-200! text-xl font-mono">
+                    {selectedLead.phone}
+                  </Text>
+                  <Tag
+                    color="blue"
+                    className="bg-blue-500/20 text-blue-100 border-none rounded-full px-3"
+                  >
+                    {selectedLead.type === "SELL"
+                      ? "THU MUA / TRAO ĐỔI"
+                      : "BÁN XE"}
+                  </Tag>
+                  <UrgencyBadge type={selectedLead.urgencyLevel} />
+                </div>
+              </div>
+            </Space>
+
+            <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/10 text-center min-w-[180px]">
+              <Text className="text-gray-400! text-[10px] uppercase block mb-1 tracking-widest">
+                Trạng thái hiện tại
+              </Text>
+              <Tag
+                color={currentStatus.color}
+                className="text-base px-4 py-1 font-bold m-0 border-none rounded-lg shadow-lg"
+              >
+                {currentStatus.text}
               </Tag>
             </div>
           </div>
         </div>
 
-        <Row gutter={[16, 16]}>
-          {/* Quản lý & Thời gian */}
-          <Col span={24}>
-            <Descriptions
-              title={
-                <>
-                  <HistoryOutlined /> Quản lý & Thời gian
-                </>
-              }
-              bordered
-              size="small"
-              column={{ xs: 1, sm: 2 }} // Responsive cột
-            >
-              <Descriptions.Item label="Người giới thiệu">
-                {selectedLead.referrer?.fullName || "Hệ thống"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ngày tạo hồ sơ">
-                {formatVN(selectedLead.createdAt)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Thời điểm bàn giao">
-                {formatVN(selectedLead.assignedAt)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Liên hệ đầu tiên">
-                {formatVN(selectedLead.firstContactAt)}
-              </Descriptions.Item>
-            </Descriptions>
-          </Col>
-
-          {/* Nhu cầu & Xe */}
-          <Col span={24}>
-            <Descriptions
-              title={
-                <>
-                  <CarOutlined /> Nhu cầu & Xe
-                </>
-              }
-              bordered
-              size="small"
-              column={{ xs: 1, sm: 2 }}
-            >
-              <Descriptions.Item
-                label="Dòng xe quan tâm"
-                span={selectedLead.type === "BUY" ? 1 : 2}
-              >
-                <Text strong className="text-blue-600">
-                  {selectedLead.carModel?.name || selectedLead.carYear || "N/A"}
-                </Text>
-              </Descriptions.Item>
-              {selectedLead.type === "BUY" && (
-                <Descriptions.Item label="Ngân sách">
-                  {selectedLead.budget || "---"}
-                </Descriptions.Item>
+        <Row gutter={[24, 24]}>
+          {/* CỘT TRÁI: NHU CẦU & ẢNH */}
+          <Col xs={24} lg={12}>
+            <Space direction="vertical" size="large" className="w-full">
+              {/* NHẮC HẸN GỌI LẠI */}
+              {selectedLead.nextContactAt && (
+                <Alert
+                  className="rounded-xl border-l-4 border-l-amber-500 bg-amber-50/50"
+                  icon={<CalendarOutlined className="text-amber-600" />}
+                  showIcon
+                  message={
+                    <Text strong className="text-amber-800 uppercase text-xs">
+                      Lịch hẹn gọi lại tiếp theo
+                    </Text>
+                  }
+                  description={
+                    <div className="flex items-center gap-4 mt-1">
+                      <span className="text-2xl font-black text-amber-700">
+                        {dayjs(selectedLead.nextContactAt).format(
+                          "DD/MM/YYYY HH:mm",
+                        )}
+                      </span>
+                      <Tag color="warning" className="animate-pulse font-bold">
+                        {dayjs(selectedLead.nextContactAt).fromNow()}
+                      </Tag>
+                    </div>
+                  }
+                />
               )}
-              <Descriptions.Item label="Biển số">
-                {selectedLead.licensePlate || "---"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Giá mong muốn">
-                {selectedLead.expectedPrice || "---"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ghi chú" span={2}>
-                <div className="italic text-gray-500">
-                  {selectedLead.note || "Không có ghi chú"}
-                </div>
-              </Descriptions.Item>
-            </Descriptions>
-          </Col>
 
-          {/* Lịch hẹn */}
-          <Col span={24}>
-            <Alert
-              type={selectedLead.nextContactAt ? "warning" : "info"}
-              showIcon
-              icon={<CalendarOutlined />}
-              message={<Text strong>LỊCH HẸN GỌI LẠI (GIỜ VIỆT NAM)</Text>}
-              description={
-                selectedLead.nextContactAt ? (
-                  <Space size="large" wrap>
-                    <Text className="text-xl font-bold text-rose-600">
-                      {formatVN(selectedLead.nextContactAt)}
-                    </Text>
-                    <Tag color="error" className="font-bold">
-                      {fromNowVN(selectedLead.nextContactAt)}
-                    </Tag>
+              {/* CHI TIẾT XE */}
+              <Card
+                title={
+                  <Space>
+                    <CarOutlined className="text-indigo-500" /> THÔNG TIN NHU
+                    CẦU & XE
                   </Space>
-                ) : (
-                  "Chưa có lịch hẹn gọi lại"
-                )
-              }
-            />
+                }
+                className="rounded-xl shadow-sm border-slate-200"
+              >
+                <Descriptions
+                  column={2}
+                  layout="vertical"
+                  className="premium-descriptions"
+                >
+                  <Descriptions.Item label="Dòng xe quan tâm">
+                    <Text strong className="text-indigo-600 text-base">
+                      {selectedLead.carModel?.name ||
+                        selectedLead.carYear ||
+                        "Chưa xác định"}
+                    </Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Biển số / Khu vực">
+                    <Tag
+                      icon={<EnvironmentOutlined />}
+                      className="font-mono text-base px-3 bg-slate-100 border-none"
+                    >
+                      {selectedLead.licensePlate || "N/A"}
+                    </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Ngân sách / Giá dự kiến" span={2}>
+                    <Text strong className="text-emerald-600 text-xl font-bold">
+                      <DollarCircleOutlined className="mr-2" />
+                      {selectedLead.expectedPrice ||
+                        selectedLead.budget ||
+                        "Thỏa thuận"}
+                    </Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Ghi chú ban đầu" span={2}>
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 italic text-gray-500">
+                      {selectedLead.note || "Không có ghi chú thêm"}
+                    </div>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
+
+              {/* HÌNH ẢNH GIẤY TỜ */}
+              {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "Ảnh xe", path: selectedLead.carImages },
+                  { label: "Đăng kiểm", path: selectedLead.registrationImage },
+                  { label: "CCCD Trước", path: selectedLead.idCardFront },
+                  { label: "CCCD Sau", path: selectedLead.idCardBack },
+                ].map((img, idx) => (
+                  <Tooltip title={`Bấm để xem ${img.label}`} key={idx}>
+                    <div
+                      className="group relative border rounded-xl overflow-hidden bg-slate-100 aspect-[4/3] flex flex-col items-center justify-center border-dashed border-slate-300 hover:border-indigo-400 transition-all cursor-pointer"
+                      onClick={() =>
+                        img.path && window.open(img.path, "_blank")
+                      }
+                    >
+                      {img.path ? (
+                        <img
+                          src={img.path}
+                          alt={img.label}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="text-slate-400 flex flex-col items-center">
+                          <FileImageOutlined className="text-xl mb-1" />
+                          <span className="text-[10px] uppercase font-medium">
+                            {img.label}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </Tooltip>
+                ))}
+              </div> */}
+            </Space>
           </Col>
 
-          {/* Hình ảnh */}
-          {/* <Col span={24}>
-            <div className="ant-descriptions-title mb-3 mt-4">
-              🖼️ Hình ảnh & Giấy tờ
-            </div>
-            <Row gutter={[12, 12]}>
-              {[
-                { label: "Ảnh xe", path: selectedLead.carImages },
-                { label: "Đăng kiểm", path: selectedLead.registrationImage },
-                { label: "CCCD Trước", path: selectedLead.idCardFront },
-                { label: "CCCD Sau", path: selectedLead.idCardBack },
-              ].map((img, idx) => (
-                <Col xs={12} sm={6} key={idx}>
-                  <div className="border rounded p-2 text-center bg-white shadow-sm hover:shadow-md transition h-full">
-                    <Text type="secondary" className="block mb-2 text-[12px]">
-                      {img.label}
-                    </Text>
-                    {img.path ? (
-                      <img
-                        src={img.path}
-                        alt={img.label}
-                        className="w-full h-24 sm:h-32 object-cover rounded cursor-zoom-in"
-                        onClick={() => window.open(img.path, "_blank")}
-                      />
-                    ) : (
-                      <div className="h-24 sm:h-32 flex flex-col items-center justify-center bg-gray-50 rounded italic text-gray-400 border border-dashed">
-                        <FileImageOutlined />
-                        <span className="text-[10px]">Trống</span>
-                      </div>
-                    )}
-                  </div>
-                </Col>
-              ))}
-            </Row>
-          </Col> */}
+          {/* CỘT PHẢI: TIMELINE LỊCH SỬ TƯƠNG TÁC */}
+          <Col xs={24} lg={12}>
+            <Card
+              title={
+                <div className="flex justify-between items-center w-full">
+                  <Space>
+                    <HistoryOutlined className="text-indigo-500" /> LỊCH SỬ CHĂM
+                    SÓC
+                  </Space>
+                  <Badge
+                    count={dataToShow.activities?.length || 0}
+                    showZero
+                    color="#6366f1"
+                  />
+                </div>
+              }
+              className="rounded-xl shadow-sm border-slate-200 h-full"
+            >
+              <Skeleton loading={loading} active paragraph={{ rows: 8 }}>
+                <div className="max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
+                  {dataToShow.activities?.length > 0 ? (
+                    <Timeline
+                      mode="left"
+                      className="mt-4 timeline-call-customer"
+                      items={dataToShow.activities.map(
+                        (act: any, idx: number) => ({
+                          dot:
+                            idx === 0 ? (
+                              <CheckCircleOutlined className="text-lg text-green-500 bg-white" />
+                            ) : (
+                              <ClockCircleOutlined className="text-gray-300 bg-white" />
+                            ),
+                          label: (
+                            <span className="text-[10px] text-gray-400 font-mono">
+                              {dayjs(act.createdAt).format("DD/MM HH:mm")}
+                            </span>
+                          ),
+                          children: (
+                            <div
+                              className={`p-3 rounded-xl border mb-4 transition-all hover:shadow-md ${idx === 0 ? "bg-indigo-50/50 border-indigo-100" : "bg-gray-50 border-gray-100"}`}
+                            >
+                              <div className="flex justify-between items-center mb-2">
+                                <Tag
+                                  className="text-[10px] m-0 font-bold uppercase"
+                                  color={getStatusConfig(act.status).color}
+                                >
+                                  {getStatusConfig(act.status).text}
+                                </Tag>
+                                <Text
+                                  type="secondary"
+                                  className="text-[11px] font-medium"
+                                >
+                                  <UserOutlined size={10} />{" "}
+                                  {act.user?.fullName.split(" ").pop()}
+                                </Text>
+                              </div>
+                              <Paragraph className="!mb-0 text-[13px] text-gray-700 leading-relaxed">
+                                {act.note}
+                              </Paragraph>
+                              {act.reason && (
+                                <div className="mt-2 text-[11px] text-rose-500 font-medium border-t border-dashed border-rose-200 pt-1">
+                                  Lý do: {act.reason.content}
+                                </div>
+                              )}
+                            </div>
+                          ),
+                        }),
+                      )}
+                    />
+                  ) : (
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description="Chưa có nhật ký tương tác"
+                    />
+                  )}
+                </div>
+              </Skeleton>
+            </Card>
+          </Col>
         </Row>
       </div>
     </Modal>

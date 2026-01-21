@@ -146,7 +146,7 @@ export default function AssignedTasksPage() {
         selectedLead.id,
         "CONTACTED" as LeadStatus,
         values.note,
-        values.nextContactAt ? values.nextContactAt.toDate() : null
+        values.nextContactAt ? values.nextContactAt.toDate() : null,
       );
       messageApi.success("Đã ghi nhận tương tác!");
       setIsContactModalOpen(false);
@@ -199,7 +199,7 @@ export default function AssignedTasksPage() {
       await requestLoseApproval(
         selectedLead.id,
         values.reasonId,
-        values.note || ""
+        values.note || "",
       );
       messageApi.success("Đã cập nhật trạng thái dừng chăm sóc");
       setIsFailModalOpen(false);
@@ -281,15 +281,15 @@ export default function AssignedTasksPage() {
                 record.urgencyLevel === "HOT"
                   ? "error"
                   : record.urgencyLevel === "WARM"
-                  ? "warning"
-                  : "processing"
+                    ? "warning"
+                    : "processing"
               }
               className={`truncate block ${
                 record.urgencyLevel === "HOT"
                   ? "text-red-600!"
                   : record.urgencyLevel === "WARM"
-                  ? "text-yellow-600!"
-                  : "text-[#0958d9]!"
+                    ? "text-yellow-600!"
+                    : "text-[#0958d9]!"
               }`}
             >
               {record.fullName}
@@ -435,7 +435,7 @@ export default function AssignedTasksPage() {
         >
           <Table
             dataSource={data.filter(
-              (i: any) => filterType === "ALL" || i.type === filterType
+              (i: any) => filterType === "ALL" || i.type === filterType,
             )}
             columns={columns}
             rowKey="id"

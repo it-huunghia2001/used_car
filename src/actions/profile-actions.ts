@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use server";
 
 import { db } from "@/lib/db";
@@ -54,7 +56,7 @@ export async function updateProfile(values: {
       const dbUser = await db.user.findUnique({ where: { id: user.id } });
       const isMatch = await bcrypt.compare(
         values.oldPassword,
-        dbUser!.password
+        dbUser!.password,
       );
 
       if (!isMatch)
@@ -75,5 +77,34 @@ export async function updateProfile(values: {
     return { success: true, message: "Cập nhật thông tin thành công" };
   } catch (error) {
     return { success: false, message: "Lỗi hệ thống" };
+  }
+}
+
+export async function getLeadDetail(customerId: string) {
+  try {
+    const session = await getCurrentUser();
+    if (!session) return null;
+
+    const lead = await db.customer.findUnique({
+      where: { id: customerId },
+      include: {
+        carModel: { select: { id: true, name: true } },
+        referrer: { select: { id: true, fullName: true, phone: true } },
+        assignedTo: { select: { id: true, fullName: true } },
+        // Lấy toàn bộ lịch sử và thông tin người thực hiện
+        activities: {
+          include: {
+            user: { select: { fullName: true, role: true } },
+            reason: { select: { content: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    return lead;
+  } catch (error) {
+    console.error("Error fetching lead detail:", error);
+    return null;
   }
 }

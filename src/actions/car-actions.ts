@@ -6,6 +6,14 @@ import { db } from "@/lib/db";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { revalidatePath } from "next/cache";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+dayjs.tz.setDefault("Asia/Ho_Chi_Minh");
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
 
@@ -28,11 +36,16 @@ function serializeCar(car: any) {
 }
 
 export async function updateCarAction(id: string, data: any) {
+  let Now;
+  if (data.isPublished) {
+    Now = dayjs().tz("Asia/Ho_Chi_Minh");
+  }
   try {
     const updated = await db.car.update({
       where: { id },
       data: {
         ...data,
+        displayDate: data.isPublished ? Now : undefined,
         // Ép kiểu dữ liệu để phù hợp với Prisma Schema
         year: data.year ? parseInt(data.year) : undefined,
         odo: data.odo ? parseInt(data.odo) : undefined,

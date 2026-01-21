@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -69,7 +71,7 @@ export default function MyReferralPage() {
   const filteredData = data.filter(
     (item) =>
       item.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.phone.includes(searchText)
+      item.phone.includes(searchText),
   );
 
   const columns = [
@@ -215,7 +217,7 @@ export default function MyReferralPage() {
                 }
                 value={
                   data.filter((i) =>
-                    ["NEW", "ASSIGNED", "CONTACTED"].includes(i.status)
+                    ["NEW", "ASSIGNED", "CONTACTED"].includes(i.status),
                   ).length
                 }
                 style={{ color: "#f59e0b" }}

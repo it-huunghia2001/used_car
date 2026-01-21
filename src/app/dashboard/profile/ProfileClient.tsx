@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState } from "react";
@@ -182,7 +183,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
                         return Promise.resolve();
                       }
                       return Promise.reject(
-                        new Error("Mật khẩu xác nhận không khớp")
+                        new Error("Mật khẩu xác nhận không khớp"),
                       );
                     },
                   }),

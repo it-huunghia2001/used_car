@@ -78,14 +78,6 @@ export default function EditCarModal({
   const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-  // 1. Chuyển đổi staffList sang options cho Select
-  const staffOptions = useMemo(() => {
-    return staffList.map((staff) => ({
-      label: `${staff.fullName || "Chưa đặt tên"} (${staff.branch?.name || "Global"})`,
-      value: staff.id,
-    }));
-  }, [staffList]);
-
   // 2. Khởi tạo dữ liệu khi mở Modal
   useEffect(() => {
     if (car && isOpen) {
@@ -495,7 +487,7 @@ export default function EditCarModal({
               children: (
                 <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
                   <Row gutter={24}>
-                    <Col span={8}>
+                    <Col span={6}>
                       <Form.Item
                         name="sellingPrice"
                         label={
@@ -514,7 +506,7 @@ export default function EditCarModal({
                         />
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                    <Col span={6}>
                       <Form.Item
                         name="costPrice"
                         label={
@@ -533,10 +525,19 @@ export default function EditCarModal({
                         />
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                    <Col span={6}>
                       <Form.Item
                         name="isPromoted"
                         label="Khuyến mãi?"
+                        valuePropName="checked"
+                      >
+                        <Switch />
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item
+                        name="isPublished"
+                        label="Show ra website"
                         valuePropName="checked"
                       >
                         <Switch />

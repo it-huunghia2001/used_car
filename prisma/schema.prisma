@@ -106,12 +106,12 @@ model Car {
   id String @id @default(cuid())
 
   // --- THÔNG TIN ĐỊNH DANH CƠ BẢN ---
-  modelName    String // VD: Toyota Fortuner 2.8AT 4x4 Legender
-  vin          String // Số khung (Dùng để kiểm tra lịch sử bảo dưỡng)
-  engineNumber String? // Số máy
-  licensePlate String? // Biển kiểm soát (Có thể ẩn 2 số cuối khi hiển thị web)
-  year         Int // Năm sản xuất
-
+  modelName     String // VD: Toyota Fortuner 2.8AT 4x4 Legender
+  vin           String // Số khung (Dùng để kiểm tra lịch sử bảo dưỡng)
+  engineNumber  String? // Số máy
+  licensePlate  String? // Biển kiểm soát (Có thể ẩn 2 số cuối khi hiển thị web)
+  year          Int // Năm sản xuất
+  stockCode     String       @unique
   // --- THÔNG SỐ KỸ THUẬT CHI TIẾT ---
   odo           Int // Số Km đã đi
   transmission  Transmission @default(AUTOMATIC) // Hộp số
@@ -124,6 +124,8 @@ model Car {
   seats         Int          @default(5) // Số chỗ ngồi
   origin        String? // Xuất xứ (VD: Nhập khẩu Thái Lan, Lắp ráp trong nước)
   ownerType     OwnerType    @default(PERSONAL) // Xe cá nhân hay công ty
+  isPublished   Boolean      @default(false) // Admin tích vào đây xe mới hiện lên web
+  displayDate   DateTime? // Ngày bắt đầu cho hiện showroom (để sort xe mới về)
 
   // --- THÔNG TIN THƯƠNG MẠI ---
   sellingPrice  Decimal? @db.Decimal(15, 2) // Giá niêm yết trên Web
@@ -163,6 +165,7 @@ model Car {
   @@index([purchaserId])
   @@index([referrerId])
   @@index([status])
+  @@index([stockCode])
 }
 
 // --- BỔ SUNG CÁC ENUM ĐỂ CHUẨN HÓA DỮ LIỆU ---
