@@ -61,7 +61,7 @@ export async function getUsersAction(params: {
 
     // Loại bỏ password bảo mật
     const safeUsers = users.map(
-      ({ password, ...userWithoutPassword }) => userWithoutPassword
+      ({ password, ...userWithoutPassword }) => userWithoutPassword,
     );
 
     return {
@@ -150,7 +150,7 @@ export async function upsertUserAction(data: any) {
     // 2. RELATIONS
     // ==============================
     if (isGlobalManager) {
-      userData.branch = { disconnect: true };
+      userData.branchId = null;
     } else if (branchId) {
       userData.branch = { connect: { id: branchId } };
     }
@@ -220,7 +220,7 @@ export async function deleteUserAction(id: string) {
   } catch (error) {
     console.error("Delete user error:", error);
     throw new Error(
-      "Không thể xóa người dùng này. Vui lòng chuyển trạng thái sang 'Ngừng hoạt động' nếu đã có dữ liệu liên kết."
+      "Không thể xóa người dùng này. Vui lòng chuyển trạng thái sang 'Ngừng hoạt động' nếu đã có dữ liệu liên kết.",
     );
   }
 }
@@ -230,7 +230,7 @@ export async function deleteUserAction(id: string) {
  */
 export async function toggleUserStatusAction(
   id: string,
-  currentStatus: boolean
+  currentStatus: boolean,
 ) {
   try {
     await db.user.update({
