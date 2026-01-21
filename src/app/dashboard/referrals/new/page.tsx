@@ -294,9 +294,14 @@ export default function NewReferralPage() {
                         <span className="font-medium">Ngân sách dự kiến</span>
                       }
                     >
-                      <Input
-                        prefix={<DollarOutlined className="text-gray-300" />}
-                        placeholder="Vd: Tầm 500 triệu"
+                      <InputNumber
+                        className="w-full!"
+                        placeholder="Vd: 500.000.000"
+                        formatter={(value) =>
+                          `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                        }
+                        parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
+                        addonAfter="VNĐ"
                       />
                     </Form.Item>
                   </Col>

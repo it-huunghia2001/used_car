@@ -30,6 +30,7 @@ import {
   DollarOutlined,
   TeamOutlined,
   CarOutlined,
+  UserAddOutlined,
 } from "@ant-design/icons";
 import {
   getMyAssignedLeads,
@@ -48,6 +49,11 @@ import ModalDetailCustomer from "@/components/assigned-tasks/ModalDetailCustomer
 import ModalApproveTransaction from "@/components/assigned-tasks/ModalApproveTransaction";
 import ModalLoseLead from "@/components/assigned-tasks/ModalLoseLead";
 import ModalSaleTransaction from "@/components/assigned-tasks/ModalSaleTransaction";
+import { createSelfAssignedLeadAction } from "@/actions/customer-actions";
+import ModalAddSelfLead from "@/components/assigned-tasks/ModalAddSelfLead";
+import { getCarModelsAction } from "@/actions/car-actions";
+import { getCurrentUser } from "@/lib/session-server";
+import { getCurrentUserAction } from "@/actions/auth-actions";
 
 const { Title, Text } = Typography;
 
@@ -69,6 +75,25 @@ export default function SalesTasksPage() {
 
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [isMobile, setIsMobile] = useState(false);
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [carModels, setCarModels] = useState([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // 3. Hàm xử lý khi submit form tạo khách
+  const onFinishAddLead = async (values: any) => {
+    setLoading(true);
+    try {
+      await createSelfAssignedLeadAction(values);
+      messageApi.success("Đã thêm khách hàng vào danh sách của bạn");
+      setIsAddModalOpen(false);
+      loadData(); // Tải lại danh sách
+    } catch (err: any) {
+      messageApi.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusConfig = (status: string) => {
     const configs: Record<
@@ -129,15 +154,22 @@ export default function SalesTasksPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [leads, cars]: any = await Promise.all([
-        getMyAssignedLeads(),
-        getAvailableCars(), // Chỉ lấy xe READY_FOR_SALE
-      ]);
+      const [leads, cars, carsModelAll, currentUserAPI]: any =
+        await Promise.all([
+          getMyAssignedLeads(),
+          getAvailableCars(),
+          getCarModelsAction(), // Chỉ lấy xe READY_FOR_SALE
+          getCurrentUserAction(), // Lấy thông tin user đang đăng nhập
+        ]);
 
       // LỌC CHỈ LẤY KHÁCH HÀNG CÓ NHU CẦU "BUY" (MUA XE)
       const salesLeads = leads.filter((item: any) => item.type === "BUY");
+      console.log(carsModelAll);
+
       setData(salesLeads);
       setInventory(cars);
+      setCarModels(carsModelAll);
+      setCurrentUser(currentUserAPI);
     } catch (err) {
       messageApi.error("Không thể tải danh sách bán hàng");
     } finally {
@@ -320,21 +352,32 @@ export default function SalesTasksPage() {
   return (
     <div className="p-4 md:p-8 bg-[#f8fafc] min-h-screen">
       {contextHolder}
-      <div className="max-w-[1400px] mx-auto">
+      <div className="max-w-350 mx-auto">
         <header className="mb-6 flex justify-between items-center">
           <div>
-            <Title level={3} className="!mb-1">
+            <Title level={3} className="mb-1!">
               🎯 Mục tiêu Bán hàng
             </Title>
             <Text type="secondary">
               Quản lý danh sách khách hàng tiềm năng đang cần mua xe
             </Text>
           </div>
-          <Badge count={data.length} showZero color="#4f46e5">
-            <Button icon={<TeamOutlined />} size="large">
-              Đang chăm sóc
+          <Space>
+            <Button
+              type="primary"
+              icon={<UserAddOutlined />}
+              size="large"
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              Thêm khách của tôi
             </Button>
-          </Badge>
+            <Badge count={data.length} showZero color="#4f46e5">
+              <Button icon={<TeamOutlined />} size="large">
+                Đang chăm sóc
+              </Button>
+            </Badge>
+          </Space>
         </header>
 
         <Card className="shadow-sm border-none rounded-2xl overflow-hidden">
@@ -450,6 +493,14 @@ export default function SalesTasksPage() {
         selectedLead={selectedLead}
         reasons={reasons}
         onStatusChange={(val) => getActiveReasonsAction(val).then(setReasons)}
+      />
+      <ModalAddSelfLead
+        currentUser={currentUser}
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onFinish={onFinishAddLead}
+        loading={loading}
+        carModels={carModels}
       />
     </div>
   );

@@ -349,3 +349,65 @@ export async function getMyReferralsAction() {
     throw new Error("Không thể tải lịch sử giới thiệu");
   }
 }
+
+export async function createSelfAssignedLeadAction(formData: any) {
+  const auth = await getCurrentUser();
+  if (!auth) throw new Error("Bạn cần đăng nhập để thực hiện hành động này");
+
+  const {
+    fullName,
+    phone,
+    carModelId,
+    carYear,
+    licensePlate,
+    budget,
+    expectedPrice,
+    note,
+  } = formData;
+
+  try {
+    const newLead = await db.$transaction(async (tx) => {
+      // 1. Tạo khách hàng mới
+      const customer = await tx.customer.create({
+        data: {
+          fullName,
+          phone,
+          type: auth.role === "PURCHASE_STAFF" ? "SELL" : "BUY",
+          carModelId,
+          carYear,
+          licensePlate,
+          budget,
+          expectedPrice,
+          note,
+
+          // QUAN TRỌNG: Tự giới thiệu và tự phân bổ
+          referrerId: auth.id, // Người giới thiệu là tôi
+          assignedToId: auth.id, // Người xử lý cũng là tôi
+
+          // Cập nhật trạng thái và thời gian bàn giao ngay lập tức
+          status: LeadStatus.ASSIGNED,
+          assignedAt: new Date(),
+          urgencyLevel: UrgencyType.HOT, // Tự mình nhập thì thường là khách đang HOT
+        },
+      });
+
+      // 2. Tạo một bản ghi Activity để lưu vết lịch sử
+      await tx.leadActivity.create({
+        data: {
+          customerId: customer.id,
+          status: LeadStatus.ASSIGNED,
+          note: "Nhân viên tự tạo khách hàng và nhận chăm sóc trực tiếp.",
+          createdById: auth.id,
+        },
+      });
+
+      return customer;
+    });
+
+    revalidatePath("/dashboard/assigned-tasks"); // Refresh lại trang danh sách nhiệm vụ
+    return { success: true, data: newLead };
+  } catch (error: any) {
+    console.error("Lỗi tạo Lead tự gán:", error);
+    throw new Error(error.message || "Không thể tạo khách hàng");
+  }
+}

@@ -83,7 +83,7 @@ model User {
   position     Position?   @relation(fields: [positionId], references: [id])
 
   // Cấu hình tổng đài (Nếu có)
-  extension       String? @unique
+  extension       String?
   extensionPwd    String?
   isGlobalManager Boolean @default(false) // Quản lý toàn hệ thống
 
