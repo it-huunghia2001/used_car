@@ -36,14 +36,6 @@ import { getEligibleStaffAction } from "@/actions/user-actions";
 
 const { Title, Text } = Typography;
 
-// Định nghĩa màu sắc trạng thái chuyên nghiệp
-export const statusConfig: any = {
-  REFURBISHING: { color: "#faad14", label: "Đang tân trang", bg: "#fffbe6" },
-  READY_FOR_SALE: { color: "#52c41a", label: "Sẵn sàng bán", bg: "#f6ffed" },
-  BOOKED: { color: "#1890ff", label: "Đã đặt cọc", bg: "#e6f7ff" },
-  SOLD: { color: "#f5222d", label: "Đã bán", bg: "#fff1f0" },
-};
-
 export default function AdvancedShowroomPage() {
   const [cars, setCars] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
@@ -56,6 +48,13 @@ export default function AdvancedShowroomPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("ALL");
   const [modelId, setModelId] = useState("ALL");
+  // Định nghĩa màu sắc trạng thái chuyên nghiệp
+  const statusConfig: any = {
+    REFURBISHING: { color: "#faad14", label: "Đang tân trang", bg: "#fffbe6" },
+    READY_FOR_SALE: { color: "#52c41a", label: "Sẵn sàng bán", bg: "#f6ffed" },
+    BOOKED: { color: "#1890ff", label: "Đã đặt cọc", bg: "#e6f7ff" },
+    SOLD: { color: "#f5222d", label: "Đã bán", bg: "#fff1f0" },
+  };
 
   // State Modal
   const [selectedCar, setSelectedCar] = useState<any>(null);
