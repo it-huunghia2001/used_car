@@ -39,7 +39,7 @@ export default function ModalLoseLead({
       okText="Xác nhận dừng"
       title="Dừng xử lý khách hàng"
       centered
-      destroyOnClose
+      destroyOnHidden
       width={450}
     >
       <div className="text-center mb-6 pt-4">

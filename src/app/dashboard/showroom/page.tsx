@@ -190,8 +190,9 @@ export default function AdvancedShowroomPage() {
                           }
                           className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
+                        {/* Tag trạng thái ở góc phải */}
                         <div
-                          className="absolute top-3 right-0 px-3 py-1 rounded-l-full font-bold text-xs shadow-md"
+                          className="absolute top-3 right-0 px-3 py-1 rounded-l-full font-bold text-xs shadow-md z-10"
                           style={{
                             backgroundColor: statusConfig[car.status]?.bg,
                             color: statusConfig[car.status]?.color,
@@ -199,6 +200,11 @@ export default function AdvancedShowroomPage() {
                           }}
                         >
                           {statusConfig[car.status]?.label}
+                        </div>
+
+                        {/* MÃ XE (Stock Code) - Hiển thị đè lên ảnh ở góc trái dưới */}
+                        <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[10px] text-white font-mono tracking-wider">
+                          #{car.stockCode}
                         </div>
                       </div>
                     }
@@ -208,12 +214,12 @@ export default function AdvancedShowroomPage() {
                         <Title level={5} className="!m-0 truncate flex-1 pr-2">
                           {car.modelName}
                         </Title>
-                        <Tag className="m-0 text-[10px] bg-cyan-200-100 border-none rounded">
+                        <Tag className="m-0 text-[10px] bg-cyan-100! text-orange-400! font-bold border-none rounded">
                           {car.year}
                         </Tag>
                       </div>
 
-                      <div className="bg-slate-50  rounded-xl mb-4 flex justify-between items-center">
+                      <div className="bg-slate-50 p-3 rounded-xl mb-4 flex justify-between items-center">
                         <div className="flex flex-col">
                           <Text
                             type="secondary"
@@ -227,7 +233,7 @@ export default function AdvancedShowroomPage() {
                               : "---"}
                           </Text>
                         </div>
-                        <div className="h-8 w-[1px] bg-slate-200"></div>
+                        <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
                         <div className="flex flex-col items-end">
                           <Text
                             type="secondary"
@@ -252,7 +258,6 @@ export default function AdvancedShowroomPage() {
                 </Col>
               ))}
             </Row>
-
             {/* PAGINATION */}
             {hasMore ? (
               <div className="flex justify-center mt-12">

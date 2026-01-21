@@ -83,7 +83,7 @@ export default function ModalAddSelfLead({
       width={600}
       okText="Tạo khách hàng & Nhận chăm sóc"
       centered
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical" onFinish={onFinish} className="mt-4">
         <Row gutter={16}>
@@ -141,11 +141,7 @@ export default function ModalAddSelfLead({
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item name="carModelId" label="Dòng xe quan tâm">
-              <Select
-                placeholder="Chọn dòng xe"
-                showSearch
-                optionFilterProp="children"
-              >
+              <Select placeholder="Chọn dòng xe" showSearch>
                 {carModels.map((m) => (
                   <Option key={m.id} value={m.id}>
                     {m.name}
@@ -222,7 +218,7 @@ export default function ModalAddSelfLead({
         <Alert
           type="success"
           showIcon
-          message={
+          title={
             <Text className="text-green-700 font-medium">
               Bạn đang tự gán khách hàng này cho chính mình.
             </Text>

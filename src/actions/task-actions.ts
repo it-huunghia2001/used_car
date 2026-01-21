@@ -199,7 +199,7 @@ export async function approveCarPurchase(
         });
 
         const sequence = (count + 1).toString().padStart(3, "0");
-        const generatedStockCode = `${carTypePrefix}-${yearSuffix}-${sequence}`;
+        const generatedStockCode = `${carTypePrefix}${yearSuffix}${sequence}`;
         // VD: SUV-24-001, SED-24-015
 
         // --- 2. TẠO XE CHÍNH THỨC ---
@@ -391,6 +391,8 @@ export async function getAvailableCars() {
       modelName: true,
       licensePlate: true,
       sellingPrice: true,
+      stockCode: true,
+      year: true,
     },
     orderBy: { createdAt: "desc" },
   });

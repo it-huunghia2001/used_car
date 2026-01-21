@@ -79,7 +79,7 @@ export default function Sidebar({ role }: SidebarProps) {
     },
     role === "ADMIN" || role === "SALES_STAFF"
       ? {
-          key: "purchase-menu",
+          key: "purchase-menu-sales",
           icon: <SolutionOutlined />,
           label: "Nghiệp vụ sale",
           children: [
@@ -89,14 +89,9 @@ export default function Sidebar({ role }: SidebarProps) {
                 <Link href="/dashboard/sales-inventory">Xử lý giới thiệu</Link>
               ),
             },
+
             {
-              key: "/dashboard/purchase/new",
-              label: (
-                <Link href="/dashboard/purchase/new">Tạo hồ sơ xe mới</Link>
-              ),
-            },
-            {
-              key: "/dashboard/purchase/history",
+              key: "/dashboard/purchase/sales-history",
               label: (
                 <Link href="/dashboard/purchase/history">Lịch sử thu mua</Link>
               ),
@@ -116,12 +111,6 @@ export default function Sidebar({ role }: SidebarProps) {
               key: "/dashboard/assigned-tasks", // Đường dẫn trang bạn vừa tạo
               label: (
                 <Link href="/dashboard/assigned-tasks">Xử lý giới thiệu</Link>
-              ),
-            },
-            {
-              key: "/dashboard/purchase/new",
-              label: (
-                <Link href="/dashboard/purchase/new">Tạo hồ sơ xe mới</Link>
               ),
             },
             {

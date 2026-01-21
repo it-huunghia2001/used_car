@@ -110,6 +110,10 @@ export default function CarDetailModal({
             </div>
           )}
 
+          <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/50 backdrop-blur-sm rounded text-[18px] text-white font-mono tracking-wider">
+            #{car.stockCode}
+          </div>
+
           {/* Badge Trạng thái nổi trên ảnh */}
         </div>
 

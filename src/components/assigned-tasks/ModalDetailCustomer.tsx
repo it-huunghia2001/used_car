@@ -204,7 +204,7 @@ export default function ModalDetailCustomer({
         <Row gutter={[24, 24]}>
           {/* CỘT TRÁI: NHU CẦU & ẢNH */}
           <Col xs={24} lg={12}>
-            <Space direction="vertical" size="large" className="w-full">
+            <Space size="large" className="w-full">
               {/* NHẮC HẸN GỌI LẠI */}
               {selectedLead.nextContactAt && (
                 <Alert

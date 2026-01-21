@@ -226,6 +226,7 @@ export async function getInventoryAdvancedAction({
           year: true,
 
           // --- THÔNG SỐ KỸ THUẬT (Đã bổ sung đầy đủ) ---
+          stockCode: true,
           odo: true,
           transmission: true,
           fuelType: true,

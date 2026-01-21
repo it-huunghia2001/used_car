@@ -59,7 +59,7 @@ export default function ModalApproveTransaction({
       okText="Gửi yêu cầu phê duyệt"
       confirmLoading={loading}
       centered
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

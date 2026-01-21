@@ -80,14 +80,14 @@ export default function ModalSaleTransaction({
       okText="Xác nhận & Gửi duyệt"
       cancelText="Đóng"
       centered
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="mb-6">
         <Alert
           className="border-blue-100 bg-blue-50"
-          message={
+          title={
             <div className="py-1">
-              <Space direction="vertical" size={0}>
+              <Space size={0} className="flex justify-between w-full!">
                 <Text strong className="text-blue-800">
                   Khách hàng: {selectedLead?.fullName}
                 </Text>
@@ -120,26 +120,52 @@ export default function ModalSaleTransaction({
           >
             <Select
               showSearch
-              placeholder="Tìm theo tên xe, biển số hoặc mã VIN..."
+              placeholder="Tìm theo tên xe, biển số hoặc mã code..."
               size="large"
               className="w-full shadow-sm"
               style={{ borderRadius: "12px" }}
+              filterOption={(input, option) => {
+                // Tìm object xe tương ứng từ inventory dựa trên key (id) của option
+                const car = inventory.find((c) => c.id === option?.key);
+                if (!car) return false;
+
+                const searchTerm = input.toLowerCase();
+
+                // Kiểm tra tất cả các trường bạn muốn search
+                return (
+                  car.modelName?.toLowerCase().includes(searchTerm) ||
+                  car.stockCode?.toLowerCase().includes(searchTerm) ||
+                  car.licensePlate?.toLowerCase().includes(searchTerm) ||
+                  car.vin?.toLowerCase().includes(searchTerm)
+                );
+              }}
             >
               {inventory.map((car) => (
                 <Option key={car.id} value={car.id} className="w-full!">
                   <div className="flex justify-between items-center py-1 w-full!">
                     <div>
-                      <div className="font-bold">{car.modelName}</div>
-                      <div className="text-[11px] text-gray-400">
+                      <Space>
+                        <div className="font-bold">{car.modelName}</div>
+                        <Tag
+                          color="default"
+                          className="m-0 py-0 leading-3 bg-blue-300! text-blue-800! font-bold"
+                        >
+                          {car.year || "N/A"}
+                        </Tag>
+                      </Space>
+                      <div className="text-[11px] text-orange-950! font-bold">
                         BS:{" "}
-                        <Tag color="default" className="m-0 py-0 leading-3">
+                        <Tag
+                          color="default"
+                          className="m-0 py-0 leading-3 text-purple-950!"
+                        >
                           {car.licensePlate || "N/A"}
                         </Tag>{" "}
-                        | VIN: {car.vin?.slice(-6)}
+                        | CODE: {car.stockCode}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-blue-600 font-bold">
+                      <div className="text-blue-600! font-bold">
                         {Number(car.sellingPrice).toLocaleString()} đ
                       </div>
                     </div>
@@ -183,7 +209,7 @@ export default function ModalSaleTransaction({
               rules={[{ required: true, message: "Vui lòng nhập giá chốt" }]}
             >
               <InputNumber
-                className="w-full"
+                className="w-full!"
                 size="large"
                 formatter={(value) =>
                   `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
