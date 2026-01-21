@@ -108,7 +108,7 @@ export default function AdminReasonsPage() {
   };
 
   const filteredData = data.filter((item) =>
-    filterType === "ALL" ? true : item.type === filterType
+    filterType === "ALL" ? true : item.type === filterType,
   );
 
   // Thống kê nhanh
@@ -136,7 +136,10 @@ export default function AdminReasonsPage() {
       key: "type",
       width: 180,
       render: (type: LeadStatus) => {
-        const config = {
+        const config: Record<
+          string,
+          { color: string; text: string; icon: React.ReactNode }
+        > = {
           LOSE: {
             color: "error",
             text: "Thất bại (Lose)",
@@ -172,6 +175,11 @@ export default function AdminReasonsPage() {
             color: "magenta",
             text: "Hủy bỏ",
             icon: <StopOutlined />,
+          },
+          PENDING_DEAL_APPROVAL: {
+            color: "default",
+            text: "Chờ phê duyệt",
+            icon: <HeatMapOutlined />,
           },
         };
         const item = config[type] || config.LOSE;

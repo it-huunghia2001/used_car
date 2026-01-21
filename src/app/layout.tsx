@@ -24,8 +24,7 @@ export const metadata: Metadata = {
   description: "used_car",
 };
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || process.env.NEXT_PUBLIC_JWT_SECRET || "";
+const JWT_SECRET = process.env.JWT_SECRET || "";
 
 export default async function RootLayout({
   children,

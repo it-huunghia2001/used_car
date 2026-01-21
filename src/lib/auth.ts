@@ -4,8 +4,7 @@ import jwt from "jsonwebtoken";
 import { db } from "./db";
 import { apiRequest } from "./api";
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || process.env.NEXT_PUBLIC_JWT_SECRET || ""; // đổi thành secret của bạn
+const JWT_SECRET = process.env.JWT_SECRET || ""; // đổi thành secret của bạn
 
 export interface TokenPayload {
   id: string;
