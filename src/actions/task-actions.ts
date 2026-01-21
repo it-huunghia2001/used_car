@@ -173,10 +173,20 @@ export async function approveCarPurchase(
         const branchId = staff.branchId;
         if (!branchId) throw new Error("Nhân viên không thuộc chi nhánh nào.");
 
+        // Lấy thông tin Grade trực tiếp từ DB bằng carModelId
+        const carModelDb = await tx.carModel.findUnique({
+          where: { id: carData.carModelId },
+        });
+
+        if (!carModelDb) {
+          throw new Error("Dòng xe không tồn tại trong hệ thống");
+        }
+
         // --- 1. LOGIC SINH MÃ XE (STOCK CODE) TỰ ĐỘNG ---
-        const carTypePrefix = (carData.carModel.grade || "CAR")
+        const carTypePrefix = (carModelDb.grade || "CAR")
           .substring(0, 3)
           .toUpperCase();
+
         const yearSuffix = new Date().getFullYear().toString().slice(-2);
 
         // Đếm số lượng xe cùng loại trong năm để lấy STT
