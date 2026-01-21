@@ -150,7 +150,7 @@ export async function upsertUserAction(data: any) {
     // 2. RELATIONS
     // ==============================
     if (isGlobalManager) {
-      userData.branchId = null;
+      userData.branchId = undefined;
     } else if (branchId) {
       userData.branch = { connect: { id: branchId } };
     }
