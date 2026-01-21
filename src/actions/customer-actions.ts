@@ -376,7 +376,7 @@ export async function createSelfAssignedLeadAction(formData: any) {
           carModelId,
           carYear,
           licensePlate,
-          budget,
+          budget: String(budget),
           expectedPrice,
           note,
 

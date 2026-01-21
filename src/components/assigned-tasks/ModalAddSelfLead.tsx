@@ -163,9 +163,14 @@ export default function ModalAddSelfLead({
 
         {watchType === "BUY" ? (
           <Form.Item name="budget" label="Ngân sách dự kiến">
-            <Input
+            <InputNumber
+              className="w-full!"
               placeholder="VD: Khoảng 500 - 600 triệu"
-              prefix={<DollarOutlined className="text-gray-400" />}
+              formatter={(value) =>
+                `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+              }
+              parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
+              addonAfter="VNĐ"
             />
           </Form.Item>
         ) : (

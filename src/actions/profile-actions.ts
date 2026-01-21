@@ -6,6 +6,32 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session-server"; // Hàm đã tách ở bước trước
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+function serializeLead(lead: any) {
+  if (!lead) return null;
+
+  return {
+    ...lead,
+
+    // Decimal → string
+    budget: lead.budget?.toString() ?? null,
+    expectedPrice: lead.expectedPrice?.toString() ?? null,
+
+    // Date → ISO string
+    createdAt: lead.createdAt?.toISOString(),
+    updatedAt: lead.updatedAt?.toISOString(),
+    assignedAt: lead.assignedAt?.toISOString(),
+    firstContactAt: lead.firstContactAt?.toISOString(),
+    lastContactAt: lead.lastContactAt?.toISOString(),
+    nextContactAt: lead.nextContactAt?.toISOString(),
+    displayDate: lead.displayDate?.toISOString(),
+
+    // Serialize nested
+    activities: lead.activities?.map((a: any) => ({
+      ...a,
+      createdAt: a.createdAt?.toISOString(),
+    })),
+  };
+}
 
 export async function getCurrentUserApi() {
   try {
@@ -91,7 +117,6 @@ export async function getLeadDetail(customerId: string) {
         carModel: { select: { id: true, name: true } },
         referrer: { select: { id: true, fullName: true, phone: true } },
         assignedTo: { select: { id: true, fullName: true } },
-        // Lấy toàn bộ lịch sử và thông tin người thực hiện
         activities: {
           include: {
             user: { select: { fullName: true, role: true } },
@@ -102,7 +127,7 @@ export async function getLeadDetail(customerId: string) {
       },
     });
 
-    return lead;
+    return serializeLead(lead); // ✅ QUAN TRỌNG
   } catch (error) {
     console.error("Error fetching lead detail:", error);
     return null;
