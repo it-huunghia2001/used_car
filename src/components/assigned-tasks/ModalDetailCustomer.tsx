@@ -71,16 +71,58 @@ export default function ModalDetailCustomer({
 
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { color: string; text: string }> = {
-      NEW: { color: "cyan", text: "Mới" },
-      ASSIGNED: { color: "blue", text: "Đã phân bổ" },
-      CONTACTED: { color: "geekblue", text: "Đã liên hệ" },
-      DEAL_DONE: { color: "green", text: "Thành công" },
-      CANCELLED: { color: "default", text: "Đã hủy" },
-      PENDING_DEAL_APPROVAL: { color: "orange", text: "Chờ duyệt Deal" },
-      PENDING_LOSE_APPROVAL: { color: "volcano", text: "Chờ duyệt Đóng" },
-      LOSE: { color: "red", text: "Thất bại" },
-      FROZEN: { color: "purple", text: "Đóng băng" },
-      PENDING_VIEW: { color: "gold", text: "Chờ xem xe" },
+      // --- NHÓM MỚI & TIẾP NHẬN ---
+      NEW: {
+        color: "cyan",
+        text: "Mới tiếp nhận",
+      },
+      ASSIGNED: {
+        color: "processing", // Màu xanh dương nhạt có hiệu ứng chạy
+        text: "Đã phân bổ",
+      },
+
+      FOLLOW_UP: {
+        color: "lime", // Màu xanh dương nhạt có hiệu ứng chạy
+        text: "liên hệ lại",
+      },
+
+      // --- NHÓM ĐANG TRIỂN KHAI ---
+      CONTACTED: {
+        color: "geekblue",
+        text: "Đã liện hệ",
+      },
+      PENDING_VIEW: {
+        color: "gold",
+        text: "Hẹn xem xe",
+      },
+
+      // --- NHÓM CHỜ PHÊ DUYỆT (Cần sự chú ý) ---
+      PENDING_DEAL_APPROVAL: {
+        color: "warning", // Màu vàng cam cảnh báo
+        text: "Chờ duyệt nhập kho",
+      },
+      PENDING_LOSE_APPROVAL: {
+        color: "magenta",
+        text: "Chờ duyệt thất bại",
+      },
+
+      // --- NHÓM KẾT THÚC ---
+      DEAL_DONE: {
+        color: "success",
+        text: "Giao dịch thành công",
+      },
+      LOSE: {
+        color: "error",
+        text: "Thất bại (Lose)",
+      },
+      CANCELLED: {
+        color: "default",
+        text: "Đã gửi duyệt",
+      },
+      FROZEN: {
+        color: "purple",
+        text: "Tạm dừng (FROZEN)",
+      },
     };
     return configs[status] || { color: "default", text: status };
   };

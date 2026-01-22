@@ -93,9 +93,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
 
             {
               key: "/dashboard/purchase/sales-history",
-              label: (
-                <Link href="/dashboard/purchase/history">Lịch sử thu mua</Link>
-              ),
+              label: <Link href="/dashboard/history">Lịch sử thu mua</Link>,
             },
           ],
         }
@@ -116,9 +114,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
             },
             {
               key: "/dashboard/purchase/history",
-              label: (
-                <Link href="/dashboard/purchase/history">Lịch sử thu mua</Link>
-              ),
+              label: <Link href="/dashboard/history">Lịch sử thu mua</Link>,
             },
           ],
         }

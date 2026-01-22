@@ -261,6 +261,7 @@ export default function AssignedTasksPage() {
     > = {
       NEW: { color: "cyan", text: "Mới", badge: "default" },
       ASSIGNED: { color: "blue", text: "Đã phân bổ", badge: "processing" },
+      FOLLOW_UP: { color: "lime", text: "Liên hệ lại", badge: "processing" },
       CONTACTED: {
         color: "geekblue",
         text: "Đã liên hệ",

@@ -349,6 +349,7 @@ enum ReferralType {
 enum LeadStatus {
   NEW // Mới tiếp nhận từ người giới thiệu
   ASSIGNED // Đã phân bổ cho nhân viên chăm sóc
+  FOLLOW_UP //Liên hệ lại (Hẹn gọi lại sau)
   CONTACTED // Đã liên hệ trao đổi với khách
   DEAL_DONE // Đã giao dịch thành công (Mua hoặc Bán)
   CANCELLED // Khách không còn nhu cầu hoặc sai thông tin
