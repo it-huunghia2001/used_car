@@ -58,7 +58,7 @@ model Position {
   id           String     @id @default(cuid())
   name         String // Tên chức vụ (VD: Trưởng phòng, Nhân viên)
   departmentId String
-  department   Department @relation(fields: [departmentId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   users        User[]
 
   @@unique([name, departmentId]) // Đảm bảo tên chức vụ trong 1 phòng không trùng nhau
