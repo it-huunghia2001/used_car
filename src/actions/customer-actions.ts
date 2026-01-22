@@ -46,6 +46,7 @@ export async function createCustomerAction(data: CreateCustomerInput) {
       const duplicate = await db.customer.findFirst({
         where: {
           licensePlate: cleanPlate,
+          type: data.type, // THÊM DÒNG NÀY: Chỉ trùng khi cùng loại
           status: { notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED] },
         },
         include: { referrer: { select: { fullName: true, username: true } } },
@@ -54,9 +55,10 @@ export async function createCustomerAction(data: CreateCustomerInput) {
       if (duplicate) {
         const refName =
           duplicate.referrer.fullName || duplicate.referrer.username;
-        throw new Error(
-          `Biển số ${cleanPlate} đã tồn tại, được xử lý bởi [${refName}].`,
-        );
+        return {
+          success: false,
+          error: `Biển số ${cleanPlate} đã tồn tại, đã được [${refName}] giới thiệu.`,
+        };
       }
     }
     const typeLabels = {
@@ -77,7 +79,10 @@ export async function createCustomerAction(data: CreateCustomerInput) {
     });
 
     if (!referrer?.branchId)
-      throw new Error("Không thể xác định chi nhánh của người giới thiệu.");
+      return {
+        success: false,
+        error: `Không thể xác định chi nhánh của người giới thiệu.`,
+      };
 
     let assignedStaffId: string | null = null;
     let assignmentLog = "";
@@ -299,9 +304,9 @@ export async function updateCustomerStatusAction(
     revalidatePath("/dashboard/customers");
     return { success: true };
   } catch (error: any) {
-    throw new Error(
-      error.message || "Không thể cập nhật trạng thái khách hàng.",
-    );
+    console.log("--- DEBUG ERROR ---");
+    console.error(error); // Xem chi tiết lỗi Prisma ở đây
+    return { success: false, error: error.message || "Lỗi hệ thống nội bộ" };
   }
 }
 

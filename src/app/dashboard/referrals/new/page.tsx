@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -62,35 +63,70 @@ export default function NewReferralPage() {
   ];
 
   // Cập nhật hàm onFinish bên trong NewReferralPage
+  // const onFinish = async (values: any) => {
+  //   if (!userId) return message.error("Phiên đăng nhập hết hạn.");
+  //   setLoading(true);
+
+  //   try {
+  //     // Gọi Action và nhận kết quả trả về
+  //     const res = await createCustomerAction({ ...values, referrerId: userId });
+
+  //     // --- ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT ---
+  //     // Kiểm tra nếu Action trả về success: false (lỗi nghiệp vụ như trùng biển số)
+  //     if (res && res.success === false) {
+  //       Modal.error({
+  //         title: "Không thể gửi giới thiệu",
+  //         content: res.error, // "Biển số ... đã tồn tại..."
+  //         okText: "Đã hiểu",
+  //         centered: true,
+  //         okButtonProps: { danger: true },
+  //       });
+  //       return; // Dừng hàm tại đây, không chạy xuống phần success bên dưới
+  //     }
+
+  //     // Nếu res.success === true -> Thông báo thành công
+  //     notification.success({
+  //       message: "Gửi thành công!",
+  //       description: "Thông tin đã được chuyển đến bộ phận thu mua.",
+  //       placement: "topRight",
+  //     });
+
+  //     form.resetFields();
+  //     setCurrentType("SELL");
+  //   } catch (err: any) {
+  //     // Khối catch này bây giờ chỉ bắt lỗi mạng hoặc lỗi crash server (500)
+  //     console.error("Client Error:", err);
+  //     message.error("Lỗi kết nối hệ thống.");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
   const onFinish = async (values: any) => {
-    if (!userId) return message.error("Phiên đăng nhập hết hạn.");
     setLoading(true);
     try {
-      await createCustomerAction({ ...values, referrerId: userId });
+      const res = await createCustomerAction({ ...values, referrerId: userId });
 
-      // Thông báo thành công
-      notification.success({
-        message: "Gửi thành công!",
-        description: "Thông tin đã được chuyển đến bộ phận thu mua.",
-        placement: "topRight",
-      });
+      // PHẢI CÓ ĐOẠN NÀY ĐỂ NHẬN LỖI TỪ SERVER
+      if (res && !res.success) {
+        Modal.error({
+          title: "Thông báo từ hệ thống",
+          content: res.error, // Lỗi trùng biển số hoặc lỗi chi nhánh sẽ hiện ở đây
+          okText: "Đã hiểu",
+        });
+        setLoading(false); // Quan trọng: dừng loading
+        return; // THOÁT HÀM, không chạy xuống resetFields
+      }
 
+      // Chỉ khi res.success === true mới chạy đoạn dưới
+      notification.success({ message: "Gửi thành công!" });
       form.resetFields();
       setCurrentType("SELL");
     } catch (err: any) {
-      // XỬ LÝ THÔNG BÁO NẾU TRÙNG (Catch lỗi từ Server Action)
-      Modal.error({
-        title: "Không thể gửi giới thiệu",
-        content: err.message, // Hiển thị nội dung: "Thông tin đã được giới thiệu bởi [Nguyễn Văn A]..."
-        okText: "Đã hiểu",
-        centered: true,
-        okButtonProps: { danger: true },
-      });
+      message.error("Lỗi kết nối nghiêm trọng.");
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <ConfigProvider
       theme={{
@@ -110,7 +146,7 @@ export default function NewReferralPage() {
             >
               Gửi giới thiệu mới
             </Title>
-            <Paragraph className="text-gray-500 !mb-0 text-sm md:text-base">
+            <Paragraph className="text-gray-500 mb-0! text-sm md:text-base">
               Hệ thống tiếp nhận thông tin khách hàng 24/7.
             </Paragraph>
           </div>

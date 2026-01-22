@@ -37,6 +37,11 @@ const statusConfig: any = {
   NEW: { color: "blue", label: "Mới tiếp nhận", icon: <ClockCircleOutlined /> },
   ASSIGNED: { color: "cyan", label: "Đã phân bổ", icon: <SyncOutlined spin /> },
   CONTACTED: { color: "orange", label: "Đang liên hệ", icon: <SyncOutlined /> },
+  PENDING_DEAL_APPROVAL: {
+    color: "orange",
+    label: "ĐANG CHỜ DUYỆT",
+    icon: <SyncOutlined />,
+  },
   DEAL_DONE: {
     color: "green",
     label: "Thành công",
