@@ -55,6 +55,12 @@ export default function NewReferralPage() {
     fetchModels();
   }, []);
 
+  const SELL_SUB_TYPES = [
+    { value: "SELL", label: "Chỉ bán xe cũ" },
+    { value: "SELL_TRADE_NEW", label: "Bán xe cũ - Đổi xe mới" },
+    { value: "SELL_TRADE_USED", label: "Bán xe cũ - Đổi xe cũ" },
+  ];
+
   // Cập nhật hàm onFinish bên trong NewReferralPage
   const onFinish = async (values: any) => {
     if (!userId) return message.error("Phiên đăng nhập hết hạn.");
@@ -144,24 +150,50 @@ export default function NewReferralPage() {
                 >
                   <Radio.Button
                     value="SELL"
-                    className="flex-1 !rounded-lg border-gray-200 text-center font-semibold h-12 md:h-14 leading-[46px] md:leading-[52px]"
+                    className="flex-1 rounded-lg! border-gray-200 text-center font-semibold h-12 md:h-14 leading-[46px] md:leading-[52px]"
                   >
                     BÁN / ĐỔI XE
                   </Radio.Button>
                   <Radio.Button
                     value="BUY"
-                    className="flex-1 !rounded-lg border-gray-200 text-center font-semibold h-12 md:h-14 leading-[46px] md:leading-[52px]"
+                    className="flex-1 rounded-lg! border-gray-200 text-center font-semibold h-12 md:h-14 leading-[46px] md:leading-[52px]"
                   >
                     MUA XE CŨ
                   </Radio.Button>
                   <Radio.Button
                     value="VALUATION"
-                    className="flex-1 !rounded-lg border-gray-200 text-center font-semibold h-12 md:h-14 leading-[46px] md:leading-[52px]"
+                    className="flex-1 rounded-lg! border-gray-200 text-center font-semibold h-12 md:h-14 leading-[46px] md:leading-[52px]"
                   >
                     ĐỊNH GIÁ
                   </Radio.Button>
                 </Radio.Group>
               </Form.Item>
+              {/* HIỆN THÊM LỰA CHỌN KHI CHỌN SELL */}
+              {currentType === "SELL" && (
+                <Form.Item
+                  name="type" // Ghi đè trực tiếp vào field type để gửi lên Prisma
+                  label={
+                    <span className="text-indigo-600 font-bold">
+                      Hình thức bán / đổi
+                    </span>
+                  }
+                  rules={[
+                    {
+                      required: true,
+                      message: "Vui lòng chọn hình thức cụ thể",
+                    },
+                  ]}
+                  initialValue="SELL"
+                  className="animate-slideDown"
+                >
+                  <Select
+                    size="large"
+                    placeholder="Chọn hình thức chi tiết"
+                    options={SELL_SUB_TYPES}
+                    className="w-full"
+                  />
+                </Form.Item>
+              )}
             </section>
 
             {/* 2. THÔNG TIN KHÁCH HÀNG - 1 cột mobile, 2 cột desktop */}

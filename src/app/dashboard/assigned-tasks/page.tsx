@@ -108,6 +108,27 @@ export default function AssignedTasksPage() {
   const [carModels, setCarModels] = useState<any[]>([]);
 
   const [isMobile, setIsMobile] = useState(false);
+
+  const REFERRAL_TYPE_MAP: any = {
+    SELL: { label: "THU MUA XE", color: "orange", icon: <CarOutlined /> },
+    SELL_TRADE_NEW: {
+      label: "THU CŨ ĐỔI MỚI",
+      color: "red",
+      icon: <SyncOutlined />,
+    },
+    SELL_TRADE_USED: {
+      label: "THU CŨ ĐỔI CŨ",
+      color: "volcano",
+      icon: <SyncOutlined />,
+    },
+    BUY: { label: "BÁN XE", color: "green", icon: <DollarOutlined /> },
+    VALUATION: {
+      label: "ĐỊNH GIÁ XE",
+      color: "blue",
+      icon: <SafetyCertificateOutlined />,
+    },
+  };
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -298,16 +319,20 @@ export default function AssignedTasksPage() {
           </Space>
           <div className="text-[11px] text-gray-500">{record.phone}</div>
 
-          {/* Chỉ hiển thị thông tin bổ sung này trên Mobile (< 768px) */}
+          {/* Chỉ hiển thị trên Mobile (< 768px) */}
           <div className="block sm:hidden mt-1">
             <Tag
-              color={record.type === "SELL" ? "volcano" : "green"}
+              color={(REFERRAL_TYPE_MAP[record.type] || {}).color}
               className="text-[10px] m-0"
             >
-              {record.type === "SELL" ? "THU" : "BÁN"}
+              {/* Ví dụ: SELL -> THU MUA, BUY -> BÁN XE */}
+              {(REFERRAL_TYPE_MAP[record.type] || {}).label}
             </Tag>
-            <div className="text-[10px] text-rose-500 mt-1">
-              Hẹn: {dayjs(record.nextContactAt).format("DD/MM HH:mm")}
+            <div className="text-[10px] text-rose-500 mt-1 font-medium">
+              Hẹn:{" "}
+              {record.nextContactAt
+                ? dayjs(record.nextContactAt).format("DD/MM HH:mm")
+                : "---"}
             </div>
           </div>
         </div>
@@ -330,17 +355,24 @@ export default function AssignedTasksPage() {
       ),
     },
     {
-      title: "Yêu cầu",
+      title: "Yêu cầu của khách",
       dataIndex: "type",
-      responsive: ["sm"] as any, // Ẩn khi màn hình quá nhỏ
-      render: (type: string) => (
-        <Tag
-          color={type === "SELL" ? "volcano" : "green"}
-          className="rounded-full"
-        >
-          {type === "SELL" ? "THU MUA" : "BÁN XE"}
-        </Tag>
-      ),
+      responsive: ["sm"] as any,
+      render: (type: string) => {
+        const config = REFERRAL_TYPE_MAP[type] || {
+          label: "YÊU CẦU KHÁC",
+          color: "default",
+        };
+        return (
+          <Tag
+            color={config.color}
+            icon={config.icon}
+            className="font-bold border-none py-1 px-3 rounded-md"
+          >
+            {config.label}
+          </Tag>
+        );
+      },
     },
     {
       title: "Trạng thái",

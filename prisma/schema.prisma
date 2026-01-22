@@ -339,9 +339,11 @@ enum Role {
 }
 
 enum ReferralType {
-  SELL // Khách hàng muốn bán/đổi xe
-  BUY // Khách hàng muốn tìm mua xe cũ
-  VALUATION // Khách hàng chỉ muốn định giá xe
+  SELL // Bán xe
+  BUY // Mua xe
+  VALUATION // Định giá
+  SELL_TRADE_NEW // Bán cũ đổi mới
+  SELL_TRADE_USED // Bán cũ đổi cũ
 }
 
 enum LeadStatus {

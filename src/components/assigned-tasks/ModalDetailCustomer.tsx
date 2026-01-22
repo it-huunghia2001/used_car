@@ -11,7 +11,6 @@ import {
   Avatar,
   Typography,
   Tag,
-  Divider,
   Row,
   Col,
   Descriptions,
@@ -19,7 +18,6 @@ import {
   Timeline,
   Card,
   Empty,
-  Tooltip,
   Badge,
   Skeleton,
 } from "antd";
@@ -30,20 +28,14 @@ import {
   HistoryOutlined,
   CarOutlined,
   CalendarOutlined,
-  FileImageOutlined,
-  MessageOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  InfoCircleOutlined,
   DollarCircleOutlined,
   EnvironmentOutlined,
-  ArrowRightOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi";
-
-// Giả định bạn đã có hàm này trong action để lấy full lịch sử
 import { getLeadDetail } from "@/actions/profile-actions";
 
 dayjs.extend(relativeTime);
@@ -54,7 +46,7 @@ const { Title, Text, Paragraph } = Typography;
 interface ModalDetailCustomerProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedLead: any; // Nhận object từ table để hiển thị ngay
+  selectedLead: any;
   onContactClick: () => void;
   UrgencyBadge: React.FC<{ type: any }>;
 }
@@ -69,7 +61,14 @@ export default function ModalDetailCustomer({
   const [loading, setLoading] = useState(false);
   const [fullDetail, setFullDetail] = useState<any>(null);
 
-  // Helper Việt hóa trạng thái
+  const REFERRAL_TYPE_DETAILS: any = {
+    SELL: { label: "THU MUA XE", color: "orange" },
+    SELL_TRADE_NEW: { label: "THU CŨ ĐỔI XE MỚI", color: "red" },
+    SELL_TRADE_USED: { label: "THU CŨ ĐỔI XE CŨ", color: "volcano" },
+    BUY: { label: "MUA XE CHƯA QUA SỬ DỤNG", color: "green" },
+    VALUATION: { label: "ĐỊNH GIÁ XE TẬN NƠI", color: "blue" },
+  };
+
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { color: string; text: string }> = {
       NEW: { color: "cyan", text: "Mới" },
@@ -91,7 +90,6 @@ export default function ModalDetailCustomer({
       const fetchData = async () => {
         setLoading(true);
         try {
-          // Gọi hàm lấy chi tiết (bao gồm cả activities)
           const res = await getLeadDetail(selectedLead.id);
           setFullDetail(res);
         } catch (error) {
@@ -107,17 +105,17 @@ export default function ModalDetailCustomer({
   if (!selectedLead) return null;
 
   const currentStatus = getStatusConfig(selectedLead.status);
-  const dataToShow = fullDetail || selectedLead; // Ưu tiên data full từ server
+  const dataToShow = fullDetail || selectedLead;
 
   return (
     <Modal
       title={
         <div className="flex items-center gap-2 py-1">
-          <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
-            <IdcardOutlined className="text-indigo-600 text-lg" />
+          <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center">
+            <IdcardOutlined className="text-indigo-600 text-base" />
           </div>
-          <span className="text-gray-800 font-bold tracking-tight uppercase">
-            Hồ sơ chi tiết khách hàng
+          <span className="text-gray-800 font-bold tracking-tight uppercase text-sm sm:text-base">
+            Hồ sơ khách hàng
           </span>
         </div>
       }
@@ -126,74 +124,80 @@ export default function ModalDetailCustomer({
       width={1100}
       centered
       footer={[
-        <Button
-          key="close"
-          size="large"
-          onClick={onClose}
-          className="rounded-lg"
+        <div
+          key="footer"
+          className="flex flex-col sm:flex-row gap-2 w-full sm:justify-end p-2 sm:p-0"
         >
-          Đóng
-        </Button>,
-        <Button
-          key="call"
-          type="primary"
-          size="large"
-          icon={<PhoneOutlined />}
-          onClick={onContactClick}
-          className="bg-indigo-600 hover:bg-indigo-700 rounded-lg px-6"
-        >
-          Ghi nhận tương tác
-        </Button>,
+          <Button
+            key="close"
+            size="large"
+            onClick={onClose}
+            className="rounded-lg order-2 sm:order-1"
+          >
+            Đóng
+          </Button>
+          <Button
+            key="call"
+            type="primary"
+            size="large"
+            icon={<PhoneOutlined />}
+            onClick={onContactClick}
+            className="bg-indigo-600 hover:bg-indigo-700 rounded-lg px-6 order-1 sm:order-2"
+          >
+            Ghi nhận tương tác
+          </Button>
+        </div>,
       ]}
-      className="modal-premium"
+      className="modal-premium overflow-hidden"
     >
-      <div className="max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar overflow-x-hidden">
-        {/* HEADER BANNER */}
-        <div className="relative mb-6 p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-2xl overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-white text-9xl">
+      <div className="max-h-[80vh] overflow-y-auto px-1 sm:pr-2 custom-scrollbar overflow-x-hidden">
+        {/* HEADER BANNER - Responsive Flex */}
+        <div className="relative mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-xl sm:rounded-2xl overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-4 opacity-10 text-white text-7xl sm:text-9xl pointer-events-none">
             <CarOutlined />
           </div>
 
-          <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
-            <Space size="middle">
-              <Badge dot status="success" offset={[-10, 70]}>
+          <div className="relative z-10 flex flex-col sm:flex-row justify-between items-center sm:items-start lg:items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+              <Badge dot status="success" offset={[-5, 65]}>
                 <Avatar
-                  size={84}
+                  size={{ xs: 64, sm: 84, md: 84, lg: 84, xl: 84, xxl: 84 }}
                   icon={<UserOutlined />}
                   className="bg-white/10 backdrop-blur-md border-2 border-white/30"
                 />
               </Badge>
               <div>
                 <Title
-                  level={2}
-                  className="!mb-1 !text-white uppercase tracking-wider"
+                  level={3}
+                  className="!mb-1 !text-white uppercase tracking-wider !text-lg sm:!text-2xl"
                 >
                   {selectedLead.fullName}
                 </Title>
-                <div className="flex flex-wrap gap-3 items-center">
-                  <Text className="text-indigo-200! text-xl font-mono">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
+                  <Text className="text-indigo-200! text-lg sm:text-xl font-mono">
                     {selectedLead.phone}
                   </Text>
-                  <Tag
-                    color="blue"
-                    className="bg-blue-500/20 text-blue-100 border-none rounded-full px-3"
-                  >
-                    {selectedLead.type === "SELL"
-                      ? "THU MUA / TRAO ĐỔI"
-                      : "BÁN XE"}
-                  </Tag>
-                  <UrgencyBadge type={selectedLead.urgencyLevel} />
+                  <div className="flex gap-2">
+                    <Tag
+                      color="blue"
+                      className="bg-blue-500/20 text-blue-100 border-none rounded-full px-3 m-0"
+                    >
+                      {REFERRAL_TYPE_DETAILS[selectedLead.type]?.label ||
+                        "YÊU CẦU KHÁC"}
+                    </Tag>
+                    <UrgencyBadge type={selectedLead.urgencyLevel} />
+                  </div>
                 </div>
               </div>
-            </Space>
+            </div>
 
-            <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/10 text-center min-w-[180px]">
+            <div className="bg-white/10 p-3 sm:p-4 rounded-xl backdrop-blur-md border border-white/10 text-center w-full sm:w-auto min-w-[150px]">
               <Text className="text-gray-400! text-[10px] uppercase block mb-1 tracking-widest">
-                Trạng thái hiện tại
+                Trạng thái
               </Text>
               <Tag
                 color={currentStatus.color}
-                className="text-base px-4 py-1 font-bold m-0 border-none rounded-lg shadow-lg"
+                className="text-sm sm:text-base px-3 py-0.5 font-bold m-0 border-none rounded-lg shadow-lg w-full sm:w-auto"
               >
                 {currentStatus.text}
               </Tag>
@@ -201,29 +205,35 @@ export default function ModalDetailCustomer({
           </div>
         </div>
 
-        <Row gutter={[24, 24]}>
-          {/* CỘT TRÁI: NHU CẦU & ẢNH */}
+        <Row gutter={[16, 16]}>
+          {/* CỘT TRÁI: THÔNG TIN XE */}
           <Col xs={24} lg={12}>
-            <Space size="large" className="w-full">
-              {/* NHẮC HẸN GỌI LẠI */}
+            <div className="flex flex-col gap-4">
+              {/* NHẮC HẸN */}
               {selectedLead.nextContactAt && (
                 <Alert
-                  className="rounded-xl border-l-4 border-l-amber-500 bg-amber-50/50"
+                  className="rounded-xl border-l-4 border-l-amber-500 bg-amber-50/50 p-3"
                   icon={<CalendarOutlined className="text-amber-600" />}
                   showIcon
                   message={
-                    <Text strong className="text-amber-800 uppercase text-xs">
-                      Lịch hẹn gọi lại tiếp theo
+                    <Text
+                      strong
+                      className="text-amber-800 uppercase text-[10px]"
+                    >
+                      Lịch hẹn gọi lại
                     </Text>
                   }
                   description={
-                    <div className="flex items-center gap-4 mt-1">
-                      <span className="text-2xl font-black text-amber-700">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-lg sm:text-xl font-black text-amber-700">
                         {dayjs(selectedLead.nextContactAt).format(
-                          "DD/MM/YYYY HH:mm",
+                          "DD/MM HH:mm",
                         )}
                       </span>
-                      <Tag color="warning" className="animate-pulse font-bold">
+                      <Tag
+                        color="warning"
+                        className="animate-pulse font-bold text-[10px]"
+                      >
                         {dayjs(selectedLead.nextContactAt).fromNow()}
                       </Tag>
                     </div>
@@ -231,93 +241,60 @@ export default function ModalDetailCustomer({
                 />
               )}
 
-              {/* CHI TIẾT XE */}
+              {/* CHI TIẾT NHU CẦU */}
               <Card
                 title={
-                  <Space>
-                    <CarOutlined className="text-indigo-500" /> THÔNG TIN NHU
-                    CẦU & XE
+                  <Space className="text-sm sm:text-base">
+                    <CarOutlined className="text-indigo-500" /> NHU CẦU & XE
                   </Space>
                 }
+                size="small"
                 className="rounded-xl shadow-sm border-slate-200"
               >
                 <Descriptions
-                  column={2}
+                  column={{ xs: 1, sm: 2 }} // 1 cột trên mobile, 2 cột trên desktop
                   layout="vertical"
                   className="premium-descriptions"
+                  size="small"
                 >
                   <Descriptions.Item label="Dòng xe quan tâm">
-                    <Text strong className="text-indigo-600 text-base">
+                    <Text strong className="text-indigo-600">
                       {selectedLead.carModel?.name ||
                         selectedLead.carYear ||
-                        "Chưa xác định"}
+                        "N/A"}
                     </Text>
                   </Descriptions.Item>
                   <Descriptions.Item label="Biển số / Khu vực">
                     <Tag
                       icon={<EnvironmentOutlined />}
-                      className="font-mono text-base px-3 bg-slate-100 border-none"
+                      className="font-mono bg-slate-100 border-none m-0"
                     >
                       {selectedLead.licensePlate || "N/A"}
                     </Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Ngân sách / Giá dự kiến" span={2}>
-                    <Text strong className="text-emerald-600 text-xl font-bold">
-                      <DollarCircleOutlined className="mr-2" />
+                  <Descriptions.Item label="Giá dự kiến" span={2}>
+                    <Text strong className="text-emerald-600 text-lg font-bold">
+                      <DollarCircleOutlined className="mr-1" />
                       {selectedLead.expectedPrice ||
                         selectedLead.budget ||
                         "Thỏa thuận"}
                     </Text>
                   </Descriptions.Item>
                   <Descriptions.Item label="Ghi chú ban đầu" span={2}>
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 italic text-gray-500">
-                      {selectedLead.note || "Không có ghi chú thêm"}
+                    <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 italic text-gray-500 text-xs sm:text-sm">
+                      {selectedLead.note || "Không có ghi chú"}
                     </div>
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
-
-              {/* HÌNH ẢNH GIẤY TỜ */}
-              {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  { label: "Ảnh xe", path: selectedLead.carImages },
-                  { label: "Đăng kiểm", path: selectedLead.registrationImage },
-                  { label: "CCCD Trước", path: selectedLead.idCardFront },
-                  { label: "CCCD Sau", path: selectedLead.idCardBack },
-                ].map((img, idx) => (
-                  <Tooltip title={`Bấm để xem ${img.label}`} key={idx}>
-                    <div
-                      className="group relative border rounded-xl overflow-hidden bg-slate-100 aspect-[4/3] flex flex-col items-center justify-center border-dashed border-slate-300 hover:border-indigo-400 transition-all cursor-pointer"
-                      onClick={() =>
-                        img.path && window.open(img.path, "_blank")
-                      }
-                    >
-                      {img.path ? (
-                        <img
-                          src={img.path}
-                          alt={img.label}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="text-slate-400 flex flex-col items-center">
-                          <FileImageOutlined className="text-xl mb-1" />
-                          <span className="text-[10px] uppercase font-medium">
-                            {img.label}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </Tooltip>
-                ))}
-              </div> */}
-            </Space>
+            </div>
           </Col>
 
-          {/* CỘT PHẢI: TIMELINE LỊCH SỬ TƯƠNG TÁC */}
+          {/* CỘT PHẢI: TIMELINE */}
           <Col xs={24} lg={12}>
             <Card
               title={
-                <div className="flex justify-between items-center w-full">
+                <div className="flex justify-between items-center w-full text-sm sm:text-base">
                   <Space>
                     <HistoryOutlined className="text-indigo-500" /> LỊCH SỬ CHĂM
                     SÓC
@@ -326,54 +303,55 @@ export default function ModalDetailCustomer({
                     count={dataToShow.activities?.length || 0}
                     showZero
                     color="#6366f1"
+                    size="small"
                   />
                 </div>
               }
+              size="small"
               className="rounded-xl shadow-sm border-slate-200 h-full"
             >
-              <Skeleton loading={loading} active paragraph={{ rows: 8 }}>
-                <div className="max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
+              <Skeleton loading={loading} active paragraph={{ rows: 5 }}>
+                <div className="max-h-[400px] sm:max-h-[550px] overflow-y-auto pr-1 custom-scrollbar">
                   {dataToShow.activities?.length > 0 ? (
                     <Timeline
                       mode="left"
-                      className="mt-4 timeline-call-customer"
+                      className="mt-4 timeline-call-customer ml-[-20px] sm:ml-0"
                       items={dataToShow.activities.map(
                         (act: any, idx: number) => ({
                           dot:
                             idx === 0 ? (
-                              <CheckCircleOutlined className="text-lg text-green-500 bg-white" />
+                              <CheckCircleOutlined className="text-base text-green-500 bg-white" />
                             ) : (
                               <ClockCircleOutlined className="text-gray-300 bg-white" />
                             ),
                           label: (
-                            <span className="text-[10px] text-gray-400 font-mono">
+                            <span className="text-[9px] text-gray-400 font-mono hidden sm:inline">
                               {dayjs(act.createdAt).format("DD/MM HH:mm")}
                             </span>
                           ),
                           children: (
                             <div
-                              className={`p-3 rounded-xl border mb-4 transition-all hover:shadow-md ${idx === 0 ? "bg-indigo-50/50 border-indigo-100" : "bg-gray-50 border-gray-100"}`}
+                              className={`p-2 sm:p-3 rounded-lg border mb-2 ${idx === 0 ? "bg-indigo-50/50 border-indigo-100" : "bg-gray-50 border-gray-100"}`}
                             >
-                              <div className="flex justify-between items-center mb-2">
+                              <div className="flex justify-between items-center mb-1">
                                 <Tag
-                                  className="text-[10px] m-0 font-bold uppercase"
+                                  className="text-[9px] m-0 font-bold uppercase"
                                   color={getStatusConfig(act.status).color}
                                 >
                                   {getStatusConfig(act.status).text}
                                 </Tag>
-                                <Text
-                                  type="secondary"
-                                  className="text-[11px] font-medium"
-                                >
-                                  <UserOutlined size={10} />{" "}
+                                <Text type="secondary" className="text-[10px]">
                                   {act.user?.fullName.split(" ").pop()}
                                 </Text>
                               </div>
-                              <Paragraph className="!mb-0 text-[13px] text-gray-700 leading-relaxed">
+                              <div className="text-[9px] text-gray-400 sm:hidden">
+                                {dayjs(act.createdAt).format("DD/MM HH:mm")}
+                              </div>
+                              <Paragraph className="!mb-0 text-[12px] text-gray-700 leading-snug">
                                 {act.note}
                               </Paragraph>
                               {act.reason && (
-                                <div className="mt-2 text-[11px] text-rose-500 font-medium border-t border-dashed border-rose-200 pt-1">
+                                <div className="mt-1 text-[10px] text-rose-500 italic">
                                   Lý do: {act.reason.content}
                                 </div>
                               )}
@@ -385,7 +363,7 @@ export default function ModalDetailCustomer({
                   ) : (
                     <Empty
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description="Chưa có nhật ký tương tác"
+                      description="Chưa có nhật ký"
                     />
                   )}
                 </div>

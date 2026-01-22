@@ -83,8 +83,16 @@ export default function CustomerManagementPage() {
   // Modal chi tiết
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(
-    null
+    null,
   );
+
+  const typeConfigs: any = {
+    SELL: { label: "BÁN XE", color: "orange" },
+    SELL_TRADE_NEW: { label: "BÁN CŨ ĐỔI MỚI", color: "red" },
+    SELL_TRADE_USED: { label: "BÁN CŨ ĐỔI CŨ", color: "volcano" },
+    BUY: { label: "MUA XE", color: "green" },
+    VALUATION: { label: "ĐỊNH GIÁ", color: "blue" },
+  };
 
   const loadAllData = async () => {
     setLoading(true);
@@ -112,7 +120,7 @@ export default function CustomerManagementPage() {
       (item) =>
         item.fullName.toLowerCase().includes(value.toLowerCase()) ||
         item.phone.includes(value) ||
-        item.licensePlate?.toLowerCase().includes(value.toLowerCase())
+        item.licensePlate?.toLowerCase().includes(value.toLowerCase()),
     );
     setFilteredData(filtered);
   };
@@ -150,11 +158,16 @@ export default function CustomerManagementPage() {
       render: (record: CustomerData) => {
         const typeColors: any = {
           SELL: "orange",
+          SELL_TRADE_NEW: "red", // Màu đỏ để nhấn mạnh đổi xe mới
+          SELL_TRADE_USED: "volcano", // Màu cam đậm/đỏ gạch cho đổi xe cũ
           BUY: "green",
           VALUATION: "blue",
         };
+
         const typeLabels: any = {
           SELL: "BÁN XE",
+          SELL_TRADE_NEW: "BÁN CŨ ĐỔI MỚI",
+          SELL_TRADE_USED: "BÁN CŨ ĐỔI CŨ",
           BUY: "MUA XE",
           VALUATION: "ĐỊNH GIÁ",
         };
@@ -181,6 +194,7 @@ export default function CustomerManagementPage() {
         const statusMap: any = {
           NEW: { color: "magenta", text: "MỚI" },
           ASSIGNED: { color: "blue", text: "ĐÃ GIAO" },
+          PENDING_DEAL_APPROVAL: { color: "orange", text: "CHỜ DUYỆT" },
           CONTACTED: { color: "warning", text: "ĐANG XỬ LÝ" },
           DEAL_DONE: { color: "success", text: "THÀNH CÔNG" },
           CANCELLED: { color: "error", text: "HỦY" },
@@ -336,22 +350,23 @@ export default function CustomerManagementPage() {
               </Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="horizontal" className="!my-4 text-gray-400">
+            <Divider orientation="horizontal" className="my-4! text-gray-400">
               Chi tiết nhu cầu
             </Divider>
 
             <Descriptions bordered column={1} size="small">
               <Descriptions.Item label="Loại yêu cầu">
-                <Tag
-                  color={selectedCustomer.type === "SELL" ? "orange" : "blue"}
-                  className="font-bold"
-                >
-                  {selectedCustomer.type === "SELL"
-                    ? "BÁN / ĐỔI XE"
-                    : selectedCustomer.type === "BUY"
-                    ? "MUA XE"
-                    : "ĐỊNH GIÁ"}
-                </Tag>
+                {(() => {
+                  const config = typeConfigs[selectedCustomer.type] || {
+                    label: "KHÔNG XÁC ĐỊNH",
+                    color: "default",
+                  };
+                  return (
+                    <Tag color={config.color} className="font-bold">
+                      {config.label}
+                    </Tag>
+                  );
+                })()}
               </Descriptions.Item>
               <Descriptions.Item label="Xe yêu cầu">
                 {selectedCustomer.carModel?.name}{" "}
@@ -377,7 +392,7 @@ export default function CustomerManagementPage() {
               </Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="horizontal" className="!my-4 text-gray-400">
+            <Divider orientation="horizontal" className="my-4! text-gray-400">
               Phụ trách & Nguồn
             </Divider>
 

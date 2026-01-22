@@ -59,6 +59,13 @@ export async function createCustomerAction(data: CreateCustomerInput) {
         );
       }
     }
+    const typeLabels = {
+      SELL: "BÁN XE",
+      SELL_TRADE_NEW: "BÁN CŨ ĐỔI MỚI",
+      SELL_TRADE_USED: "BÁN CŨ ĐỔI CŨ",
+      BUY: "MUA XE",
+      VALUATION: "ĐỊNH GIÁ XE",
+    };
 
     // --- 2. XÁC ĐỊNH CHI NHÁNH & NHÓM NHÂN VIÊN ---
     const isSalesRequest = data.type === "BUY";
@@ -168,12 +175,7 @@ export async function createCustomerAction(data: CreateCustomerInput) {
     // Không dùng await để tăng tốc độ phản hồi cho người dùng
     (async () => {
       try {
-        const typeLabel =
-          data.type === "SELL"
-            ? "BÁN XE"
-            : data.type === "BUY"
-              ? "MUA XE"
-              : "ĐỊNH GIÁ XE";
+        const typeLabel = typeLabels[data.type] || "KHÔNG XÁC ĐỊNH";
         const details = `Dòng xe: ${newCustomer.carModel?.name || data.carYear || "N/A"}\nBiển số: ${cleanPlate || "N/A"}\nGhi chú: ${data.note || "Không có"}`;
 
         // Lấy danh sách quản lý cần thông báo
