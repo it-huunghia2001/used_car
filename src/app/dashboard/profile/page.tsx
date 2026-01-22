@@ -1,17 +1,21 @@
-import ProfilePage from "./ProfileClient"; // Đây là file UI bạn đã viết
+import ProfilePage from "./ProfileClient";
 import { getCurrentUserApi } from "@/actions/profile-actions";
 import { redirect } from "next/navigation";
 
+// Dòng này cực kỳ quan trọng để sửa lỗi Dynamic Server Usage
+export const dynamic = "force-dynamic";
+
 export default async function ProfileDashboard() {
-  // Gọi trực tiếp hàm API bạn đã viết
+  // Lấy dữ liệu user phía Server
   const user = await getCurrentUserApi();
 
-  // Nếu không thấy user (hết hạn token hoặc không có token)
+  // Kiểm tra quyền truy cập
   if (!user) {
     redirect("/login");
   }
 
-  // Truyền dữ liệu sang Client Component để hiển thị UI
-  // Dùng JSON.parse/stringify để tránh lỗi "hàm không thể truyền qua client" từ Prisma
+  // Render Client Component
+  // Mẹo: JSON.parse(JSON.stringify(user)) giúp xử lý các kiểu dữ liệu Date từ Prisma
+  // vốn không thể truyền trực tiếp từ Server xuống Client.
   return <ProfilePage user={JSON.parse(JSON.stringify(user))} />;
 }
