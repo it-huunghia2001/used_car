@@ -2,7 +2,7 @@ import ScheduleClientPage from "@/components/schedule/ScheduleClientPage";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session-server"; // Hàm lấy user từ token của bạn
 import { redirect } from "next/navigation";
-
+export const dynamic = "force-dynamic";
 export default async function SchedulePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
