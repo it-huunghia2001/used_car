@@ -33,7 +33,8 @@ import {
   approveCarPurchase,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
-
+import dayjs from "dayjs";
+import { formatDateVN, getDeadlineStatus } from "@/utils/date-format";
 const { Text, Title } = Typography;
 
 export default function ApprovalsPage() {
@@ -92,10 +93,26 @@ export default function ApprovalsPage() {
     return model ? model.name : "N/A (ID: " + modelId?.slice(-4) + ")";
   };
 
+  const ownerTypeConfig: Record<string, { label: string; color: string }> = {
+    PERSONAL: { label: "Cá nhân (Chính chủ)", color: "blue" },
+    AUTHORIZATION_L1: { label: "Ủy quyền lần 1", color: "orange" },
+    AUTHORIZATION_L2: { label: "Ủy quyền lần 2", color: "warning" },
+    COMPANY_VAT: { label: "Công ty (Có VAT)", color: "purple" },
+  };
+
+  const driveTrainLabels: Record<string, string> = {
+    FWD: "Cầu trước (FWD)",
+    RWD: "Cầu sau (RWD)",
+    AWD: "4 bánh toàn thời gian (AWD)",
+    "4WD": "2 cầu (4WD)",
+  };
+
   const renderCarDetail = (note: string) => {
     try {
       const parsed = JSON.parse(note);
       // Trích xuất dữ liệu từ cấu trúc: { carData, contractData }
+      console.log(parsed.carData || parsed);
+
       const car = parsed.carData || parsed;
       const contract = parsed.contractData || {};
       const displayModelName = getModelName(car.carModelId);
@@ -154,15 +171,15 @@ export default function ApprovalsPage() {
             </Descriptions.Item>
             <Descriptions.Item label="Biển kiểm soát">
               <Tag color="geekblue" className="font-mono text-base m-0">
-                {car.licensePlate || "N/A"}
+                {car.licensePlate || "---"}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Năm sản xuất">
-              {car.year || "N/A"}
+              {car.year || "---"}
             </Descriptions.Item>
             <Descriptions.Item label="Số khung (VIN)" span={2}>
               <Text copyable className="font-mono">
-                {car.vin || "N/A"}
+                {car.vin || "---"}
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Số máy">
@@ -190,31 +207,70 @@ export default function ApprovalsPage() {
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Hộp số">
-              <Tag color="processing">{car.transmission || "N/A"}</Tag>
+              <Tag color="processing">{car.transmission || "---"}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Nhiên liệu">
-              {car.fuelType || "N/A"}
+              {car.fuelType || "---"}
             </Descriptions.Item>
             <Descriptions.Item label="Kiểu dáng">
-              {car.carType || "N/A"}
+              {car.carType || "---"}
             </Descriptions.Item>
             <Descriptions.Item label="Dung tích">
-              {car.engineSize || "N/A"}
+              {car.engineSize || "---"}
             </Descriptions.Item>
             <Descriptions.Item label="Hệ dẫn động">
-              {car.driveTrain || "N/A"}
+              {car.driveTrain ? driveTrainLabels[car.driveTrain] : "---"}
             </Descriptions.Item>
             <Descriptions.Item label="Màu sắc (Ngoại/Nội)">
-              {car.color || "N/A"} / {car.interiorColor || "N/A"}
+              {car.color || "---"} / {car.interiorColor || "---"}
             </Descriptions.Item>
             <Descriptions.Item label="Nguồn gốc">
               {car.origin || "Trong nước"}
             </Descriptions.Item>
             <Descriptions.Item label="Số chỗ ngồi">
-              {car.seats ? `${car.seats} chỗ` : "N/A"}
+              {car.seats ? `${car.seats} chỗ` : "---"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Pháp lý">
+              {car.ownerType && ownerTypeConfig[car.ownerType] ? (
+                <Tag
+                  color={ownerTypeConfig[car.ownerType].color}
+                  className="font-medium"
+                >
+                  {ownerTypeConfig[car.ownerType].label}
+                </Tag>
+              ) : (
+                <Text type="secondary">Chưa xác định</Text>
+              )}
             </Descriptions.Item>
           </Descriptions>
-
+          <Divider dashed style={{ margin: "16px 0" }} />
+          <Descriptions
+            title={
+              <Space>
+                <SettingOutlined />
+                <span>THÔNG TIN KHÁC</span>
+              </Space>
+            }
+            bordered
+            size="small"
+            column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
+          >
+            <Descriptions.Item label="Hạn đăng kiểm">
+              <Text strong className="text-slate-700">
+                {formatDateVN(car.registrationDeadline)}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Hạn bảo hiểm">
+              <Text strong className="text-slate-700">
+                {formatDateVN(car.insuranceDeadline)}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Hạn bảo hành">
+              <Text strong className="text-slate-700">
+                {formatDateVN(car.warrantyDeadline)}
+              </Text>
+            </Descriptions.Item>
+          </Descriptions>
           <Divider dashed style={{ margin: "16px 0" }} />
 
           {/* PHẦN 4: TIỆN ÍCH & MÔ TẢ */}
@@ -233,9 +289,18 @@ export default function ApprovalsPage() {
               {car.features || "Chưa cập nhật tiện ích"}
             </Descriptions.Item>
             <Descriptions.Item label="Mô tả chi tiết tình trạng">
-              <div className="whitespace-pre-wrap text-gray-600 italic">
-                {car.description || "Không có mô tả chi tiết."}
-              </div>
+              {car.description && (
+                <div className="whitespace-pre-wrap text-gray-600 italic">
+                  <Space>
+                    <p className="font-bold">
+                      {car.description.substring(0, 6)}
+                    </p>
+                  </Space>
+                  {car.description && car.description.length > 6
+                    ? car.description.substring(6)
+                    : "Chưa có nội dung mô tả chi tiết."}
+                </div>
+              )}
             </Descriptions.Item>
           </Descriptions>
         </div>
@@ -251,7 +316,7 @@ export default function ApprovalsPage() {
       dataIndex: ["customer", "fullName"],
       key: "customer",
       render: (text: string, record: any) => (
-        <Space direction="vertical" size={0}>
+        <Space size={0}>
           <Text strong>{text}</Text>
           <Text type="secondary" style={{ fontSize: "12px" }}>
             {record.customer?.phone}
@@ -278,7 +343,7 @@ export default function ApprovalsPage() {
             </Tag>
           );
         } catch {
-          return <Tag>N/A</Tag>;
+          return <Tag>---</Tag>;
         }
       },
     },
@@ -351,7 +416,7 @@ export default function ApprovalsPage() {
           <div className="pb-3 border-b border-gray-100">
             <Title
               level={5}
-              className="!m-0 uppercase tracking-wide text-gray-800"
+              className="m-0! uppercase tracking-wide text-gray-800"
             >
               Chi tiết hồ sơ trình duyệt
             </Title>

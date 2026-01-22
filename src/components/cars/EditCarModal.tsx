@@ -463,11 +463,17 @@ export default function EditCarModal({
                           label="Pháp lý (Hình thức sở hữu)"
                         >
                           <Select size="large">
-                            <Select.Option value="PERSONAL">
-                              Cá nhân
+                            <Select.Option value="PERSONAL_OWNER">
+                              Chính chủ
                             </Select.Option>
-                            <Select.Option value="COMPANY">
-                              Công ty
+                            <Select.Option value="AUTHORIZATION_L1">
+                              Ủy quyền lần 1
+                            </Select.Option>
+                            <Select.Option value="AUTHORIZATION_L2">
+                              Ủy quyền lần 2
+                            </Select.Option>
+                            <Select.Option value="COMPANY_VAT">
+                              Công ty / Xuất hóa đơn
                             </Select.Option>
                           </Select>
                         </Form.Item>

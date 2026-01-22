@@ -1,13 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Metadata } from "next";
-
 import "./globals.css";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import AppLayout from "@/components/appLayout";
 import { cookies } from "next/headers";
-type Role = "ADMIN" | "MANAGER" | "PURCHASE_STAFF" | "SALES_STAFF" | "REFERRER";
 import jwt from "jsonwebtoken";
+
+// --- IMPORT CHO ANT DESIGN TIẾNG VIỆT ---
+import { ConfigProvider } from "antd";
+import viVN from "antd/locale/vi_VN";
+import dayjs from "dayjs";
+import "dayjs/locale/vi";
+
+// Thiết lập locale cho dayjs toàn cục
+dayjs.locale("vi");
+
+type Role = "ADMIN" | "MANAGER" | "PURCHASE_STAFF" | "SALES_STAFF" | "REFERRER";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +40,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // role có thể lấy từ AuthContext / cookie / session
   const token = (await cookies()).get("used-car")?.value;
   let role: Role = "REFERRER";
 
@@ -39,20 +47,22 @@ export default async function RootLayout({
     try {
       const payload = (await jwt.verify(token, JWT_SECRET!)) as any;
       role = payload.role;
-      console.log(payload);
     } catch (err) {
       console.log("JWT invalid", err);
     }
   }
 
   return (
-    <html lang="en">
+    <html lang="vi">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased h-screen`}
       >
-        <Providers>
-          <AppLayout role={role}>{children}</AppLayout>
-        </Providers>
+        {/* Bọc ConfigProvider quanh Providers hoặc AppLayout */}
+        <ConfigProvider locale={viVN}>
+          <Providers>
+            <AppLayout role={role}>{children}</AppLayout>
+          </Providers>
+        </ConfigProvider>
       </body>
     </html>
   );

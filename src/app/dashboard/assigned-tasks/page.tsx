@@ -410,10 +410,10 @@ export default function AssignedTasksPage() {
   return (
     <div className="p-6 bg-[#f0f2f5] min-h-screen">
       {contextHolder}
-      <div className="max-w-[1400px] mx-auto">
+      <div className="max-w-350 mx-auto">
         <header className="flex flex-col justify-between items-center mb-6 md:flex-row">
           <div>
-            <Title level={3} className="!mb-1">
+            <Title level={3} className="mb-1!">
               📋 Nhiệm vụ được giao
             </Title>
           </div>

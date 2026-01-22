@@ -99,9 +99,9 @@ export default function InventoryPage() {
   }, []);
 
   const statusMap: any = {
-    PENDING: {
+    NEW: {
       color: "warning",
-      text: "Chờ kiểm định",
+      text: "Xe mới về",
       icon: <InfoCircleOutlined />,
     },
     REFURBISHING: {
@@ -111,15 +111,15 @@ export default function InventoryPage() {
     },
     READY_FOR_SALE: {
       color: "success",
-      text: "Sẵn sàng bán",
+      text: "Đang trưng bày SR",
       icon: <CarOutlined />,
     },
     BOOKED: {
       color: "purple",
-      text: "Khách đã đặt cọc",
+      text: "Xe đã đặt cọc",
       icon: <DollarOutlined />,
     },
-    SOLD: { color: "error", text: "Đã giao khách", icon: <TeamOutlined /> },
+    SOLD: { color: "error", text: "Xe đã bán", icon: <TeamOutlined /> },
   };
 
   const onFinish = async (values: any) => {

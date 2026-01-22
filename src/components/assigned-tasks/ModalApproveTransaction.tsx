@@ -15,8 +15,9 @@ import {
   Card,
   Checkbox,
   Space,
+  DatePicker,
 } from "antd";
-import { SafetyCertificateOutlined } from "@ant-design/icons";
+import { SafetyCertificateOutlined, UserOutlined } from "@ant-design/icons";
 
 interface ModalApproveTransactionProps {
   isOpen: boolean;
@@ -38,8 +39,25 @@ export default function ModalApproveTransaction({
   carModels,
 }: ModalApproveTransactionProps) {
   const [form] = Form.useForm();
-  console.log(inventory);
+  const conditionOptions = [
+    "Mức 5: Xuất sắc: gần như mới",
+    "Mức 4: Rất tốt: Có thể trưng bày ngay",
+    "Mức 3: Bình thường",
+    "Mức 2: Cần phải sửa chữa",
+    "Mức 1: Cần phải sửa chửa nhiều",
+  ];
 
+  // Hàm xử lý trước khi gửi dữ liệu lên Server
+  const handleSubmit = (values: any) => {
+    // 🛠 SỬA LỖI: Chuyển Dayjs sang chuỗi ISO hoặc Date thuần túy
+    const formattedValues = {
+      ...values,
+      registrationDeadline: values.registrationDeadline?.toISOString() || null,
+      insuranceDeadline: values.insuranceDeadline?.toISOString() || null,
+      warrantyDeadline: values.warrantyDeadline?.toISOString() || null,
+    };
+    onFinish(formattedValues);
+  };
   return (
     <Modal
       title={
@@ -64,7 +82,7 @@ export default function ModalApproveTransaction({
       <Form
         form={form}
         layout="vertical"
-        onFinish={onFinish}
+        onFinish={handleSubmit}
         initialValues={{
           transmission: "AUTOMATIC",
           fuelType: "GASOLINE",
@@ -86,7 +104,6 @@ export default function ModalApproveTransaction({
             rules={[{ required: true }]}
           >
             <Select
-              size="large"
               showSearch
               placeholder="Tìm xe theo tên hoặc biển số..."
               options={inventory.map((c: any) => ({
@@ -106,6 +123,19 @@ export default function ModalApproveTransaction({
               className="mb-4 bg-slate-50"
             >
               <Row gutter={16}>
+                {/* --- BỔ SUNG: NGƯỜI ĐỨNG ỦY QUYỀN --- */}
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name="authorizedOwnerName"
+                    label="Người đứng ủy quyền"
+                    tooltip="Tên cá nhân hoặc pháp nhân đứng tên trên hợp đồng ủy quyền/hóa đơn"
+                  >
+                    <Input
+                      prefix={<UserOutlined className="text-gray-400" />}
+                      placeholder="Nhập họ tên người đứng ủy quyền"
+                    />
+                  </Form.Item>
+                </Col>
                 <Col xs={24} md={12}>
                   <Form.Item
                     name="carModelId"
@@ -188,6 +218,11 @@ export default function ModalApproveTransaction({
                     />
                   </Form.Item>
                 </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="seats" label="Số chỗ ngồi">
+                    <InputNumber className="w-full!" />
+                  </Form.Item>
+                </Col>
               </Row>
 
               <Row gutter={16}>
@@ -216,22 +251,123 @@ export default function ModalApproveTransaction({
                     <Input />
                   </Form.Item>
                 </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="engineSize" label="Dung tích">
+                    <Input />
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="carType" label="Kiểu dáng">
+                    <Select placeholder="Chọn kiểu dáng">
+                      <Select.Option value="SEDAN">Sedan</Select.Option>
+                      <Select.Option value="SUV">SUV</Select.Option>
+                      <Select.Option value="HATCHBACK">Hatchback</Select.Option>
+                      <Select.Option value="PICKUP">
+                        Bán tải (Pickup)
+                      </Select.Option>
+                      <Select.Option value="MPV">MPV (Đa dụng)</Select.Option>
+                      <Select.Option value="COUPE">Coupe</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="driveTrain" label="Hệ dẫn động">
+                    <Select placeholder="Chọn hệ dẫn động">
+                      <Select.Option value="FWD">Cầu trước (FWD)</Select.Option>
+                      <Select.Option value="RWD">Cầu sau (RWD)</Select.Option>
+                      <Select.Option value="AWD">
+                        4 bánh toàn thời gian (AWD)
+                      </Select.Option>
+                      <Select.Option value="4WD">2 cầu (4WD)</Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="ownerType" label="Hình thức sở hữu">
+                    <Select
+                      options={[
+                        { label: "Chính chủ", value: "PERSONAL_OWNER" },
+                        { label: "Ủy quyền lần 1", value: "AUTHORIZATION_L1" },
+                        { label: "Ủy quyền lần 2", value: "AUTHORIZATION_L2" },
+
+                        {
+                          label: "Công ty / Xuất hóa đơn",
+                          value: "COMPANY_VAT",
+                        },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+                {/* --- BỔ SUNG CÁC TRƯỜNG THỜI HẠN --- */}
+                <Col xs={12} md={6}>
+                  <Form.Item
+                    name="registrationDeadline"
+                    label="Thời hạn đăng kiểm"
+                  >
+                    <DatePicker
+                      className="w-full!"
+                      placeholder="Chọn ngày"
+                      format="DD/MM/YYYY"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="insuranceDeadline" label="Thời hạn bảo hiểm">
+                    <DatePicker
+                      className="w-full!"
+                      placeholder="Chọn ngày"
+                      format="DD/MM/YYYY"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="warrantyDeadline" label="Thời gian bảo hành">
+                    <DatePicker
+                      className="w-full!"
+                      placeholder="Đến ngày"
+                      format="DD/MM/YYYY"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item name="origin" label="Xuất xứ">
+                    <Select>
+                      <Select.Option value="VN">
+                        Lắp ráp trong nước
+                      </Select.Option>
+                      <Select.Option value="TH">Nhập Thái Lan</Select.Option>
+                      <Select.Option value="ID">Nhập Indonesia</Select.Option>
+                      <Select.Option value="OTHER">
+                        Nhập khẩu khác
+                      </Select.Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
               </Row>
             </Card>
 
             <Card
               size="small"
               title="2. Nội dung hiển thị (CMS)"
-              className="mb-4"
+              className="mb-4 mt-2!"
             >
               <Form.Item
                 name="description"
-                label="Mô tả chi tiết tình trạng xe"
+                label="Đánh giá tình trạng xe"
+                rules={[
+                  { required: true, message: "Vui lòng chọn tình trạng xe" },
+                ]}
               >
-                <Input.TextArea
-                  rows={3}
-                  placeholder="Cam kết 5 tiêu chuẩn vàng..."
-                />
+                <Select
+                  placeholder="Chọn mức độ đánh giá tình trạng..."
+                  allowClear
+                >
+                  {conditionOptions.map((item) => (
+                    <Select.Option key={item} value={item}>
+                      {item}
+                    </Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
               <Form.Item name="features" label="Tiện nghi nổi bật">
                 <Input placeholder="VD: Cửa sổ trời, Ghế điện..." />
@@ -266,13 +402,19 @@ export default function ModalApproveTransaction({
               />
             </Form.Item>
           </Col>
-          <Col xs={24} md={8}>
-            <Form.Item name="ownerType" label="Hình thức sở hữu">
-              <Select
-                options={[
-                  { label: "Cá nhân", value: "PERSONAL" },
-                  { label: "Công ty", value: "COMPANY" },
-                ]}
+
+          {/* Thêm trường Ghi chú hợp đồng */}
+          <Col xs={24}>
+            <Form.Item
+              name="contractNote"
+              label="Ghi chú hợp đồng"
+              tooltip="Nhập các thỏa thuận riêng hoặc quà tặng kèm theo"
+            >
+              <Input.TextArea
+                rows={3}
+                placeholder="Ví dụ: Tặng gói bảo hiểm thân vỏ, bọc vô lăng, giảm giá 5 triệu tiền mặt..."
+                showCount
+                maxLength={500}
               />
             </Form.Item>
           </Col>

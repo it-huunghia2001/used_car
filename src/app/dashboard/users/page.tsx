@@ -94,7 +94,7 @@ export default function UserManagementPage() {
       global: users.filter((u) => u.isGlobalManager).length,
       total: total,
     }),
-    [users, total]
+    [users, total],
   );
 
   // --- XỬ LÝ SUBMIT FORM (LƯU HOẶC CẬP NHẬT) ---
@@ -107,7 +107,7 @@ export default function UserManagementPage() {
       message.success(
         editingUser
           ? "Cập nhật nhân sự thành công"
-          : "Khởi tạo nhân sự thành công"
+          : "Khởi tạo nhân sự thành công",
       );
 
       setIsModalOpen(false);
@@ -274,7 +274,7 @@ export default function UserManagementPage() {
               onClick={() => {
                 setEditingUser(record);
                 const dept = departments.find(
-                  (d) => d.id === record.departmentId
+                  (d) => d.id === record.departmentId,
                 );
                 setPositions(dept?.positions || []);
                 form.setFieldsValue({
@@ -527,7 +527,7 @@ export default function UserManagementPage() {
                 <Form.Item
                   name="email"
                   label="Email công ty"
-                  rules={[{ required: true, type: "email" }]}
+                  // rules={[{ required: true, type: "email" }]}
                 >
                   <Input
                     placeholder="name@toyota.com.vn"
@@ -545,7 +545,7 @@ export default function UserManagementPage() {
                 <Form.Item
                   name="departmentId"
                   label="Phòng ban"
-                  rules={[{ required: true }]}
+                  // rules={[{ required: true }]}
                 >
                   <Select
                     placeholder="Chọn đơn vị"
@@ -564,7 +564,7 @@ export default function UserManagementPage() {
                 <Form.Item
                   name="positionId"
                   label="Chức vụ"
-                  rules={[{ required: true }]}
+                  // rules={[{ required: true }]}
                 >
                   <Select placeholder="Chọn chức danh" className="h-10">
                     {positions.map((p) => (
@@ -612,7 +612,7 @@ export default function UserManagementPage() {
                             Nhân viên bán hàng
                           </Select.Option>
                           <Select.Option value="REFERRER">
-                            Nhân viên giới thiệu
+                            Người giới thiệu
                           </Select.Option>
                         </Select>
                       </Form.Item>
@@ -653,7 +653,7 @@ export default function UserManagementPage() {
               </Col>
 
               {["MANAGER", "PURCHASE_STAFF", "SALES_STAFF"].includes(
-                roleValue
+                roleValue,
               ) && (
                 <Col span={24} className="mt-4">
                   <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex gap-6 items-center">
