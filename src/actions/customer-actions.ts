@@ -11,6 +11,7 @@ import {
 import { sendMail } from "@/lib/mail-service";
 import { LeadStatus, ReferralType, UrgencyType } from "@prisma/client";
 import { getCurrentUser } from "@/lib/session-server";
+import dayjs from "dayjs";
 
 interface CreateCustomerInput {
   fullName: string;
@@ -32,152 +33,199 @@ interface CreateCustomerInput {
 
 export async function createCustomerAction(data: CreateCustomerInput) {
   try {
+    const now = new Date();
+    const todayStart = dayjs().startOf("day").toDate();
+
+    // Chuẩn hóa biển số xe
     const cleanPlate = data.licensePlate
       ? data.licensePlate.toUpperCase().replace(/[^A-Z0-9]/g, "")
       : undefined;
 
     // --- 1. KIỂM TRA TRÙNG LẶP ---
-    const duplicate = await db.customer.findFirst({
-      where: {
-        OR: [...(cleanPlate ? [{ licensePlate: cleanPlate }] : [])],
-        status: { notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED] },
-      },
-      include: { referrer: { select: { fullName: true, username: true } } },
-    });
+    if (cleanPlate) {
+      const duplicate = await db.customer.findFirst({
+        where: {
+          licensePlate: cleanPlate,
+          status: { notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED] },
+        },
+        include: { referrer: { select: { fullName: true, username: true } } },
+      });
 
-    if (duplicate) {
-      const refName =
-        duplicate.referrer.fullName || duplicate.referrer.username;
-      throw new Error(
-        `Khách hàng/Biển số này đã có trên hệ thống, được giới thiệu bởi [${refName}].`,
-      );
+      if (duplicate) {
+        const refName =
+          duplicate.referrer.fullName || duplicate.referrer.username;
+        throw new Error(
+          `Biển số ${cleanPlate} đã tồn tại, được xử lý bởi [${refName}].`,
+        );
+      }
     }
 
-    // --- 2. XÁC ĐỊNH ROLE CẦN PHÂN BỔ ---
-    // SELL, VALUATION -> PURCHASE_STAFF
-    // BUY -> SALES_STAFF
-    const targetRole =
-      data.type === "SELL" || data.type === "VALUATION"
-        ? "PURCHASE_STAFF"
-        : "SALES_STAFF";
+    // --- 2. XÁC ĐỊNH CHI NHÁNH & NHÓM NHÂN VIÊN ---
+    const isSalesRequest = data.type === "BUY";
+    const targetRole = isSalesRequest ? "SALES_STAFF" : "PURCHASE_STAFF";
 
-    // --- 3. TÌM NGƯỜI GIỚI THIỆU ĐỂ LẤY CHI NHÁNH ---
     const referrer = await db.user.findUnique({
       where: { id: data.referrerId },
       select: { branchId: true, fullName: true, username: true },
     });
 
-    let assignedStaffId: string | null = null;
+    if (!referrer?.branchId)
+      throw new Error("Không thể xác định chi nhánh của người giới thiệu.");
 
-    // --- 4. THỰC HIỆN CHIA ĐỀU (ROUND ROBIN) ---
-    if (referrer?.branchId) {
+    let assignedStaffId: string | null = null;
+    let assignmentLog = "";
+
+    // --- 3. THỰC HIỆN LOGIC PHÂN BỔ ---
+
+    if (isSalesRequest) {
+      /**
+       * LUỒNG BÁN HÀNG (SALES): Chỉ chia cho người có lịch trực hôm nay
+       */
+      const schedules = await db.salesSchedule.findMany({
+        where: { date: todayStart, branchId: referrer.branchId },
+        select: { userId: true },
+      });
+      const onDutyIds = schedules.map((s) => s.userId);
+
+      if (onDutyIds.length > 0) {
+        const staff = await db.user.findFirst({
+          where: { id: { in: onDutyIds }, role: "SALES_STAFF", active: true },
+          orderBy: { lastAssignedAt: "asc" },
+        });
+        if (staff) {
+          assignedStaffId = staff.id;
+          assignmentLog = "Phân bổ theo lịch trực Sales.";
+        }
+      }
+    } else {
+      /**
+       * LUỒNG THU MUA (PURCHASE): Chia đều cho tất cả nhân viên thu mua trong chi nhánh
+       */
       const staff = await db.user.findFirst({
         where: {
           branchId: referrer.branchId,
-          role: targetRole,
+          role: "PURCHASE_STAFF",
           active: true,
         },
-        // Quan trọng: Người nào có lastAssignedAt cũ nhất (đợi lâu nhất) sẽ nhận khách
         orderBy: { lastAssignedAt: "asc" },
       });
-
       if (staff) {
         assignedStaffId = staff.id;
+        assignmentLog = "Phân bổ xoay vòng Thu mua.";
       }
     }
 
-    const now = new Date();
+    // --- 4. FALLBACK: NẾU KHÔNG TÌM ĐƯỢC NHÂN VIÊN, GÁN CHO MANAGER CHI NHÁNH ---
+    if (!assignedStaffId) {
+      const manager = await db.user.findFirst({
+        where: { branchId: referrer.branchId, role: "MANAGER", active: true },
+      });
+      if (manager) {
+        assignedStaffId = manager.id;
+        assignmentLog = "Fallback: Gán cho Quản lý chi nhánh.";
+      }
+    }
 
-    // --- 5. TẠO DỮ LIỆU KHÁCH HÀNG ---
-    const newCustomer = await db.customer.create({
-      data: {
-        ...data,
-        licensePlate: cleanPlate,
-        carYear: data.carYear ? String(data.carYear) : null,
-        status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
-        assignedToId: assignedStaffId,
-        assignedAt: assignedStaffId ? now : null,
-      },
-      include: {
-        referrer: { include: { branch: true } },
-        carModel: true,
-        assignedTo: true,
-      },
+    // --- 5. LƯU DỮ LIỆU (TRANSACTION) ---
+    const newCustomer = await db.$transaction(async (tx) => {
+      const customer = await tx.customer.create({
+        data: {
+          ...data,
+          licensePlate: cleanPlate,
+          carYear: data.carYear ? String(data.carYear) : null,
+          status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
+          assignedToId: assignedStaffId,
+          assignedAt: assignedStaffId ? now : null,
+          activities: {
+            create: {
+              status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
+              note:
+                assignmentLog ||
+                "Chưa có nhân viên trực, đang ở trạng thái chờ.",
+              createdById: data.referrerId,
+            },
+          },
+        },
+        include: {
+          referrer: { include: { branch: true } },
+          carModel: true,
+          assignedTo: true,
+        },
+      });
+
+      // Cập nhật thời gian nhận khách cuối cùng để xoay vòng lượt sau
+      if (assignedStaffId) {
+        await tx.user.update({
+          where: { id: assignedStaffId },
+          data: { lastAssignedAt: now },
+        });
+      }
+
+      return customer;
     });
 
-    // --- 6. CẬP NHẬT THỜI GIAN PHÂN BỔ CỦA NHÂN VIÊN ---
-    if (assignedStaffId) {
-      await db.user.update({
-        where: { id: assignedStaffId },
-        data: { lastAssignedAt: now },
-      });
-    }
+    // --- 6. HỆ THỐNG THÔNG BÁO (FIRE & FORGET) ---
+    // Không dùng await để tăng tốc độ phản hồi cho người dùng
+    (async () => {
+      try {
+        const typeLabel =
+          data.type === "SELL"
+            ? "BÁN XE"
+            : data.type === "BUY"
+              ? "MUA XE"
+              : "ĐỊNH GIÁ XE";
+        const details = `Dòng xe: ${newCustomer.carModel?.name || data.carYear || "N/A"}\nBiển số: ${cleanPlate || "N/A"}\nGhi chú: ${data.note || "Không có"}`;
 
-    // --- 7. GỬI MAIL THÔNG BÁO ---
-    try {
-      const typeLabel =
-        data.type === "SELL"
-          ? "BÁN XE"
-          : data.type === "BUY"
-            ? "MUA XE"
-            : "ĐỊNH GIÁ XE";
-
-      const details = `Dòng xe: ${newCustomer.carModel?.name || data.carYear || "Không rõ"}\nBiển số: ${cleanPlate || "Chưa có"}\nGhi chú: ${data.note || "Không có"}`;
-
-      // A. LẤY DANH SÁCH EMAIL QUẢN LÝ
-      const managers = await db.user.findMany({
-        where: {
-          OR: [
-            { isGlobalManager: true }, // Quản lý tổng
-            {
-              role: "MANAGER",
-              branchId: referrer?.branchId, // Quản lý chi nhánh
-              active: true,
-            },
-          ],
-        },
-        select: { email: true },
-      });
-
-      const managerEmails = managers.map((m) => m.email).filter(Boolean);
-
-      // B. Gửi cho các Quản lý (Nếu có)
-      if (managerEmails.length > 0) {
-        await sendMail({
-          to: managerEmails.join(","), // Gửi đồng loạt (hoặc dùng bcc tùy cấu hình sendMail của bạn)
-          subject: `[CRM] Khách hàng mới - Chi nhánh ${newCustomer.referrer?.branch?.name || "Hệ thống"}`,
-          html: referralEmailTemplate({
-            customerName: newCustomer.fullName,
-            typeLabel: typeLabel,
-            referrerName: referrer?.fullName || referrer?.username || "N/A",
-            details: details,
-            branchName: newCustomer.referrer?.branch?.name,
-          }),
+        // Lấy danh sách quản lý cần thông báo
+        const managers = await db.user.findMany({
+          where: {
+            OR: [
+              { isGlobalManager: true },
+              { role: "MANAGER", branchId: referrer.branchId, active: true },
+            ],
+          },
+          select: { email: true },
         });
-      }
 
-      // B. Gửi cho Nhân viên được chỉ định (Dù là Purchase hay Sales)
-      if (newCustomer.assignedTo?.email) {
-        await sendMail({
-          to: newCustomer.assignedTo.email,
-          subject: `[NHIỆM VỤ MỚI] Chăm sóc khách hàng ${newCustomer.fullName.toUpperCase()}`,
-          html: staffAssignmentEmailTemplate({
-            customerName: newCustomer.fullName,
-            customerPhone: newCustomer.phone,
-            typeLabel: typeLabel,
-            details: details,
-            branchName: newCustomer.referrer?.branch?.name,
-          }),
-        });
+        const emails = managers.map((m) => m.email).filter(Boolean) as string[];
+
+        if (emails.length > 0) {
+          await sendMail({
+            to: emails.join(","),
+            subject: `[CRM] Khách mới - Chi nhánh ${newCustomer.referrer?.branch?.name || "Hệ thống"}`,
+            html: referralEmailTemplate({
+              customerName: newCustomer.fullName,
+              typeLabel,
+              referrerName: referrer.fullName || referrer.username || "N/A",
+              details,
+              branchName: newCustomer.referrer?.branch?.name,
+            }),
+          });
+        }
+
+        if (newCustomer.assignedTo?.email) {
+          await sendMail({
+            to: newCustomer.assignedTo.email,
+            subject: `[NHIỆM VỤ] Chăm sóc khách hàng: ${newCustomer.fullName.toUpperCase()}`,
+            html: staffAssignmentEmailTemplate({
+              customerName: newCustomer.fullName,
+              customerPhone: newCustomer.phone,
+              typeLabel,
+              details,
+              branchName: newCustomer.referrer?.branch?.name,
+            }),
+          });
+        }
+      } catch (e) {
+        console.error("Gửi mail thất bại:", e);
       }
-    } catch (mailErr) {
-      console.error("Lỗi gửi mail thông báo:", mailErr);
-    }
+    })();
 
     revalidatePath("/dashboard/customers");
-    return { success: true };
+    return { success: true, data: newCustomer };
   } catch (error: any) {
-    throw new Error(error.message || "Lỗi hệ thống");
+    console.error("Lỗi Action:", error);
+    return { success: false, error: error.message || "Lỗi hệ thống nội bộ" };
   }
 }
 /**

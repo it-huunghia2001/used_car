@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
           role: user.role,
           department: user.department?.name,
           position: user.position?.name,
+          isGlobal: user.isGlobalManager,
         },
       },
       { status: 200 },

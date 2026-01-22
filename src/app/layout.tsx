@@ -42,11 +42,12 @@ export default async function RootLayout({
 }) {
   const token = (await cookies()).get("used-car")?.value;
   let role: Role = "REFERRER";
-
+  let isGobal = false;
   if (token) {
     try {
       const payload = (await jwt.verify(token, JWT_SECRET!)) as any;
       role = payload.role;
+      isGobal = payload.isGlobalManager;
     } catch (err) {
       console.log("JWT invalid", err);
     }
@@ -60,7 +61,9 @@ export default async function RootLayout({
         {/* Bọc ConfigProvider quanh Providers hoặc AppLayout */}
         <ConfigProvider locale={viVN}>
           <Providers>
-            <AppLayout role={role}>{children}</AppLayout>
+            <AppLayout isGobal={isGobal} role={role}>
+              {children}
+            </AppLayout>
           </Providers>
         </ConfigProvider>
       </body>

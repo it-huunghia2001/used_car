@@ -38,11 +38,12 @@ enum OwnerType {
 }
 
 model Branch {
-  id      String @id @default(cuid())
-  name    String @unique // Tên chi nhánh (VD: Toyota Bình Dương)
-  address String // Địa chỉ chi nhánh
-  cars    Car[] // Danh sách xe thuộc chi nhánh
-  users   User[] // Nhân viên thuộc chi nhánh
+  id             String          @id @default(cuid())
+  name           String          @unique // Tên chi nhánh (VD: Toyota Bình Dương)
+  address        String // Địa chỉ chi nhánh
+  cars           Car[] // Danh sách xe thuộc chi nhánh
+  users          User[] // Nhân viên thuộc chi nhánh
+  salesSchedules SalesSchedule[]
 }
 
 model Department {
@@ -106,11 +107,12 @@ model User {
   assignedLeads    Customer[] @relation("AssignedLeads") // Khách được giao cho nhân viên này chăm sóc
 
   // --- THEO DÕI HOẠT ĐỘNG ---
-  lastAssignedAt DateTime?      @default(now()) // Dùng để xoay vòng chia khách (Round Robin)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  lastAssignedAt DateTime?       @default(now()) // Dùng để xoay vòng chia khách (Round Robin)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   leadActivities LeadActivity[]
   cars           Car[]
+  salesSchedules SalesSchedule[]
 
   @@index([branchId], map: "User_branchId_fkey")
 }
@@ -310,6 +312,20 @@ model LeadReason {
   active     Boolean        @default(true) // Cho phép sử dụng hay ẩn đi
   activities LeadActivity[] // Quan hệ ngược lại để truy xuất thống kê
   createdAt  DateTime       @default(now())
+}
+
+model SalesSchedule {
+  id       String   @id @default(cuid())
+  date     DateTime
+  branchId String
+  branch   Branch   @relation(fields: [branchId], references: [id])
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  // Bỏ @unique cũ, thay bằng index để truy vấn nhanh
+  @@index([date, branchId])
 }
 
 // --- ENUMS (DANH MỤC CỐ ĐỊNH) ---

@@ -48,6 +48,8 @@ export async function getUserFromToken(token: string) {
         role: true,
         active: true,
         fullName: true,
+        isGlobalManager: true,
+        branchId: true,
       },
     });
 

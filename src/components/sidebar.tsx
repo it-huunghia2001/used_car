@@ -24,9 +24,10 @@ type Role = "ADMIN" | "MANAGER" | "PURCHASE_STAFF" | "SALES_STAFF" | "REFERRER";
 
 interface SidebarProps {
   role: Role;
+  isGobal: boolean;
 }
 
-export default function Sidebar({ role }: SidebarProps) {
+export default function Sidebar({ role, isGobal }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -161,12 +162,16 @@ export default function Sidebar({ role }: SidebarProps) {
       : null,
 
     // --- QUẢN LÝ DANH MỤC ---
-    role === "ADMIN"
+    role === "ADMIN" || (role === "MANAGER" && isGobal)
       ? {
           key: "admin-settings",
           icon: <AppstoreAddOutlined />,
           label: "Danh mục hệ thống",
           children: [
+            {
+              key: "/dashboard/schedules",
+              label: <Link href="/dashboard/schedules">Lịch Trực</Link>,
+            },
             {
               key: "/dashboard/settings/car-setup",
               label: (
