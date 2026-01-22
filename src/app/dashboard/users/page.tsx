@@ -527,7 +527,7 @@ export default function UserManagementPage() {
                 <Form.Item
                   name="email"
                   label="Email công ty"
-                  // rules={[{ required: true, type: "email" }]}
+                  rules={[{ required: true, type: "email" }]}
                 >
                   <Input
                     placeholder="name@toyota.com.vn"
