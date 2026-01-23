@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       { status: 200 },
     );
 
-    response.cookies.set("used-car", token, {
+    await response.cookies.set("used-car", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
