@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { Layout, Menu } from "antd";
+import { Layout, Menu, Drawer, Button } from "antd";
 import {
   DashboardOutlined,
   CarOutlined,
@@ -12,11 +12,13 @@ import {
   LogoutOutlined,
   AppstoreAddOutlined,
   UserAddOutlined,
-  HomeOutlined, // Icon mới cho giới thiệu
+  HomeOutlined,
+  MenuOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
+import { useState, useEffect } from "react";
 
 const { Sider } = Layout;
 
@@ -30,6 +32,8 @@ interface SidebarProps {
 export default function Sidebar({ role, isGobal }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [visible, setVisible] = useState(false); // Trạng thái đóng mở Drawer trên Mobile
+  const [collapsed, setCollapsed] = useState(false); // Trạng thái thu gọn trên Desktop
 
   const handleLogout = async () => {
     try {
@@ -256,36 +260,69 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
     },
   ].filter(Boolean);
 
-  return (
-    <Sider
-      width={260}
-      collapsible
-      breakpoint="lg"
-      theme="dark"
-      className="h-screen sticky top-0 left-0 shadow-2xl"
-      style={{ background: "#001529" }}
-    >
-      <div className="flex flex-col items-center py-6 border-b border-gray-700 mb-4">
-        <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xl mb-2">
+  // Nội dung Menu dùng chung cho cả Sider và Drawer
+  const SidebarContent = (
+    <>
+      <div className="flex flex-col items-center py-6 border-b border-gray-700 mb-4 overflow-hidden">
+        <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xl mb-2 shrink-0">
           T
         </div>
-        <div className="text-white font-bold text-sm tracking-widest text-center px-2">
-          TOYOTA BÌNH DƯƠNG
-          <div className="text-[10px] text-red-400 font-normal mt-1">
-            {role}
+        {!collapsed && (
+          <div className="text-white font-bold text-sm tracking-widest text-center px-2 animate-in fade-in duration-500">
+            TOYOTA BÌNH DƯƠNG
+            <div className="text-[10px] text-red-400 font-normal mt-1 lowercase">
+              {role.replace("_", " ")}
+            </div>
           </div>
-        </div>
+        )}
       </div>
-
       <Menu
         theme="dark"
         mode="inline"
         selectedKeys={[pathname]}
-        // Thêm "referral-menu" vào danh sách tự động mở
-
         items={menuItems}
-        className="font-medium h-[calc(100vh-210px)] overflow-y-auto"
+        onClick={() => setVisible(false)} // Đóng drawer khi click menu trên mobile
+        className="font-medium border-none h-[calc(100vh-180px)] overflow-y-auto custom-scrollbar"
       />
-    </Sider>
+    </>
+  );
+
+  return (
+    <>
+      {/* Nút Hamburger cho Mobile - Chỉ hiện ở màn hình < 992px */}
+      <Button
+        className="lg:hidden! fixed top-4 left-4 z-50 bg-[#001529] border-gray-600 text-white"
+        icon={<MenuOutlined />}
+        onClick={() => setVisible(true)}
+      />
+
+      {/* Drawer cho Mobile */}
+      <Drawer
+        title={null}
+        placement="left"
+        onClose={() => setVisible(false)}
+        open={visible}
+        width={260}
+        bodyStyle={{ padding: 0, background: "#001529" }}
+        closable={false}
+      >
+        <div className="h-full bg-[#001529]">{SidebarContent}</div>
+      </Drawer>
+
+      {/* Sider cho Desktop - Ẩn khi ở màn hình nhỏ */}
+      <Sider
+        width={260}
+        collapsible
+        collapsed={collapsed}
+        onCollapse={(value) => setCollapsed(value)}
+        breakpoint="lg"
+        collapsedWidth={80}
+        theme="dark"
+        className="hidden lg:block h-screen sticky top-0 left-0 shadow-2xl z-40"
+        style={{ background: "#001529" }}
+      >
+        {SidebarContent}
+      </Sider>
+    </>
   );
 }
