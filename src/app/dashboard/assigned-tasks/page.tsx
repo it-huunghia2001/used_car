@@ -217,12 +217,16 @@ export default function AssignedTasksPage() {
   const onFailFinish = async (values: any) => {
     try {
       setLoading(true);
+
+      // QUAN TRỌNG: Truyền thêm values.status (LOSE, FROZEN, hoặc PENDING_VIEW)
       await requestLoseApproval(
         selectedLead.id,
         values.reasonId,
         values.note || "",
+        values.status, // Đây là tham số thứ 4 bạn cần thêm vào
       );
-      messageApi.success("Đã cập nhật trạng thái dừng chăm sóc");
+
+      messageApi.success("Đã gửi yêu cầu phê duyệt dừng chăm sóc");
       setIsFailModalOpen(false);
       loadData();
     } catch (err: any) {
