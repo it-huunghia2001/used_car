@@ -118,6 +118,11 @@ export default function SalesTasksPage() {
         text: "Chờ duyệt Deal",
         badge: "warning",
       },
+      REJECTED_APPROVAL: {
+        color: "magenta",
+        text: "Từ chối phê duyệt",
+        badge: "error",
+      },
       PENDING_LOSE_APPROVAL: {
         color: "volcano",
         text: "Chờ duyệt Đóng",
@@ -479,12 +484,19 @@ export default function SalesTasksPage() {
         onFinish={async (v: any) => {
           setLoading(true);
           try {
-            await requestLoseApproval(selectedLead.id, v.reasonId, v.note);
-            message.success("Đã ghi nhận dừng chăm sóc khách");
+            // TRUYỀN THÊM v.status Ở ĐÂY
+            await requestLoseApproval(
+              selectedLead.id,
+              v.reasonId,
+              v.note,
+              v.status, // v.status sẽ là "LOSE", "FROZEN", hoặc "PENDING_VIEW"
+            );
+
+            message.success("Đã gửi yêu cầu phê duyệt thành công");
             setIsFailModalOpen(false);
             loadData();
           } catch (err: any) {
-            message.error(err.message);
+            message.error(err.message || "Có lỗi xảy ra");
           } finally {
             setLoading(false);
           }

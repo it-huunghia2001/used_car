@@ -355,7 +355,7 @@ enum LeadStatus {
   CANCELLED // Khách không còn nhu cầu hoặc sai thông tin
   PENDING_DEAL_APPROVAL // Chờ duyệt Thu mua/Bán thành công
   PENDING_LOSE_APPROVAL // Chờ duyệt Thất bại
-
+  REJECTED_APPROVAL //Từ chối phê duyệt
   LOSE // Thất bại hoàn toàn
   FROZEN // Đóng băng (Tạm dừng chăm sóc)
   PENDING_VIEW // Nguyên nhân chưa xem xe được

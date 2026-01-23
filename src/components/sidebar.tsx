@@ -120,6 +120,25 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         }
       : null,
 
+    // --- PHẦN NGHIỆP VỤ THU MUA ---
+    role === "ADMIN" || role === "MANAGER"
+      ? {
+          key: "manager-customer-menu",
+          icon: <SolutionOutlined />,
+          label: "Quản lý KHTN",
+          children: [
+            {
+              key: "/dashboard/frozen-leads-1", // Đường dẫn trang bạn vừa tạo
+              label: <Link href="/dashboard/frozen-leads-1">Danh sách KH</Link>,
+            },
+            {
+              key: "/dashboard/frozen-leads",
+              label: <Link href="/dashboard/frozen-leads">Rã băng KH</Link>,
+            },
+          ],
+        }
+      : null,
+
     // --- PHẦN QUẢN LÝ XE ---
     role === "ADMIN" || role === "MANAGER"
       ? {
@@ -263,12 +282,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         mode="inline"
         selectedKeys={[pathname]}
         // Thêm "referral-menu" vào danh sách tự động mở
-        defaultOpenKeys={[
-          "referral-menu",
-          "cars-management",
-          "purchase-menu",
-          "admin-settings",
-        ]}
+
         items={menuItems}
         className="font-medium h-[calc(100vh-210px)] overflow-y-auto"
       />

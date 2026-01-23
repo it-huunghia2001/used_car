@@ -107,7 +107,36 @@ export default function ApprovalsPage() {
     "4WD": "2 cầu (4WD)",
   };
 
-  const renderCarDetail = (note: string) => {
+  const renderCarDetail = (activity: any) => {
+    const { note, status, reason } = activity;
+    if (status === "PENDING_LOSE_APPROVAL") {
+      return (
+        <div className="p-4 bg-orange-50 rounded-xl border border-orange-100">
+          <Descriptions
+            title="CHI TIẾT YÊU CẦU DỪNG CHĂM SÓC"
+            bordered
+            column={1}
+          >
+            <Descriptions.Item label="Trạng thái Sales đề xuất">
+              {/* Lấy status từ activity chính là cái targetStatus chúng ta đã lưu */}
+              <Tag color="volcano" className="font-bold">
+                {activity.status}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Lý do hệ thống">
+              <Text strong className="text-red-600">
+                {reason?.content || "Không có lý do cụ thể"}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Giải trình từ Sales">
+              <div className="whitespace-pre-wrap italic">
+                {note || "Không có ghi chú"}
+              </div>
+            </Descriptions.Item>
+          </Descriptions>
+        </div>
+      );
+    }
     try {
       const parsed = JSON.parse(note);
       // Trích xuất dữ liệu từ cấu trúc: { carData, contractData }
@@ -445,12 +474,18 @@ export default function ApprovalsPage() {
           <Button
             key="approve"
             type="primary"
-            className="bg-green-600"
+            className={
+              selectedActivity?.status === "PENDING_LOSE_APPROVAL"
+                ? "bg-red-600"
+                : "bg-green-600"
+            }
             icon={<CheckCircleOutlined />}
             onClick={() => handleDecisionClick("APPROVE")}
             loading={loading}
           >
-            Phê duyệt & Nhập kho
+            {selectedActivity?.status === "PENDING_LOSE_APPROVAL"
+              ? "Xác nhận đóng khách"
+              : "Phê duyệt & Nhập kho"}
           </Button>,
         ]}
       >

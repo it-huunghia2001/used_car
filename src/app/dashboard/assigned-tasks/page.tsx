@@ -274,6 +274,11 @@ export default function AssignedTasksPage() {
         text: "Chờ duyệt Deal",
         badge: "warning",
       },
+      REJECTED_APPROVAL: {
+        color: "magenta",
+        text: "Từ chối phê duyệt",
+        badge: "error",
+      },
       PENDING_LOSE_APPROVAL: {
         color: "volcano",
         text: "Chờ duyệt Đóng",

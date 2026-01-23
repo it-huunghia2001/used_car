@@ -149,59 +149,100 @@ export async function approveCarPurchase(
   reason?: string,
 ) {
   const auth = await getAuthUser();
-  if (!auth)
+  if (!auth) {
     return {
       success: false,
       error: "Bạn không có quyền thực hiện thao tác này",
     };
+  }
 
   try {
-    // 1. Tìm Activity và parse dữ liệu trước khi mở Transaction (Giảm thời gian giữ connection)
+    // 1. Tìm Activity
     const activity = await db.leadActivity.findUnique({
       where: { id: activityId },
       include: { customer: true },
     });
 
-    if (!activity || !activity.note) {
-      return {
-        success: false,
-        error: "Không tìm thấy dữ liệu yêu cầu hoặc dữ liệu trống",
-      };
+    if (!activity) {
+      return { success: false, error: "Không tìm thấy dữ liệu yêu cầu" };
     }
 
-    const { carData, contractData } = JSON.parse(activity.note);
+    // 2. PHÂN LOẠI DỮ LIỆU: Kiểm tra xem có phải yêu cầu Thu mua (JSON) không
+    let isPurchaseRequest = false;
+    let purchaseData: any = null;
 
-    // 2. Kiểm tra thông tin nhân viên và chi nhánh
-    const staff = await db.user.findUnique({
-      where: { id: activity.createdById },
-      select: { id: true, branchId: true },
-    });
+    try {
+      if (
+        activity.note &&
+        (activity.note.includes("carData") || activity.note.startsWith("{"))
+      ) {
+        purchaseData = JSON.parse(activity.note);
+        if (purchaseData.carData) isPurchaseRequest = true;
+      }
+    } catch (e) {
+      isPurchaseRequest = false;
+    }
 
-    if (!staff || !staff.branchId) {
-      return {
-        success: false,
-        error: "Nhân viên xử lý không tồn tại hoặc chưa được gán chi nhánh",
-      };
+    // 3. Lấy thông tin nhân viên (chỉ cần cho trường hợp Thu mua xe)
+    let staff: any = null;
+    if (isPurchaseRequest) {
+      staff = await db.user.findUnique({
+        where: { id: activity.createdById },
+        select: { id: true, branchId: true },
+      });
+      if (!staff || !staff.branchId) {
+        return {
+          success: false,
+          error: "Nhân viên đề xuất không tồn tại hoặc thiếu chi nhánh",
+        };
+      }
     }
 
     // --- BẮT ĐẦU TRANSACTION ---
     const result = await db.$transaction(
       async (tx) => {
-        if (decision === "APPROVE") {
-          // A. Lấy Model để sinh mã Stock Code
+        // TRƯỜNG HỢP: TỪ CHỐI (REJECT)
+        if (decision === "REJECT") {
+          // Cập nhật khách về trạng thái cũ để tiếp tục chăm sóc
+          await tx.customer.update({
+            where: { id: activity.customerId },
+            data: { status: "FOLLOW_UP" },
+          });
+
+          // Tạo log từ chối
+          await tx.leadActivity.create({
+            data: {
+              customerId: activity.customerId,
+              status: "REJECTED_APPROVAL",
+              note: `❌ Bị từ chối phê duyệt. Lý do: ${reason || "Không xác định"}`,
+              createdById: auth.id,
+            },
+          });
+
+          // Đóng activity yêu cầu cũ
+          await tx.leadActivity.update({
+            where: { id: activityId },
+            data: { status: "CANCELLED" },
+          });
+
+          return { type: "REJECTED" };
+        }
+
+        // TRƯỜNG HỢP: PHÊ DUYỆT (APPROVE)
+        if (isPurchaseRequest) {
+          // --- LOGIC A: DUYỆT THU MUA XE ---
+          const { carData, contractData } = purchaseData;
+
           const carModelDb = await tx.carModel.findUnique({
             where: { id: carData.carModelId },
           });
 
-          if (!carModelDb)
-            throw new Error("Dòng xe không tồn tại trong hệ thống");
+          if (!carModelDb) throw new Error("Dòng xe không tồn tại");
 
           const carTypePrefix = (carModelDb.grade || "CAR")
             .substring(0, 3)
             .toUpperCase();
           const yearSuffix = new Date().getFullYear().toString().slice(-2);
-
-          // Đếm số lượng để sinh mã (Nên dùng lock hoặc cấu trúc mã tốt hơn, nhưng giữ theo logic của bạn)
           const count = await tx.car.count({
             where: {
               stockCode: { startsWith: `${carTypePrefix}${yearSuffix}` },
@@ -211,7 +252,6 @@ export async function approveCarPurchase(
           const sequence = (count + 1).toString().padStart(3, "0");
           const generatedStockCode = `${carTypePrefix}${yearSuffix}${sequence}`;
 
-          // B. Tạo Xe và Lịch sử (Chạy tuần tự vì CarOwnerHistory cần createdCar.id)
           const createdCar = await tx.car.create({
             data: {
               stockCode: generatedStockCode,
@@ -231,8 +271,8 @@ export async function approveCarPurchase(
                 ? parseFloat(contractData.price)
                 : 0,
               status: "REFURBISHING",
-              branchId: staff.branchId as string,
-              carModelId: carData.carModelId || null,
+              branchId: staff.branchId,
+              carModelId: carData.carModelId,
               purchaserId: staff.id,
               referrerId: activity.customer.referrerId,
               purchasedAt: new Date(),
@@ -251,7 +291,6 @@ export async function approveCarPurchase(
             },
           });
 
-          // C. Cập nhật Customer và Activity
           await tx.customer.update({
             where: { id: activity.customerId },
             data: { status: "DEAL_DONE" },
@@ -261,62 +300,45 @@ export async function approveCarPurchase(
             where: { id: activityId },
             data: {
               status: "DEAL_DONE",
-              note: `Đã duyệt nhập kho mã [${generatedStockCode}] - HĐ: ${contractData.contractNo}`,
+              note: `✅ Đã duyệt nhập kho [${generatedStockCode}]`,
             },
           });
 
-          return { stockCode: generatedStockCode };
+          return { type: "PURCHASE_DONE", stockCode: generatedStockCode };
         } else {
-          // --- LOGIC KHI TỪ CHỐI (REJECT) ---
+          // --- LOGIC B: DUYỆT DỪNG CHĂM SÓC (LOSE/FROZEN) ---
+          // Lấy trạng thái mong muốn từ chính Activity (Sales đã chọn khi gửi)
+          // Nếu activity.status là PENDING_LOSE_APPROVAL thì ta phải tìm trạng thái đích trong log hoặc mặc định LOSE
+          // Ở đây giả định bạn đã lưu targetStatus vào status của activity
 
-          // 1. Cập nhật lại trạng thái khách hàng về CONTACTED
-          // (Để khách không bị kẹt ở trạng thái "Chờ duyệt" mãi mãi)
           await tx.customer.update({
             where: { id: activity.customerId },
             data: {
-              status: "FOLLOW_UP",
-              // Bạn có thể thêm note vào Customer nếu cần
+              status:
+                activity.status === "PENDING_LOSE_APPROVAL"
+                  ? "LOSE"
+                  : activity.status,
             },
           });
 
-          // 2. Tạo một Activity mới để lưu vết việc Admin từ chối
-          // Việc dùng tx.leadActivity.create thay vì update giúp giữ lại lịch sử
-          // của cái Activity cũ (cái chứa JSON carData)
-          await tx.leadActivity.create({
-            data: {
-              customerId: activity.customerId,
-              status: "PENDING_LOSE_APPROVAL", // Hoặc PENDING_LOSE_APPROVAL tùy quy trình của bạn
-              note: `Đã từ chối phê duyệt. Lý do: ${reason || "Không xác định"}`,
-              createdById: auth.id, // ID của Admin người thực hiện Reject
-            },
-          });
-
-          // 3. Cập nhật trạng thái của chính cái Activity yêu cầu hiện tại
-          // để nó biến mất khỏi danh sách chờ duyệt
           await tx.leadActivity.update({
             where: { id: activityId },
             data: {
-              status: "CANCELLED", // Đánh dấu yêu cầu này đã được xử lý xong (nhưng không thành công)
+              note: `✅ Admin đã duyệt kết thúc hồ sơ. Nội dung: ${activity.note}`,
             },
           });
 
-          return { rejected: true };
+          return { type: "STATUS_UPDATED" };
         }
       },
-      {
-        maxWait: 5000, // 5s để lấy kết nối
-        timeout: 15000, // 15s để thực thi (Tăng lên vì logic này khá nặng)
-      },
+      { timeout: 20000 },
     );
 
-    // 3. Thực hiện Revalidate ngoài Transaction để tránh treo DB
     revalidatePath("/dashboard/approvals");
     revalidatePath("/dashboard/assigned-tasks");
-
     return { success: true, data: result };
   } catch (error: any) {
     console.error("Lỗi Approval:", error);
-    // Trả về error object thay vì throw để client nhận được thông báo Modal
     return { success: false, error: error.message || "Lỗi xử lý phê duyệt" };
   }
 }
@@ -352,7 +374,7 @@ export async function processLeadStatusUpdate(
 export async function getPendingApprovalsAction() {
   return await db.leadActivity.findMany({
     where: {
-      status: { in: ["PENDING_DEAL_APPROVAL"] },
+      status: { in: ["PENDING_DEAL_APPROVAL", "PENDING_LOSE_APPROVAL"] },
     },
     include: {
       customer: { select: { fullName: true, phone: true } },
@@ -399,26 +421,30 @@ export async function requestLoseApproval(
   leadId: string,
   reasonId: string,
   note: string,
+  targetStatus: LeadStatus, // Thêm tham số này để biết ý định của Sales
 ) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
 
   await db.$transaction(async (tx) => {
+    // 1. Cập nhật trạng thái khách hàng sang "Chờ duyệt đóng"
     await tx.customer.update({
       where: { id: leadId },
       data: { status: LeadStatus.PENDING_LOSE_APPROVAL },
     });
 
+    // 2. Tạo lịch sử hoạt động ghi rõ Sales muốn chuyển về trạng thái gì
     await tx.leadActivity.create({
       data: {
         customerId: leadId,
-        status: LeadStatus.PENDING_LOSE_APPROVAL,
+        status: targetStatus, // Lưu trạng thái Sales mong muốn (LOSE/FROZEN...)
         reasonId,
-        note,
+        note: `[YÊU CẦU DUYỆT ĐÓNG]: ${note}`,
         createdById: auth.id,
       },
     });
   });
+
   revalidatePath("/dashboard/assigned-tasks");
   return { success: true };
 }

@@ -76,6 +76,10 @@ export default function ModalDetailCustomer({
         color: "cyan",
         text: "Mới tiếp nhận",
       },
+      REJECTED_APPROVAL: {
+        color: "magenta",
+        text: "Từ chối phê duyệt",
+      },
       ASSIGNED: {
         color: "processing", // Màu xanh dương nhạt có hiệu ứng chạy
         text: "Đã phân bổ",
