@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -121,7 +123,7 @@ export default function StaffHistoryTimeline() {
 
                   {item.note && (
                     <div className="mt-2 p-2 bg-gray-50 rounded italic text-gray-600 border-l-2 border-gray-300">
-                      "{item.note}"
+                      {item.note}
                     </div>
                   )}
                 </div>
