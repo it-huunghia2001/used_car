@@ -143,6 +143,7 @@ export async function createCustomerAction(data: CreateCustomerInput) {
       const customer = await tx.customer.create({
         data: {
           ...data,
+          budget: String(data),
           licensePlate: cleanPlate,
           carYear: data.carYear ? String(data.carYear) : null,
           status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
