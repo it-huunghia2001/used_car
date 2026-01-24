@@ -85,7 +85,7 @@ export default function MyReferralPage() {
       dataIndex: "fullName",
       key: "fullName",
       render: (text: string, record: any) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong className="text-indigo-900">
             {text}
           </Text>

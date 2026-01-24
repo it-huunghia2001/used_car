@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -50,6 +51,7 @@ import {
   updateFullLeadDetail,
   updateLeadCarSpecs,
 } from "@/actions/lead-actions";
+import { useRouter } from "next/navigation";
 
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
@@ -69,6 +71,11 @@ export default function ModalDetailCustomer({
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [fullDetail, setFullDetail] = useState<any>(null);
+  const [hasMounted, setHasMounted] = useState(false);
+  const router = useRouter();
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // --- 2. XÁC ĐỊNH DỮ LIỆU KHÁCH HÀNG (Sử dụng Optional Chaining để tránh lỗi declaration) ---
   const customerData =
@@ -83,12 +90,20 @@ export default function ModalDetailCustomer({
       const res = await getLeadDetail(selectedLead.id);
       setFullDetail(res);
 
-      // Đổ dữ liệu vào Form ngay khi fetch xong để đảm bảo tính đồng bộ
       if (res) {
-        form.setFieldsValue({
+        // Chuyển đổi chuỗi từ API thành đối tượng dayjs trước khi đưa vào Form
+        const formValues = {
           ...res.leadCar,
-          fullName: res.fullName || res.leadCar?.customer?.fullName || "",
-          phone: res.phone || res.leadCar?.customer?.phone || "",
+          fullName:
+            res.fullName ||
+            res.leadCar?.customer?.fullName ||
+            customerData.fullName ||
+            "",
+          phone:
+            res.phone ||
+            res.leadCar?.customer?.phone ||
+            customerData.phone ||
+            "",
           registrationDeadline: res.leadCar?.registrationDeadline
             ? dayjs(res.leadCar.registrationDeadline)
             : null,
@@ -98,7 +113,8 @@ export default function ModalDetailCustomer({
           insuranceVCDeadline: res.leadCar?.insuranceVCDeadline
             ? dayjs(res.leadCar.insuranceVCDeadline)
             : null,
-        });
+        };
+        form.setFieldsValue(formValues);
       }
     } catch (error) {
       message.error("Lỗi kết xuất dữ liệu khách hàng");
@@ -124,9 +140,25 @@ export default function ModalDetailCustomer({
         fullName: customerData.fullName || customerData.customer?.fullName,
         phone: customerData.phone || customerData.customer?.phone,
         ...customerData.leadCar,
+        // Đảm bảo các trường ngày tháng luôn là dayjs object
+        registrationDeadline: customerData.leadCar?.registrationDeadline
+          ? dayjs(customerData.leadCar.registrationDeadline)
+          : null,
+        insuranceVCDeadline: customerData.leadCar?.insuranceVCDeadline
+          ? dayjs(customerData.leadCar.insuranceVCDeadline)
+          : null,
       });
     }
   }, [customerData, form, isEditing]);
+
+  const renderTime = (date: any, formatStr: string = "DD/MM/YYYY | HH:mm") => {
+    if (!hasMounted || !date) return "---";
+    return dayjs(date).format(formatStr);
+  };
+  const renderRelativeTime = (date: any) => {
+    if (!hasMounted || !date) return "";
+    return dayjs(date).fromNow();
+  };
 
   // --- 5. LOGIC LƯU DỮ LIỆU ---
   const handleSaveSpecs = async () => {
@@ -149,15 +181,14 @@ export default function ModalDetailCustomer({
         id: selectedLead?.carDetail?.id,
       };
 
-      console.log("Dữ liệu chuẩn bị gửi đi 2:", payload);
-
       // 3. Gọi API
       const res = await updateFullLeadDetail(customerData.id, payload);
 
       if (res.success) {
         message.success("Cập nhật chi tiết phương tiện thành công");
+        router.refresh();
         setIsEditing(false);
-        if (fetchData) fetchData();
+        await fetchData();
       }
     } catch (errorInfo) {
       // Nếu là lỗi chưa nhập đủ form, Ant Design sẽ trả về errorInfo
@@ -175,17 +206,22 @@ export default function ModalDetailCustomer({
 
   const InfoItem = ({ label, value, icon, color }: any) => (
     <div className="flex flex-col mb-4">
-      <Text
-        type="secondary"
-        className="text-[11px] uppercase flex items-center gap-1 mb-1 font-medium tracking-tight"
-      >
+      <div className="text-gray-500 text-[11px] uppercase flex items-center gap-1 mb-1 font-medium">
         {icon} {label}
-      </Text>
-      <Text strong className={`text-[14px] ${color || "text-slate-800"}`}>
+      </div>
+      <div className={`text-[14px] font-bold ${color || "text-slate-800"}`}>
         {value || "---"}
-      </Text>
+      </div>
     </div>
   );
+
+  const conditionOptions = [
+    "Mức 5: Xuất sắc: gần như mới",
+    "Mức 4: Rất tốt: Có thể trưng bày ngay",
+    "Mức 3: Bình thường",
+    "Mức 2: Cần phải sửa chữa",
+    "Mức 1: Cần phải sửa chửa nhiều",
+  ];
 
   return (
     <Modal
@@ -257,7 +293,7 @@ export default function ModalDetailCustomer({
                     <UrgencyBadge type={customerData.urgencyLevel} />
                   </div>
                   <Space
-                    split={<Divider type="vertical" className="bg-slate-700" />}
+                    separator={<Divider className="bg-slate-700" />}
                     className="text-slate-400"
                   >
                     <span className="flex items-center gap-2 text-indigo-300 font-medium">
@@ -278,7 +314,7 @@ export default function ModalDetailCustomer({
                 Last Interaction
               </div>
               <div className="text-lg font-mono text-indigo-400">
-                {dayjs(customerData.updatedAt).format("DD/MM/YYYY | HH:mm")}
+                {renderTime(customerData.updatedAt)}
               </div>
             </Col>
           </Row>
@@ -302,14 +338,14 @@ export default function ModalDetailCustomer({
                   {nextAppointment.title}
                 </div>
                 <div className="flex items-center gap-4 text-[13px] text-orange-700 font-medium">
-                  <span className="flex items-center gap-1">
-                    <ClockCircleOutlined />{" "}
-                    {dayjs(nextAppointment.dueDate).format(
+                  <span>
+                    {renderTime(
+                      nextAppointment.dueDate,
                       "HH:mm - dddd, DD/MM/YYYY",
                     )}
                   </span>
-                  <Tag color="orange" className="font-bold border-orange-300">
-                    {dayjs(nextAppointment.dueDate).fromNow()}
+                  <Tag color="orange">
+                    {renderRelativeTime(nextAppointment.dueDate)}
                   </Tag>
                 </div>
               </div>
@@ -393,7 +429,7 @@ export default function ModalDetailCustomer({
                 {isEditing ? (
                   <div className="animate-fadeIn">
                     {/* KHỐI 1: THÔNG TIN ĐỊNH DANH */}
-                    <Divider orientation="vertical" className="!m-0 !mb-4">
+                    <Divider className="!m-0 !mb-4">
                       <Text
                         type="secondary"
                         className="text-[12px] uppercase font-bold"
@@ -423,7 +459,7 @@ export default function ModalDetailCustomer({
                     </Row>
 
                     {/* KHỐI 2: THÔNG SỐ KỸ THUẬT XE */}
-                    <Divider orientation="vertical" className="!mb-4">
+                    <Divider className="!mb-4">
                       <Text
                         type="secondary"
                         className="text-[12px] uppercase font-bold"
@@ -462,11 +498,6 @@ export default function ModalDetailCustomer({
                           />
                         </Form.Item>
                       </Col>
-                      <Col span={4}>
-                        <Form.Item name="color" label="Màu xe">
-                          <Input placeholder="Trắng, Đen..." />
-                        </Form.Item>
-                      </Col>
 
                       <Col span={6}>
                         <Form.Item name="vin" label="Số VIN">
@@ -477,14 +508,38 @@ export default function ModalDetailCustomer({
                         </Form.Item>
                       </Col>
                       <Col span={6}>
-                        <Form.Item name="licensePlate" label="Biển số">
-                          <Input placeholder="30A-123.45" />
+                        <Form.Item
+                          name="licensePlate"
+                          label="Biển số"
+                          getValueFromEvent={
+                            (e) =>
+                              e.target.value
+                                .toUpperCase()
+                                .replace(/[^A-Z0-9]/g, "")
+                                .slice(0, 9) // ✅ CHẶN TỐI ĐA 9 KÝ TỰ
+                          }
+                          rules={[
+                            {
+                              required: true,
+                              message: "Vui lòng nhập biển số",
+                            },
+                            {
+                              min: 5,
+                              message: "Biển số không hợp lệ",
+                            },
+                            {
+                              max: 9,
+                              message: "Biển số tối đa 9 ký tự",
+                            },
+                          ]}
+                        >
+                          <Input className="uppercase" />
                         </Form.Item>
                       </Col>
                       <Col span={6}>
                         <Form.Item name="odo" label="Số ODO (km)">
                           <InputNumber
-                            className="w-full"
+                            className="w-full!"
                             formatter={(value) =>
                               `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                             }
@@ -504,15 +559,60 @@ export default function ModalDetailCustomer({
                           />
                         </Form.Item>
                       </Col>
+                      <Col xs={12} md={6}>
+                        <Form.Item name="color" label="Màu ngoại thất">
+                          <Input />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <Form.Item name="interiorColor" label="Màu nội thất">
+                          <Input />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <Form.Item name="carType" label="Kiểu dáng">
+                          <Select placeholder="Chọn kiểu dáng">
+                            <Select.Option value="SEDAN">Sedan</Select.Option>
+                            <Select.Option value="SUV">SUV</Select.Option>
+                            <Select.Option value="HATCHBACK">
+                              Hatchback
+                            </Select.Option>
+                            <Select.Option value="PICKUP">
+                              Bán tải (Pickup)
+                            </Select.Option>
+                            <Select.Option value="MPV">
+                              MPV (Đa dụng)
+                            </Select.Option>
+                            <Select.Option value="COUPE">Coupe</Select.Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                      <Col xs={12} md={6}>
+                        <Form.Item name="driveTrain" label="Hệ dẫn động">
+                          <Select placeholder="Chọn hệ dẫn động">
+                            <Select.Option value="FWD">
+                              Cầu trước (FWD)
+                            </Select.Option>
+                            <Select.Option value="RWD">
+                              Cầu sau (RWD)
+                            </Select.Option>
+                            <Select.Option value="AWD">
+                              4 bánh toàn thời gian (AWD)
+                            </Select.Option>
+                            <Select.Option value="4WD">
+                              2 cầu (4WD)
+                            </Select.Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
                     </Row>
 
-                    {/* KHỐI 3: PHÁP LÝ & ĐỊNH GIÁ */}
-                    <Divider orientation="vertical" className="!mb-4">
+                    <Divider className="!mb-4">
                       <Text
                         type="secondary"
                         className="text-[12px] uppercase font-bold"
                       >
-                        Pháp lý & Định giá
+                        Bảo hành & Bảo hiểm
                       </Text>
                     </Divider>
                     <Row gutter={16}>
@@ -533,23 +633,79 @@ export default function ModalDetailCustomer({
                         </Form.Item>
                       </Col>
                       <Col span={6}>
+                        <Form.Item
+                          name="insuranceTNDSDeadline"
+                          label="Hạn bảo hiểm DS"
+                        >
+                          <DatePicker className="w-full" format="DD/MM/YYYY" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    {/* KHỐI 3: PHÁP LÝ & ĐỊNH GIÁ */}
+                    <Divider className="!mb-4">
+                      <Text
+                        type="secondary"
+                        className="text-[12px] uppercase font-bold"
+                      >
+                        Pháp lý & Định giá
+                      </Text>
+                    </Divider>
+                    <Row gutter={16}>
+                      <Col xs={12} md={6}>
+                        <Form.Item name="ownerType" label="Hình thức sở hữu">
+                          <Select
+                            options={[
+                              { label: "Chính chủ", value: "PERSONAL_OWNER" },
+                              {
+                                label: "Ủy quyền lần 1",
+                                value: "AUTHORIZATION_L1",
+                              },
+                              {
+                                label: "Ủy quyền lần 2",
+                                value: "AUTHORIZATION_L2",
+                              },
+
+                              {
+                                label: "Công ty / Xuất hóa đơn",
+                                value: "COMPANY_VAT",
+                              },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+
+                      <Col span={6}>
                         <Form.Item name="expectedPrice" label="Giá khách muốn">
                           <InputNumber
-                            className="w-full text-emerald-600 font-bold"
-                            suffix="Trđ"
+                            suffix="VNĐ"
+                            className="w-full! text-emerald-600 font-medium"
                             step={10}
+                            formatter={(value) =>
+                              `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                            }
+                            parser={(value) =>
+                              value!.replace(/\$\s?|(,*)/g, "")
+                            }
                           />
                         </Form.Item>
                       </Col>
                       <Col span={6}>
                         <Form.Item name="tSurePrice" label="T-Sure định giá">
                           <InputNumber
-                            className="w-full text-indigo-600 font-bold"
-                            suffix="Trđ"
+                            className="w-full! text-indigo-600 font-medium"
                             step={10}
+                            formatter={(value) =>
+                              `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                            }
+                            parser={(value) =>
+                              value!.replace(/\$\s?|(,*)/g, "")
+                            }
+                            suffix="VNĐ"
                           />
                         </Form.Item>
                       </Col>
+
                       <Col span={24}>
                         <Form.Item name="note" label="Ghi chú thẩm định">
                           <Input.TextArea
@@ -577,9 +733,9 @@ export default function ModalDetailCustomer({
                               level={3}
                               className="!m-0 !text-indigo-600 !font-black uppercase"
                             >
-                              {customerData.leadCar?.carModel?.name ||
-                                "Chưa chọn dòng"}{" "}
-                              {lc.modelName || ""}
+                              {carModels.find(
+                                (m: any) => m.id === lc?.carModelId,
+                              )?.name || customerData.carModel.name}
                             </Title>
                             <Space className="mt-2">
                               <Tag color="blue" className="font-bold">
@@ -668,7 +824,7 @@ export default function ModalDetailCustomer({
                               label="Giá khách muốn"
                               value={
                                 lc.expectedPrice
-                                  ? `${Number(lc.expectedPrice).toLocaleString()} Tr`
+                                  ? `${Number(lc.expectedPrice).toLocaleString()}`
                                   : "---"
                               }
                               color="text-emerald-600 text-lg font-bold"
@@ -677,7 +833,7 @@ export default function ModalDetailCustomer({
                               label="Định giá T-Sure"
                               value={
                                 lc.tSurePrice
-                                  ? `${Number(lc.tSurePrice).toLocaleString()} Tr`
+                                  ? `${Number(lc.tSurePrice).toLocaleString()}`
                                   : "---"
                               }
                               color="text-indigo-600 text-lg font-bold"
@@ -820,13 +976,13 @@ export default function ModalDetailCustomer({
                 <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   {customerData.activities?.length > 0 ? (
                     <Timeline
-                      mode="left"
+                      mode="start"
                       className="mt-4"
                       items={customerData.activities.map((act: any) => ({
-                        dot: (
+                        icon: (
                           <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-md shadow-indigo-200" />
                         ),
-                        children: (
+                        content: (
                           <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <div className="flex justify-between items-start mb-2">
                               <span className="text-[11px] font-bold text-slate-400">

@@ -3,35 +3,10 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { serializeLead } from "@/lib/serialize";
 import { getCurrentUser } from "@/lib/session-server"; // Hàm đã tách ở bước trước
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
-function serializeLead(lead: any) {
-  if (!lead) return null;
-
-  return {
-    ...lead,
-
-    // Decimal → string
-    budget: lead.budget?.toString() ?? null,
-    expectedPrice: lead.expectedPrice?.toString() ?? null,
-
-    // Date → ISO string
-    createdAt: lead.createdAt?.toISOString(),
-    updatedAt: lead.updatedAt?.toISOString(),
-    assignedAt: lead.assignedAt?.toISOString(),
-    firstContactAt: lead.firstContactAt?.toISOString(),
-    lastContactAt: lead.lastContactAt?.toISOString(),
-    nextContactAt: lead.nextContactAt?.toISOString(),
-    displayDate: lead.displayDate?.toISOString(),
-
-    // Serialize nested
-    activities: lead.activities?.map((a: any) => ({
-      ...a,
-      createdAt: a.createdAt?.toISOString(),
-    })),
-  };
-}
 
 export async function getCurrentUserApi() {
   try {
@@ -109,7 +84,12 @@ export async function updateProfile(values: {
 export async function getLeadDetail(customerId: string) {
   try {
     const session = await getCurrentUser();
-    if (!session) return null;
+    if (!session) {
+      console.log("❌ API Fail: No Session found");
+      return null;
+    }
+
+    console.log("🔍 Fetching Customer with ID:", customerId);
 
     const lead = await db.customer.findUnique({
       where: { id: customerId },
@@ -124,12 +104,22 @@ export async function getLeadDetail(customerId: string) {
           },
           orderBy: { createdAt: "desc" },
         },
+        leadCar: true,
       },
     });
 
-    return serializeLead(lead); // ✅ QUAN TRỌNG
+    if (!lead) {
+      console.log(
+        "❌ API Fail: No record found in Database for ID:",
+        customerId,
+      );
+      return null;
+    }
+
+    console.log("✅ DB Found data, serializing...");
+    return serializeLead(lead);
   } catch (error) {
-    console.error("Error fetching lead detail:", error);
+    console.error("🔥 Critical Error in getLeadDetail:", error); // Log lỗi chi tiết ra đây
     return null;
   }
 }

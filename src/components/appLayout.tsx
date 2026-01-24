@@ -21,7 +21,7 @@ export default function AppLayout({ children, role, isGobal }: AppLayoutProps) {
   return (
     <Layout className="min-h-screen">
       {!isPublic && <Sidebar role={role} isGobal={isGobal} />}
-      <Layout className="h-screen overflow-auto">
+      <Layout className="h-screen overflow-auto ">
         <Content className="bg-gray-50">{children}</Content>
       </Layout>
     </Layout>

@@ -231,15 +231,14 @@ export default function CarDetailModal({
                   <span className="font-mono">{car.engineNumber || "N/A"}</span>
                 </Descriptions.Item>
               </Descriptions>
-
               {/* SECTION 4: TÍNH NĂNG & MÔ TẢ */}
-              {car.features && (
+              {car?.features.length > 0 ? (
                 <div className="mb-6">
                   <Title level={4} className="flex items-center gap-2">
                     <SafetyCertificateOutlined /> Tính năng nổi bật
                   </Title>
                   <div className="flex flex-wrap gap-2">
-                    {car.features.split(",").map((f: string, i: number) => (
+                    {car?.features.map((f: string, i: number) => (
                       <Tag
                         key={i}
                         className="bg-indigo-50 text-indigo-600 border-indigo-100 px-3 py-1 rounded-lg"
@@ -249,6 +248,8 @@ export default function CarDetailModal({
                     ))}
                   </div>
                 </div>
+              ) : (
+                ""
               )}
 
               <Title level={4} className="flex items-center gap-2">

@@ -302,8 +302,8 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         placement="left"
         onClose={() => setVisible(false)}
         open={visible}
-        style={{ padding: 0, width: "260px", background: "#001529" }}
-        closable={false}
+        style={{ padding: 0, width: "100wv", background: "#001529" }}
+        closable={true}
       >
         <div className="h-full bg-[#001529]">{SidebarContent}</div>
       </Drawer>
@@ -317,7 +317,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         breakpoint="lg"
         collapsedWidth={80}
         theme="dark"
-        className="hidden lg:block h-screen sticky top-0 left-0 shadow-2xl z-40"
+        className="hidden lg:block  h-screen sticky top-0 left-0 shadow-2xl z-40"
         style={{ background: "#001529" }}
       >
         {SidebarContent}

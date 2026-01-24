@@ -9,16 +9,11 @@ import {
   Input,
   DatePicker,
   Space,
-  Alert,
   Typography,
   Divider,
+  message,
 } from "antd";
-import {
-  MessageOutlined,
-  CalendarOutlined,
-  UserOutlined,
-  BellOutlined,
-} from "@ant-design/icons";
+import { MessageOutlined, UserOutlined, BellOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -40,20 +35,30 @@ export default function ModalContactAndLeadCar({
 }: ModalContactProps) {
   const [form] = Form.useForm();
 
-  // Reset form mỗi khi mở modal để tránh lưu dữ liệu cũ
+  // Reset form khi đóng/mở
   useEffect(() => {
     if (isOpen) {
       form.resetFields();
-      form.setFieldsValue({
-        nextContactAt: null,
-      });
     }
   }, [isOpen, form]);
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      onFinish(values);
+
+      // CHUẨN HÓA DỮ LIỆU TRƯỚC KHI GỬI (Quan trọng để tránh lỗi Server Action)
+      const payload = {
+        ...values,
+        // Nếu có chọn ngày hẹn, convert sang ISO String, nếu không thì để null
+        nextContactAt: values.nextContactAt
+          ? values.nextContactAt.toISOString()
+          : null,
+        // Đảm bảo các field khác không bị undefined
+        note: values.note || "",
+        nextContactNote: values.nextContactNote || "",
+      };
+
+      onFinish(payload);
     } catch (error) {
       console.error("Validate failed:", error);
     }
@@ -63,8 +68,10 @@ export default function ModalContactAndLeadCar({
     <Modal
       title={
         <Space>
-          <MessageOutlined className="text-indigo-600" />
-          <span className="font-bold">GHI NHẬN TƯƠNG TÁC & HẸN GIỜ</span>
+          <div className="p-2 bg-indigo-100 rounded-lg">
+            <MessageOutlined className="text-indigo-600 flex" />
+          </div>
+          <span className="font-bold text-slate-700">GHI NHẬN TƯƠNG TÁC</span>
         </Space>
       }
       open={isOpen}
@@ -73,6 +80,7 @@ export default function ModalContactAndLeadCar({
       confirmLoading={loading}
       okText="Lưu nhật ký"
       cancelText="Hủy bỏ"
+      okButtonProps={{ className: "bg-indigo-600" }}
       centered
       width={500}
     >
@@ -82,44 +90,77 @@ export default function ModalContactAndLeadCar({
         className="mt-4"
         initialValues={{ nextContactAt: null }}
       >
-        {/* Thông tin khách hàng tóm tắt */}
-        <div className="mb-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+        {/* Box thông tin khách hàng nhanh */}
+        <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
           <Space>
-            <UserOutlined className="text-indigo-500" />
-            <Text strong>{selectedLead?.fullName}</Text>
-            <Divider type="vertical" />
-            <Text type="secondary">{selectedLead?.phone}</Text>
+            <UserOutlined className="text-slate-400" />
+            <div>
+              <div className="text-[12px] text-slate-400 uppercase font-bold tracking-wider">
+                Khách hàng
+              </div>
+              <Text strong className="text-indigo-900">
+                {selectedLead?.customer?.fullName || "Chưa có tên"}
+              </Text>
+            </div>
           </Space>
+          <div className="text-right">
+            <div className="text-[12px] text-slate-400 uppercase font-bold tracking-wider">
+              Số điện thoại
+            </div>
+            <Text className="text-slate-600">
+              {selectedLead?.customer?.phone || "---"}
+            </Text>
+          </div>
         </div>
 
         {/* Nội dung tương tác */}
         <Form.Item
           name="note"
-          label={<Text strong>Nội dung vừa trao đổi</Text>}
+          label={
+            <span className="font-bold text-slate-700">
+              Nội dung cuộc trao đổi
+            </span>
+          }
           rules={[
-            { required: true, message: "Vui lòng nhập nội dung cuộc gọi" },
+            {
+              required: true,
+              message: "Vui lòng nhập nội dung đã trao đổi với khách",
+            },
+            { min: 5, message: "Nội dung quá ngắn" },
           ]}
         >
           <Input.TextArea
             rows={4}
-            placeholder="Ví dụ: Khách đang cân nhắc giá, hẹn sáng mai gọi lại chốt cọc..."
+            placeholder="Khách quan tâm dòng xe nào? Tình trạng tài chính? Hẹn khi nào xem xe?..."
+            className="rounded-lg"
           />
         </Form.Item>
 
-        <Divider className="my-4" />
+        <Divider className="my-6">
+          <Text
+            type="secondary"
+            className="text-[12px] uppercase font-bold px-2"
+          >
+            Nhắc hẹn gọi lại
+          </Text>
+        </Divider>
 
         {/* Phần hẹn giờ gọi lại */}
-        <div className="bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300">
-          <div className="flex items-center gap-2 mb-3 text-indigo-600 font-medium">
+        <div className="bg-amber-50/50 p-4 rounded-xl border border-dashed border-amber-200">
+          <div className="flex items-center gap-2 mb-4 text-amber-700 font-bold">
             <BellOutlined />
-            <span>Lên lịch hẹn gọi lại (Nếu có)</span>
+            <span>Lên lịch chăm sóc tiếp theo</span>
           </div>
 
-          <Form.Item name="nextContactAt" label="Thời gian hẹn">
+          <Form.Item
+            name="nextContactAt"
+            label="Thời gian hẹn gọi lại"
+            extra="Hệ thống sẽ thông báo cho bạn vào thời gian này"
+          >
             <DatePicker
               showTime
               format="DD/MM/YYYY HH:mm"
-              className="w-full"
+              className="w-full h-10 rounded-lg"
               placeholder="Chọn ngày và giờ"
               disabledDate={(current) =>
                 current && current < dayjs().startOf("day")
@@ -132,7 +173,10 @@ export default function ModalContactAndLeadCar({
             label="Ghi chú nhắc hẹn"
             className="mb-0"
           >
-            <Input placeholder="Cần chuẩn bị gì cho lần gọi tới?" />
+            <Input
+              placeholder="Cần chuẩn bị tài liệu gì? Báo giá xe nào?..."
+              className="h-10 rounded-lg"
+            />
           </Form.Item>
         </div>
       </Form>

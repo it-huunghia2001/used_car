@@ -118,7 +118,9 @@ export async function getCarModelsAction() {
       select: { id: true, name: true, grade: true },
       orderBy: { name: "asc" },
     });
-    return carModels;
+
+    // Đảm bảo trả về Plain Object thuần túy
+    return JSON.parse(JSON.stringify(carModels));
   } catch (error) {
     console.error("Error fetching car models:", error);
     return [];

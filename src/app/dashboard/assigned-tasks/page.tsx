@@ -47,28 +47,15 @@ import {
   updateCustomerStatusAction,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
-import dayjs from "dayjs";
 import { LeadStatus, UrgencyType } from "@prisma/client";
-import relativeTime from "dayjs/plugin/relativeTime";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
-import "dayjs/locale/vi";
-import ModalDetailCustomer from "@/components/assigned-tasks/ModalDetailCustomer";
+
 import ModalApproveTransaction from "@/components/assigned-tasks/ModalApproveTransaction";
 import ModalLoseLead from "@/components/assigned-tasks/ModalLoseLead";
 import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndLeadCar";
-
-// --- CẤU HÌNH DAYJS ---
-dayjs.extend(utc);
-dayjs.extend(timezone);
-dayjs.extend(relativeTime);
-dayjs.locale("vi");
-dayjs.tz.setDefault("Asia/Ho_Chi_Minh");
+import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
+import dayjs from "@/lib/dayjs";
 
 const { Title, Text } = Typography;
-
-// Giả định giới hạn thời gian phản hồi từ Admin (phút)
-const RESPONSE_LIMIT_MINUTES = 30;
 
 export default function AssignedTasksPage() {
   const [contactForm] = Form.useForm();
@@ -88,6 +75,7 @@ export default function AssignedTasksPage() {
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [filterType, setFilterType] = useState<any>("ALL");
   const [isMobile, setIsMobile] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
 
   // --- MAPPING ---
   const REFERRAL_TYPE_MAP: any = {
@@ -164,32 +152,51 @@ export default function AssignedTasksPage() {
   const onContactFinish = async (values: any) => {
     try {
       setLoading(true);
-      // taskId lấy từ task record bạn đang chọn
       const taskId = selectedLead.id;
+      const customerId = selectedLead.customerId;
+
+      // XỬ LÝ AN TOÀN: Bọc bằng dayjs để đảm bảo có hàm toISOString
+      let nextContactAtISO = null;
+      if (values.nextContactAt) {
+        const dateObj = dayjs(values.nextContactAt);
+        if (dateObj.isValid()) {
+          nextContactAtISO = dateObj.toISOString();
+        }
+      }
 
       const result = await updateCustomerStatusAction(
-        selectedLead.customerId, // ID của khách hàng
+        customerId,
         "CONTACTED",
         values.note,
-        taskId, // TRUYỀN THÊM TASK ID VÀO ĐÂY
-        values.nextContactAt?.toDate(),
+        taskId,
+        nextContactAtISO, // Truyền chuỗi ISO sạch vào đây
+        {
+          nextNote: values.nextContactNote,
+        },
       );
-      const data = result as {
-        success: true;
-        isLate: boolean;
-        lateMinutes: number;
-      };
+
+      // 3. Xử lý kết quả trả về
       if (result.success) {
-        messageApi.success(
-          data.isLate
-            ? `Đã lưu! (Ghi nhận trễ ${data.lateMinutes}p)`
-            : "Hoàn thành nhiệm vụ đúng hạn!",
-        );
+        // Ép kiểu để lấy thông tin KPI
+        const { isLate, lateMinutes } = result as {
+          isLate: boolean;
+          lateMinutes: number;
+        };
+
+        if (isLate) {
+          messageApi.warning(`Đã lưu! Ghi nhận trễ ${lateMinutes} phút.`);
+        } else {
+          messageApi.success("Tuyệt vời! Bạn đã hoàn thành nhiệm vụ đúng hạn.");
+        }
+
         setIsContactModalOpen(false);
-        loadData();
+        loadData(); // Reload lại danh sách Task
+      } else {
+        messageApi.error("Lỗi cập nhật trạng thái");
       }
     } catch (err: any) {
-      messageApi.error("Lỗi cập nhật");
+      console.error("Contact Finish Error:", err);
+      messageApi.error("Có lỗi xảy ra, vui lòng thử lại sau");
     } finally {
       setLoading(false);
     }
@@ -240,9 +247,9 @@ export default function AssignedTasksPage() {
             {record.customer.carModel?.name || "Chưa cập nhật model"}
           </div>
           <div className="text-gray-500">
-            Năm: {record.customer.carYear || "---"} | Giá mong muốn:{" "}
-            {record.customer.expectedPrice
-              ? `${record.customer.expectedPrice}tr`
+            Năm: {record.customer.leadCar.year || "---"} | Giá mong muốn:{" "}
+            {record.customer.leadCar.expectedPrice
+              ? `${record.customer.leadCar.expectedPrice}`
               : "---"}
           </div>
         </div>
@@ -403,6 +410,7 @@ export default function AssignedTasksPage() {
           setIsContactModalOpen(true);
         }}
         UrgencyBadge={UrgencyBadge}
+        onUpdateSuccess={loadData}
       />
       <ModalApproveTransaction
         isOpen={isModalOpen}

@@ -297,10 +297,19 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
           ? Number(restValues.tSurePrice)
           : null,
         note: restValues.note,
+        engineNumber: restValues.engineNumber,
+        vin: restValues.vin,
+        interiorColor: restValues.interiorColor,
+        engineSize: restValues.engineSize,
+        driveTrain: restValues.driveTrain,
+        carType: restValues.carType,
+
         // ÉP KIỂU DATE Ở ĐÂY
         registrationDeadline: restValues.registrationDeadline
           ? new Date(restValues.registrationDeadline)
           : null,
+        insuranceTNDS: restValues.insuranceTNDSDeadline ? true : false,
+        insuranceVC: restValues.insuranceVCDeadline ? true : false,
         insuranceVCDeadline: restValues.insuranceVCDeadline
           ? new Date(restValues.insuranceVCDeadline)
           : null,
@@ -308,7 +317,12 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
           ? new Date(restValues.insuranceTNDSDeadline)
           : null,
       };
-
+      await tx.customer.update({
+        where: { id: customerId },
+        data: {
+          carModelId: restValues.carModelId, // Cập nhật luôn ở đây
+        },
+      });
       // 3. Upsert LeadCar
       await tx.leadCar.upsert({
         where: { customerId: customerId },
