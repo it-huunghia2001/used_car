@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -13,43 +12,49 @@ import {
   Tag,
   Row,
   Col,
-  Descriptions,
-  Alert,
   Timeline,
   Card,
   Empty,
-  Badge,
   Skeleton,
+  Form,
+  Input,
+  InputNumber,
+  DatePicker,
+  Select,
+  message,
+  Divider,
+  Badge,
 } from "antd";
 import {
-  IdcardOutlined,
-  PhoneOutlined,
   UserOutlined,
   HistoryOutlined,
   CarOutlined,
-  CalendarOutlined,
+  EditOutlined,
+  SaveOutlined,
+  PhoneOutlined,
+  IdcardOutlined,
   ClockCircleOutlined,
+  SafetyCertificateOutlined,
+  CalendarOutlined,
+  BellOutlined,
   CheckCircleOutlined,
-  DollarCircleOutlined,
-  EnvironmentOutlined,
+  FileProtectOutlined,
+  BgColorsOutlined,
+  AuditOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/vi";
 import { getLeadDetail } from "@/actions/profile-actions";
+import {
+  updateFullLeadDetail,
+  updateLeadCarSpecs,
+} from "@/actions/lead-actions";
 
 dayjs.extend(relativeTime);
 dayjs.locale("vi");
 
 const { Title, Text, Paragraph } = Typography;
-
-interface ModalDetailCustomerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  selectedLead: any;
-  onContactClick: () => void;
-  UrgencyBadge: React.FC<{ type: any }>;
-}
 
 export default function ModalDetailCustomer({
   isOpen,
@@ -57,366 +62,798 @@ export default function ModalDetailCustomer({
   selectedLead,
   onContactClick,
   UrgencyBadge,
-}: ModalDetailCustomerProps) {
+  carModels = [],
+}: any) {
+  // --- 1. KHAI BÁO FORM & STATE TRƯỚC ---
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [fullDetail, setFullDetail] = useState<any>(null);
 
-  const REFERRAL_TYPE_DETAILS: any = {
-    SELL: { label: "THU MUA XE", color: "orange" },
-    SELL_TRADE_NEW: { label: "THU CŨ ĐỔI XE MỚI", color: "red" },
-    SELL_TRADE_USED: { label: "THU CŨ ĐỔI XE CŨ", color: "volcano" },
-    BUY: { label: "MUA XE CHƯA QUA SỬ DỤNG", color: "green" },
-    VALUATION: { label: "ĐỊNH GIÁ XE TẬN NƠI", color: "blue" },
+  // --- 2. XÁC ĐỊNH DỮ LIỆU KHÁCH HÀNG (Sử dụng Optional Chaining để tránh lỗi declaration) ---
+  const customerData =
+    fullDetail || selectedLead?.customer || selectedLead || {};
+  const lc = customerData?.leadCar || {};
+
+  // --- 3. HÀM FETCH DATA ---
+  const fetchData = async () => {
+    if (!selectedLead?.id) return;
+    setLoading(true);
+    try {
+      const res = await getLeadDetail(selectedLead.id);
+      setFullDetail(res);
+
+      // Đổ dữ liệu vào Form ngay khi fetch xong để đảm bảo tính đồng bộ
+      if (res) {
+        form.setFieldsValue({
+          ...res.leadCar,
+          fullName: res.fullName || res.leadCar?.customer?.fullName || "",
+          phone: res.phone || res.leadCar?.customer?.phone || "",
+          registrationDeadline: res.leadCar?.registrationDeadline
+            ? dayjs(res.leadCar.registrationDeadline)
+            : null,
+          insuranceTNDSDeadline: res.leadCar?.insuranceTNDSDeadline
+            ? dayjs(res.leadCar.insuranceTNDSDeadline)
+            : null,
+          insuranceVCDeadline: res.leadCar?.insuranceVCDeadline
+            ? dayjs(res.leadCar.insuranceVCDeadline)
+            : null,
+        });
+      }
+    } catch (error) {
+      message.error("Lỗi kết xuất dữ liệu khách hàng");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getStatusConfig = (status: string) => {
-    const configs: Record<string, { color: string; text: string }> = {
-      // --- NHÓM MỚI & TIẾP NHẬN ---
-      NEW: {
-        color: "cyan",
-        text: "Mới tiếp nhận",
-      },
-      REJECTED_APPROVAL: {
-        color: "magenta",
-        text: "Từ chối phê duyệt",
-      },
-      ASSIGNED: {
-        color: "processing", // Màu xanh dương nhạt có hiệu ứng chạy
-        text: "Đã phân bổ",
-      },
-
-      FOLLOW_UP: {
-        color: "lime", // Màu xanh dương nhạt có hiệu ứng chạy
-        text: "liên hệ lại",
-      },
-
-      // --- NHÓM ĐANG TRIỂN KHAI ---
-      CONTACTED: {
-        color: "geekblue",
-        text: "Đã liện hệ",
-      },
-      PENDING_VIEW: {
-        color: "gold",
-        text: "Hẹn xem xe",
-      },
-
-      // --- NHÓM CHỜ PHÊ DUYỆT (Cần sự chú ý) ---
-      PENDING_DEAL_APPROVAL: {
-        color: "warning", // Màu vàng cam cảnh báo
-        text: "Chờ duyệt nhập kho",
-      },
-      PENDING_LOSE_APPROVAL: {
-        color: "magenta",
-        text: "Chờ duyệt thất bại",
-      },
-
-      // --- NHÓM KẾT THÚC ---
-      DEAL_DONE: {
-        color: "success",
-        text: "Giao dịch thành công",
-      },
-      LOSE: {
-        color: "error",
-        text: "Thất bại (Lose)",
-      },
-      CANCELLED: {
-        color: "default",
-        text: "Đã gửi duyệt",
-      },
-      FROZEN: {
-        color: "purple",
-        text: "Tạm dừng (FROZEN)",
-      },
-    };
-    return configs[status] || { color: "default", text: status };
-  };
-
+  // --- 4. CÁC HOOKS (Luôn gọi ở Top-level) ---
   useEffect(() => {
     if (isOpen && selectedLead?.id) {
-      const fetchData = async () => {
-        setLoading(true);
-        try {
-          const res = await getLeadDetail(selectedLead.id);
-          setFullDetail(res);
-        } catch (error) {
-          console.error("Lỗi tải chi tiết:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
       fetchData();
+    } else if (!isOpen) {
+      setFullDetail(null); // Reset dữ liệu khi đóng modal
+      form.resetFields();
     }
   }, [isOpen, selectedLead?.id]);
 
+  // Hook này đảm bảo khi customerData thay đổi (ví dụ từ props), Form sẽ được cập nhật
+  useEffect(() => {
+    if (customerData && !isEditing) {
+      form.setFieldsValue({
+        fullName: customerData.fullName || customerData.customer?.fullName,
+        phone: customerData.phone || customerData.customer?.phone,
+        ...customerData.leadCar,
+      });
+    }
+  }, [customerData, form, isEditing]);
+
+  // --- 5. LOGIC LƯU DỮ LIỆU ---
+  const handleSaveSpecs = async () => {
+    try {
+      // 1. Lấy dữ liệu từ các ô Input của Form
+      // Thiếu dòng này sẽ gây lỗi "values is not defined"
+      const values = await form.validateFields();
+
+      setLoading(true);
+
+      // 2. Tạo object gửi đi (giống hệt JSON bạn vừa gửi)
+      const payload = {
+        ...values,
+        phone: customerData.phone,
+        fullName: customerData.fullName,
+        // Đảm bảo định dạng ngày tháng nếu API yêu cầu ISO String
+        registrationDeadline: values.registrationDeadline?.toISOString(),
+        insuranceVCDeadline: values.insuranceVCDeadline?.toISOString(),
+        // Đảm bảo truyền đúng ID của bản ghi cần update
+        id: selectedLead?.carDetail?.id,
+      };
+
+      console.log("Dữ liệu chuẩn bị gửi đi 2:", payload);
+
+      // 3. Gọi API
+      const res = await updateFullLeadDetail(customerData.id, payload);
+
+      if (res.success) {
+        message.success("Cập nhật chi tiết phương tiện thành công");
+        setIsEditing(false);
+        if (fetchData) fetchData();
+      }
+    } catch (errorInfo) {
+      // Nếu là lỗi chưa nhập đủ form, Ant Design sẽ trả về errorInfo
+      console.log("Lỗi form hoặc hệ thống:", errorInfo);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- 6. RENDER (Early return sau khi đã gọi hết Hooks) ---
   if (!selectedLead) return null;
 
-  const currentStatus = getStatusConfig(selectedLead.status);
-  const dataToShow = fullDetail || selectedLead;
+  const nextAppointment =
+    customerData?.tasks?.find((t: any) => t.status === "PENDING") || null;
+
+  const InfoItem = ({ label, value, icon, color }: any) => (
+    <div className="flex flex-col mb-4">
+      <Text
+        type="secondary"
+        className="text-[11px] uppercase flex items-center gap-1 mb-1 font-medium tracking-tight"
+      >
+        {icon} {label}
+      </Text>
+      <Text strong className={`text-[14px] ${color || "text-slate-800"}`}>
+        {value || "---"}
+      </Text>
+    </div>
+  );
 
   return (
     <Modal
       title={
-        <div className="flex items-center gap-2 py-1">
-          <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center">
-            <IdcardOutlined className="text-indigo-600 text-base" />
+        <Space className="py-2">
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-indigo-200 shadow-lg">
+            <IdcardOutlined style={{ fontSize: 20 }} />
           </div>
-          <span className="text-gray-800 font-bold tracking-tight uppercase text-sm sm:text-base">
-            Hồ sơ khách hàng
-          </span>
-        </div>
+          <div>
+            <div className="text-[16px] font-bold text-slate-800 text-uppercase">
+              HỒ SƠ KHÁCH HÀNG CHI TIẾT
+            </div>
+            <div className="text-[11px] text-gray-400 font-normal tracking-widest">
+              ID: {selectedLead.id.toUpperCase()}
+            </div>
+          </div>
+        </Space>
       }
       open={isOpen}
       onCancel={onClose}
-      width={1100}
+      width={1250}
       centered
+      className="custom-modal-header"
       footer={[
-        <div
-          key="footer"
-          className="flex flex-col sm:flex-row gap-2 w-full sm:justify-end p-2 sm:p-0"
+        <Button
+          key="close"
+          onClick={onClose}
+          size="large"
+          className="rounded-lg px-6"
         >
-          <Button
-            key="close"
-            size="large"
-            onClick={onClose}
-            className="rounded-lg order-2 sm:order-1"
-          >
-            Đóng
-          </Button>
-          <Button
-            key="call"
-            type="primary"
-            size="large"
-            icon={<PhoneOutlined />}
-            onClick={onContactClick}
-            className="bg-indigo-600 hover:bg-indigo-700 rounded-lg px-6 order-1 sm:order-2"
-          >
-            Ghi nhận tương tác
-          </Button>
-        </div>,
+          Đóng
+        </Button>,
+        <Button
+          key="call"
+          type="primary"
+          icon={<PhoneOutlined />}
+          onClick={onContactClick}
+          size="large"
+          className="bg-indigo-600 hover:bg-indigo-700 rounded-lg px-6 shadow-md"
+        >
+          Ghi nhận tương tác
+        </Button>,
       ]}
-      className="modal-premium overflow-hidden"
     >
-      <div className="max-h-[80vh] overflow-y-auto px-1 sm:pr-2 custom-scrollbar overflow-x-hidden">
-        {/* HEADER BANNER - Responsive Flex */}
-        <div className="relative mb-4 sm:mb-6 p-4 sm:p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-xl sm:rounded-2xl overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-white text-7xl sm:text-9xl pointer-events-none">
-            <CarOutlined />
-          </div>
-
-          <div className="relative z-10 flex flex-col sm:flex-row justify-between items-center sm:items-start lg:items-center gap-4">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
-              <Badge dot status="success" offset={[-5, 65]}>
-                <Avatar
-                  size={{ xs: 64, sm: 84, md: 84, lg: 84, xl: 84, xxl: 84 }}
-                  icon={<UserOutlined />}
-                  className="bg-white/10 backdrop-blur-md border-2 border-white/30"
-                />
-              </Badge>
-              <div>
-                <Title
-                  level={3}
-                  className="!mb-1 !text-white uppercase tracking-wider !text-lg sm:!text-2xl"
+      <div className="max-h-[75vh] overflow-y-auto px-1 custom-scrollbar overflow-x-hidden">
+        {/* SECTION 1: TOP BANNER IDENTITY */}
+        <div className="mb-6 p-8 bg-slate-900 rounded-2xl shadow-2xl text-white relative overflow-hidden border border-slate-800">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+          <Row justify="space-between" align="middle" className="relative z-10">
+            <Col>
+              <Space size={24}>
+                <Badge
+                  count={
+                    <div className="bg-emerald-500 w-4 h-4 rounded-full border-2 border-slate-900" />
+                  }
+                  offset={[-10, 60]}
                 >
-                  {selectedLead.fullName}
-                </Title>
-                <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center">
-                  <Text className="text-indigo-200! text-lg sm:text-xl font-mono">
-                    {selectedLead.phone}
-                  </Text>
-                  <div className="flex gap-2">
+                  <Avatar
+                    size={84}
+                    icon={<UserOutlined />}
+                    className="bg-indigo-500 border-4 border-slate-800 shadow-xl"
+                  />
+                </Badge>
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-3xl font-bold tracking-tight">
+                      {customerData.fullName}
+                    </span>
+                    <UrgencyBadge type={customerData.urgencyLevel} />
+                  </div>
+                  <Space
+                    split={<Divider type="vertical" className="bg-slate-700" />}
+                    className="text-slate-400"
+                  >
+                    <span className="flex items-center gap-2 text-indigo-300 font-medium">
+                      <PhoneOutlined /> {customerData.phone}
+                    </span>
                     <Tag
                       color="blue"
-                      className="bg-blue-500/20 text-blue-100 border-none rounded-full px-3 m-0"
+                      className="bg-indigo-500/20 border-indigo-500/30 text-indigo-300 px-3 uppercase text-[10px] font-bold leading-5 m-0"
                     >
-                      {REFERRAL_TYPE_DETAILS[selectedLead.type]?.label ||
-                        "YÊU CẦU KHÁC"}
+                      {customerData.type}
                     </Tag>
-                    <UrgencyBadge type={selectedLead.urgencyLevel} />
-                  </div>
+                  </Space>
+                </div>
+              </Space>
+            </Col>
+            <Col className="text-right">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1">
+                Last Interaction
+              </div>
+              <div className="text-lg font-mono text-indigo-400">
+                {dayjs(customerData.updatedAt).format("DD/MM/YYYY | HH:mm")}
+              </div>
+            </Col>
+          </Row>
+        </div>
+
+        {/* SECTION 2: NEXT APPOINTMENT BANNER (Cực kỳ quan trọng) */}
+        {nextAppointment ? (
+          <div className="mb-6 group relative p-5 bg-gradient-to-r from-amber-50 to-orange-50 border border-orange-200 rounded-2xl flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center gap-5">
+              <div className="w-14 h-14 bg-orange-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-200 rotate-3 group-hover:rotate-0 transition-transform">
+                <CalendarOutlined style={{ fontSize: 28 }} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Text className="text-orange-800 font-black text-[11px] uppercase tracking-widest">
+                    Lịch hẹn tiếp theo
+                  </Text>
+                  <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-orange-400 opacity-75"></span>
+                </div>
+                <div className="text-[17px] font-bold text-slate-800 mb-1">
+                  {nextAppointment.title}
+                </div>
+                <div className="flex items-center gap-4 text-[13px] text-orange-700 font-medium">
+                  <span className="flex items-center gap-1">
+                    <ClockCircleOutlined />{" "}
+                    {dayjs(nextAppointment.dueDate).format(
+                      "HH:mm - dddd, DD/MM/YYYY",
+                    )}
+                  </span>
+                  <Tag color="orange" className="font-bold border-orange-300">
+                    {dayjs(nextAppointment.dueDate).fromNow()}
+                  </Tag>
                 </div>
               </div>
             </div>
-
-            <div className="bg-white/10 p-3 sm:p-4 rounded-xl backdrop-blur-md border border-white/10 text-center w-full sm:w-auto min-w-[150px]">
-              <Text className="text-gray-400! text-[10px] uppercase block mb-1 tracking-widest">
-                Trạng thái
-              </Text>
-              <Tag
-                color={currentStatus.color}
-                className="text-sm sm:text-base px-3 py-0.5 font-bold m-0 border-none rounded-lg shadow-lg w-full sm:w-auto"
-              >
-                {currentStatus.text}
-              </Tag>
+            <div className="bg-white/60 backdrop-blur-md p-4 rounded-xl border border-orange-100 max-w-[400px]">
+              <div className="text-[11px] text-orange-800/50 uppercase font-bold mb-1 flex items-center gap-1">
+                <BellOutlined /> Nội dung nhắc hẹn
+              </div>
+              <Paragraph className="text-[13px] m-0 text-slate-700 italic line-clamp-2">
+                {nextAppointment.note ||
+                  "Sale chưa nhập nội dung cần chuẩn bị cho cuộc hẹn này."}
+              </Paragraph>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="mb-6 p-4 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center bg-slate-50/50">
+            <Space className="text-slate-400">
+              <CheckCircleOutlined />
+              <span className="text-[13px]">
+                Khách hàng này hiện không có lịch hẹn tồn đọng.
+              </span>
+              <Button
+                type="link"
+                size="small"
+                className="font-bold text-indigo-600"
+              >
+                Thiết lập hẹn mới
+              </Button>
+            </Space>
+          </div>
+        )}
 
-        <Row gutter={[16, 16]}>
-          {/* CỘT TRÁI: THÔNG TIN XE */}
-          <Col xs={24} lg={12}>
-            <div className="flex flex-col gap-4">
-              {/* NHẮC HẸN */}
-              {selectedLead.nextContactAt && (
-                <Alert
-                  className="rounded-xl border-l-4 border-l-amber-500 bg-amber-50/50 p-3"
-                  icon={<CalendarOutlined className="text-amber-600" />}
-                  showIcon
-                  message={
-                    <Text
-                      strong
-                      className="text-amber-800 uppercase text-[10px]"
-                    >
-                      Lịch hẹn gọi lại
-                    </Text>
-                  }
-                  description={
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-lg sm:text-xl font-black text-amber-700">
-                        {dayjs(selectedLead.nextContactAt).format(
-                          "DD/MM HH:mm",
-                        )}
-                      </span>
-                      <Tag
-                        color="warning"
-                        className="animate-pulse font-bold text-[10px]"
-                      >
-                        {dayjs(selectedLead.nextContactAt).fromNow()}
-                      </Tag>
-                    </div>
-                  }
-                />
-              )}
-
-              {/* CHI TIẾT NHU CẦU */}
+        <Form form={form} layout="vertical">
+          <Row gutter={[24, 24]}>
+            {/* CỘT TRÁI: THÔNG TIN XE */}
+            <Col xs={24} lg={16}>
               <Card
+                className="rounded-2xl border-slate-200 shadow-sm overflow-hidden"
                 title={
-                  <Space className="text-sm sm:text-base">
-                    <CarOutlined className="text-indigo-500" /> NHU CẦU & XE
+                  <Space>
+                    <CarOutlined className="text-indigo-600" />{" "}
+                    <span className="text-[15px] font-bold">
+                      CHI TIẾT PHƯƠNG TIỆN
+                    </span>
                   </Space>
                 }
-                size="small"
-                className="rounded-xl shadow-sm border-slate-200"
-              >
-                <Descriptions
-                  column={{ xs: 1, sm: 2 }} // 1 cột trên mobile, 2 cột trên desktop
-                  layout="vertical"
-                  className="premium-descriptions"
-                  size="small"
-                >
-                  <Descriptions.Item label="Dòng xe quan tâm">
-                    <Text strong className="text-indigo-600">
-                      {selectedLead.carModel?.name ||
-                        selectedLead.carYear ||
-                        "N/A"}
-                    </Text>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Biển số / Khu vực">
-                    <Tag
-                      icon={<EnvironmentOutlined />}
-                      className="font-mono bg-slate-100 border-none m-0"
+                extra={
+                  isEditing ? (
+                    <Space>
+                      <Button
+                        size="small"
+                        type="text"
+                        onClick={() => setIsEditing(false)}
+                        className="text-slate-400"
+                      >
+                        Hủy
+                      </Button>
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<SaveOutlined />}
+                        onClick={handleSaveSpecs}
+                        loading={loading}
+                        className="bg-emerald-500 border-none px-4 rounded-md"
+                      >
+                        Lưu
+                      </Button>
+                    </Space>
+                  ) : (
+                    <Button
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => setIsEditing(true)}
+                      className="rounded-md border-indigo-200 text-indigo-600 font-medium"
                     >
-                      {selectedLead.licensePlate || "N/A"}
-                    </Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Giá dự kiến" span={2}>
-                    <Text strong className="text-emerald-600 text-lg font-bold">
-                      <DollarCircleOutlined className="mr-1" />
-                      {selectedLead.expectedPrice ||
-                        selectedLead.budget ||
-                        "Thỏa thuận"}
-                    </Text>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Ghi chú ban đầu" span={2}>
-                    <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 italic text-gray-500 text-xs sm:text-sm">
-                      {selectedLead.note || "Không có ghi chú"}
-                    </div>
-                  </Descriptions.Item>
-                </Descriptions>
-              </Card>
-            </div>
-          </Col>
+                      Cập nhật thông số
+                    </Button>
+                  )
+                }
+              >
+                {isEditing ? (
+                  <div className="animate-fadeIn">
+                    {/* KHỐI 1: THÔNG TIN ĐỊNH DANH */}
+                    <Divider orientation="vertical" className="!m-0 !mb-4">
+                      <Text
+                        type="secondary"
+                        className="text-[12px] uppercase font-bold"
+                      >
+                        Thông tin định danh
+                      </Text>
+                    </Divider>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item name="fullName" label="Tên khách hàng">
+                          <Input
+                            prefix={<UserOutlined />}
+                            disabled
+                            className="bg-gray-50"
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item name="phone" label="Số điện thoại">
+                          <Input
+                            prefix={<PhoneOutlined />}
+                            disabled
+                            className="bg-gray-50"
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
 
-          {/* CỘT PHẢI: TIMELINE */}
-          <Col xs={24} lg={12}>
-            <Card
-              title={
-                <div className="flex justify-between items-center w-full text-sm sm:text-base">
-                  <Space>
-                    <HistoryOutlined className="text-indigo-500" /> LỊCH SỬ CHĂM
-                    SÓC
-                  </Space>
-                  <Badge
-                    count={dataToShow.activities?.length || 0}
-                    showZero
-                    color="#6366f1"
-                    size="small"
-                  />
-                </div>
-              }
-              size="small"
-              className="rounded-xl shadow-sm border-slate-200 h-full"
-            >
-              <Skeleton loading={loading} active paragraph={{ rows: 5 }}>
-                <div className="max-h-[400px] sm:max-h-[550px] overflow-y-auto pr-1 custom-scrollbar">
-                  {dataToShow.activities?.length > 0 ? (
-                    <Timeline
-                      mode="left"
-                      className="mt-4 timeline-call-customer ml-[-20px] sm:ml-0"
-                      items={dataToShow.activities.map(
-                        (act: any, idx: number) => ({
-                          dot:
-                            idx === 0 ? (
-                              <CheckCircleOutlined className="text-base text-green-500 bg-white" />
-                            ) : (
-                              <ClockCircleOutlined className="text-gray-300 bg-white" />
-                            ),
-                          label: (
-                            <span className="text-[9px] text-gray-400 font-mono hidden sm:inline">
-                              {dayjs(act.createdAt).format("DD/MM HH:mm")}
-                            </span>
-                          ),
-                          children: (
-                            <div
-                              className={`p-2 sm:p-3 rounded-lg border mb-2 ${idx === 0 ? "bg-indigo-50/50 border-indigo-100" : "bg-gray-50 border-gray-100"}`}
+                    {/* KHỐI 2: THÔNG SỐ KỸ THUẬT XE */}
+                    <Divider orientation="vertical" className="!mb-4">
+                      <Text
+                        type="secondary"
+                        className="text-[12px] uppercase font-bold"
+                      >
+                        Cấu hình phương tiện
+                      </Text>
+                    </Divider>
+                    <Row gutter={16}>
+                      <Col span={8}>
+                        <Form.Item
+                          name="carModelId"
+                          label="Dòng xe (Hệ thống)"
+                          rules={[{ required: true }]}
+                        >
+                          <Select
+                            showSearch
+                            optionFilterProp="label"
+                            options={carModels.map((m: any) => ({
+                              value: m.id,
+                              label: m.name,
+                            }))}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item name="modelName" label="Tên xe chi tiết">
+                          <Input placeholder="Vios G, Cross V..." />
+                        </Form.Item>
+                      </Col>
+                      <Col span={4}>
+                        <Form.Item name="year" label="Năm SX">
+                          <InputNumber
+                            className="w-full"
+                            min={1900}
+                            max={2100}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={4}>
+                        <Form.Item name="color" label="Màu xe">
+                          <Input placeholder="Trắng, Đen..." />
+                        </Form.Item>
+                      </Col>
+
+                      <Col span={6}>
+                        <Form.Item name="vin" label="Số VIN">
+                          <Input
+                            placeholder="17 ký tự"
+                            count={{ show: true, max: 17 }}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item name="licensePlate" label="Biển số">
+                          <Input placeholder="30A-123.45" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item name="odo" label="Số ODO (km)">
+                          <InputNumber
+                            className="w-full"
+                            formatter={(value) =>
+                              `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                            }
+                            parser={(value) =>
+                              value!.replace(/\$\s?|(,*)/g, "")
+                            }
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item name="transmission" label="Hộp số">
+                          <Select
+                            options={[
+                              { value: "AUTOMATIC", label: "Số tự động" },
+                              { value: "MANUAL", label: "Số sàn" },
+                            ]}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    {/* KHỐI 3: PHÁP LÝ & ĐỊNH GIÁ */}
+                    <Divider orientation="vertical" className="!mb-4">
+                      <Text
+                        type="secondary"
+                        className="text-[12px] uppercase font-bold"
+                      >
+                        Pháp lý & Định giá
+                      </Text>
+                    </Divider>
+                    <Row gutter={16}>
+                      <Col span={6}>
+                        <Form.Item
+                          name="registrationDeadline"
+                          label="Hạn đăng kiểm"
+                        >
+                          <DatePicker className="w-full" format="DD/MM/YYYY" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item
+                          name="insuranceVCDeadline"
+                          label="Hạn bảo hiểm VC"
+                        >
+                          <DatePicker className="w-full" format="DD/MM/YYYY" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item name="expectedPrice" label="Giá khách muốn">
+                          <InputNumber
+                            className="w-full text-emerald-600 font-bold"
+                            suffix="Trđ"
+                            step={10}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item name="tSurePrice" label="T-Sure định giá">
+                          <InputNumber
+                            className="w-full text-indigo-600 font-bold"
+                            suffix="Trđ"
+                            step={10}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={24}>
+                        <Form.Item name="note" label="Ghi chú thẩm định">
+                          <Input.TextArea
+                            rows={3}
+                            placeholder="Tình trạng thân vỏ, máy móc..."
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </div>
+                ) : (
+                  <div className="p-2 animate-fadeIn">
+                    {/* NHÓM 1: THÔNG TIN CƠ BẢN & ĐỊNH DANH XE */}
+                    <div className="mb-8">
+                      <Row gutter={40}>
+                        <Col span={14}>
+                          <div className="mb-6">
+                            <Text
+                              type="secondary"
+                              className="text-[11px] uppercase block mb-1"
                             >
-                              <div className="flex justify-between items-center mb-1">
-                                <Tag
-                                  className="text-[9px] m-0 font-bold uppercase"
-                                  color={getStatusConfig(act.status).color}
-                                >
-                                  {getStatusConfig(act.status).text}
-                                </Tag>
-                                <Text type="secondary" className="text-[10px]">
-                                  {act.user?.fullName.split(" ").pop()}
-                                </Text>
+                              Dòng xe & Phiên bản
+                            </Text>
+                            <Title
+                              level={3}
+                              className="!m-0 !text-indigo-600 !font-black uppercase"
+                            >
+                              {customerData.leadCar?.carModel?.name ||
+                                "Chưa chọn dòng"}{" "}
+                              {lc.modelName || ""}
+                            </Title>
+                            <Space className="mt-2">
+                              <Tag color="blue" className="font-bold">
+                                {lc.grade || "Phiên bản: ---"}
+                              </Tag>
+                              <Tag color="cyan" className="font-bold">
+                                {lc.carType || "Loại xe: ---"}
+                              </Tag>
+                            </Space>
+                          </div>
+
+                          <Row gutter={[20, 20]}>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Năm sản xuất"
+                                value={lc.year}
+                                icon={<CalendarOutlined />}
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Số ODO"
+                                value={
+                                  lc.odo
+                                    ? `${lc.odo.toLocaleString()} km`
+                                    : "---"
+                                }
+                                icon={<HistoryOutlined />}
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Màu ngoại thất"
+                                value={lc.color}
+                                icon={<BgColorsOutlined />}
+                              />
+                            </Col>
+
+                            <Col span={8}>
+                              <InfoItem
+                                label="Hộp số"
+                                value={
+                                  lc.transmission === "AUTOMATIC"
+                                    ? "Số tự động"
+                                    : "Số sàn"
+                                }
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Nhiên liệu"
+                                value={lc.fuelType}
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Số chỗ ngồi"
+                                value={lc.seats ? `${lc.seats} chỗ` : "---"}
+                              />
+                            </Col>
+                          </Row>
+                        </Col>
+
+                        <Col
+                          span={10}
+                          className="border-l border-slate-100 pl-10"
+                        >
+                          <InfoItem
+                            label="Biển số xe"
+                            value={
+                              <Tag
+                                color="blue"
+                                className="px-4 py-1 text-lg font-bold font-mono"
+                              >
+                                {lc.licensePlate || "N/A"}
+                              </Tag>
+                            }
+                          />
+                          <div className="grid grid-cols-2 gap-4 mt-4">
+                            <InfoItem label="Số VIN" value={lc.vin} />
+                            <InfoItem label="Số máy" value={lc.engineNumber} />
+                          </div>
+                          <Divider className="my-4" />
+                          <div className="flex justify-between">
+                            <InfoItem
+                              label="Giá khách muốn"
+                              value={
+                                lc.expectedPrice
+                                  ? `${Number(lc.expectedPrice).toLocaleString()} Tr`
+                                  : "---"
+                              }
+                              color="text-emerald-600 text-lg font-bold"
+                            />
+                            <InfoItem
+                              label="Định giá T-Sure"
+                              value={
+                                lc.tSurePrice
+                                  ? `${Number(lc.tSurePrice).toLocaleString()} Tr`
+                                  : "---"
+                              }
+                              color="text-indigo-600 text-lg font-bold"
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                    </div>
+
+                    {/* NHÓM 2: CHI TIẾT KỸ THUẬT & PHÁP LÝ */}
+                    <Row gutter={24}>
+                      <Col span={16}>
+                        <Card
+                          size="small"
+                          className="bg-slate-50 border-none rounded-xl"
+                        >
+                          <Row gutter={[16, 16]}>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Hệ dẫn động"
+                                value={lc.driveTrain}
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Dung tích động cơ"
+                                value={lc.engineSize}
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Nguồn gốc"
+                                value={
+                                  lc.origin === "VN"
+                                    ? "Trong nước"
+                                    : "Nhập khẩu"
+                                }
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Loại sở hữu"
+                                value={
+                                  lc.ownerType === "PERSONAL"
+                                    ? "Cá nhân"
+                                    : "Công ty"
+                                }
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Màu nội thất"
+                                value={lc.interiorColor}
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InfoItem
+                                label="Đổi xe dự kiến"
+                                value={lc.tradeInModel || "---"}
+                              />
+                            </Col>
+                          </Row>
+                        </Card>
+                      </Col>
+
+                      <Col span={8}>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-lg">
+                            <Text className="text-[12px] font-medium">
+                              <SafetyCertificateOutlined className="mr-2 text-blue-500" />{" "}
+                              Đăng kiểm
+                            </Text>
+                            <Text className="text-[12px] font-bold">
+                              {lc.registrationDeadline
+                                ? dayjs(lc.registrationDeadline).format(
+                                    "DD/MM/YYYY",
+                                  )
+                                : "Chưa có"}
+                            </Text>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-lg">
+                            <Text className="text-[12px] font-medium">
+                              <FileProtectOutlined className="mr-2 text-emerald-500" />{" "}
+                              BH TNDS
+                            </Text>
+                            <Badge
+                              status={lc.insuranceTNDS ? "success" : "default"}
+                              text={lc.insuranceTNDS ? "Còn hạn" : "Không"}
+                            />
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-lg">
+                            <Text className="text-[12px] font-medium">
+                              <AuditOutlined className="mr-2 text-orange-500" />{" "}
+                              BH Thân vỏ
+                            </Text>
+                            <div className="text-right">
+                              <div className="text-[12px] font-bold">
+                                {lc.insuranceVC ? "Đang có" : "Không"}
                               </div>
-                              <div className="text-[9px] text-gray-400 sm:hidden">
-                                {dayjs(act.createdAt).format("DD/MM HH:mm")}
-                              </div>
-                              <Paragraph className="!mb-0 text-[12px] text-gray-700 leading-snug">
-                                {act.note}
-                              </Paragraph>
-                              {act.reason && (
-                                <div className="mt-1 text-[10px] text-rose-500 italic">
-                                  Lý do: {act.reason.content}
+                              {lc.insuranceVCCorp && (
+                                <div className="text-[10px] text-slate-400">
+                                  {lc.insuranceVCCorp}
                                 </div>
                               )}
                             </div>
-                          ),
-                        }),
-                      )}
+                          </div>
+                        </div>
+                      </Col>
+                    </Row>
+
+                    {/* GHI CHÚ RIÊNG CHO XE */}
+                    {lc.note && (
+                      <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                        <Text className="text-[11px] font-bold text-amber-700 uppercase block mb-1">
+                          Ghi chú kỹ thuật
+                        </Text>
+                        <Paragraph className="text-[13px] text-slate-600 m-0 italic">
+                          {lc.note}
+                        </Paragraph>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            </Col>
+
+            {/* CỘT PHẢI: TIMELINE HOẠT ĐỘNG */}
+            <Col xs={24} lg={8}>
+              <Card
+                className="rounded-2xl border-slate-200 shadow-sm h-full"
+                title={
+                  <Space>
+                    <HistoryOutlined />{" "}
+                    <span className="text-[15px] font-bold uppercase">
+                      Nhật ký hoạt động
+                    </span>
+                  </Space>
+                }
+              >
+                <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {customerData.activities?.length > 0 ? (
+                    <Timeline
+                      mode="left"
+                      className="mt-4"
+                      items={customerData.activities.map((act: any) => ({
+                        dot: (
+                          <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-md shadow-indigo-200" />
+                        ),
+                        children: (
+                          <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-[11px] font-bold text-slate-400">
+                                {dayjs(act.createdAt).format("DD/MM - HH:mm")}
+                              </span>
+                              <Tag className="m-0 border-none bg-white text-indigo-600 text-[10px] font-bold shadow-sm">
+                                {act.user?.fullName?.split(" ").pop()}
+                              </Tag>
+                            </div>
+                            <div className="text-[13px] text-slate-700 leading-relaxed font-medium">
+                              {act.note}
+                            </div>
+                          </div>
+                        ),
+                      }))}
                     />
                   ) : (
                     <Empty
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description="Chưa có nhật ký"
+                      description="Chưa có lịch sử chăm sóc"
                     />
                   )}
                 </div>
-              </Skeleton>
-            </Card>
-          </Col>
-        </Row>
+              </Card>
+            </Col>
+          </Row>
+        </Form>
       </div>
     </Modal>
   );

@@ -41,6 +41,7 @@ export default function NewReferralPage() {
   const [currentType, setCurrentType] = useState("SELL");
   const [userId, setUserId] = useState<string | null>(null);
   const [carModels, setCarModels] = useState<any[]>([]);
+  const [modal, modalContextHolder] = Modal.useModal();
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -61,68 +62,87 @@ export default function NewReferralPage() {
     { value: "SELL_TRADE_NEW", label: "Bán xe cũ - Đổi xe mới" },
     { value: "SELL_TRADE_USED", label: "Bán xe cũ - Đổi xe cũ" },
   ];
-
-  // Cập nhật hàm onFinish bên trong NewReferralPage
-  // const onFinish = async (values: any) => {
-  //   if (!userId) return message.error("Phiên đăng nhập hết hạn.");
-  //   setLoading(true);
-
-  //   try {
-  //     // Gọi Action và nhận kết quả trả về
-  //     const res = await createCustomerAction({ ...values, referrerId: userId });
-
-  //     // --- ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT ---
-  //     // Kiểm tra nếu Action trả về success: false (lỗi nghiệp vụ như trùng biển số)
-  //     if (res && res.success === false) {
-  //       Modal.error({
-  //         title: "Không thể gửi giới thiệu",
-  //         content: res.error, // "Biển số ... đã tồn tại..."
-  //         okText: "Đã hiểu",
-  //         centered: true,
-  //         okButtonProps: { danger: true },
-  //       });
-  //       return; // Dừng hàm tại đây, không chạy xuống phần success bên dưới
-  //     }
-
-  //     // Nếu res.success === true -> Thông báo thành công
-  //     notification.success({
-  //       message: "Gửi thành công!",
-  //       description: "Thông tin đã được chuyển đến bộ phận thu mua.",
-  //       placement: "topRight",
-  //     });
-
-  //     form.resetFields();
-  //     setCurrentType("SELL");
-  //   } catch (err: any) {
-  //     // Khối catch này bây giờ chỉ bắt lỗi mạng hoặc lỗi crash server (500)
-  //     console.error("Client Error:", err);
-  //     message.error("Lỗi kết nối hệ thống.");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
   const onFinish = async (values: any) => {
+    if (!userId) return message.error("Phiên đăng nhập đã hết hạn.");
     setLoading(true);
+
     try {
       const res = await createCustomerAction({ ...values, referrerId: userId });
 
-      // PHẢI CÓ ĐOẠN NÀY ĐỂ NHẬN LỖI TỪ SERVER
+      // TRƯỜNG HỢP 1: THẤT BẠI (Lỗi nghiệp vụ hoặc bị trùng)
       if (res && !res.success) {
-        Modal.error({
-          title: "Thông báo từ hệ thống",
-          content: res.error, // Lỗi trùng biển số hoặc lỗi chi nhánh sẽ hiện ở đây
+        // Kiểm tra nếu lỗi là do trùng biển số (Dựa trên string error bạn trả về từ Action)
+        const isDuplicate =
+          res.error?.includes("đã tồn tại") || res.error?.includes("trùng");
+
+        modal.confirm({
+          title: isDuplicate ? "Yêu cầu đã tồn tại" : "Không thể gửi thông tin",
+          icon: isDuplicate ? (
+            <InfoCircleOutlined style={{ color: "#faad14" }} />
+          ) : (
+            <AuditOutlined style={{ color: "#ff4d4f" }} />
+          ),
+          content: (
+            <div className="py-2">
+              <Paragraph className="text-gray-600">{res.error}</Paragraph>
+              {isDuplicate && (
+                <Text type="secondary" className="text-[12px]">
+                  * Lưu ý: Hệ thống chỉ tiếp nhận mỗi xe một lần để đảm bảo
+                  quyền lợi của người giới thiệu đầu tiên.
+                </Text>
+              )}
+            </div>
+          ),
           okText: "Đã hiểu",
+          cancelButtonProps: { style: { display: "none" } }, // Ẩn nút cancel
+          centered: true,
+          okButtonProps: { danger: !isDuplicate, className: "rounded-lg" },
         });
-        setLoading(false); // Quan trọng: dừng loading
-        return; // THOÁT HÀM, không chạy xuống resetFields
+        return;
       }
 
-      // Chỉ khi res.success === true mới chạy đoạn dưới
-      notification.success({ message: "Gửi thành công!" });
-      form.resetFields();
-      setCurrentType("SELL");
+      // TRƯỜNG HỢP 2: THÀNH CÔNG
+      modal.success({
+        title: (
+          <span className="text-green-600 font-bold text-xl">
+            GỬI THÀNH CÔNG!
+          </span>
+        ),
+        content: (
+          <div className="pt-4 pb-2">
+            <Paragraph>
+              Thông tin khách hàng <b>{values.fullName}</b> đã được chuyển đến
+              hệ thống CRM.
+            </Paragraph>
+            <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+              <ul className="text-[13px] text-green-700 list-disc ml-4 mb-0">
+                <li>Bộ phận thu mua sẽ liên hệ khách trong vòng 15-30 phút.</li>
+                <li>Bạn có thể theo dõi tiến độ tại mục Lịch sử giới thiệu.</li>
+                <li>
+                  Hoa hồng sẽ được ghi nhận ngay sau khi giao dịch hoàn tất.
+                </li>
+              </ul>
+            </div>
+          </div>
+        ),
+        okText: "Đồng ý",
+        centered: true,
+        okButtonProps: {
+          className: "bg-green-600 border-green-600 rounded-lg h-10 px-8",
+        },
+        onOk: () => {
+          form.resetFields();
+          setCurrentType("SELL");
+        },
+      });
     } catch (err: any) {
-      message.error("Lỗi kết nối nghiêm trọng.");
+      // TRƯỜNG HỢP 3: LỖI HỆ THỐNG (Crash hoặc Mất mạng)
+      modal.error({
+        title: "Lỗi kết nối",
+        content:
+          "Hệ thống đang bảo trì hoặc mất kết nối internet. Vui lòng thử lại sau.",
+        centered: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -136,6 +156,7 @@ export default function NewReferralPage() {
         },
       }}
     >
+      {modalContextHolder}
       <div className="max-w-4xl mx-auto py-4 md:py-8 px-3 md:px-4 animate-fadeIn">
         {/* Header Section - Responsive Flex */}
         <div className="mb-6 md:mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">

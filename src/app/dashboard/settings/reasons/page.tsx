@@ -263,7 +263,7 @@ export default function AdminReasonsPage() {
         {/* Stats Section */}
         <Row gutter={16} className="mb-6">
           <Col span={6}>
-            <Card bordered={false} className="shadow-sm">
+            <Card className="shadow-sm">
               <div className="text-slate-400 text-xs uppercase font-bold mb-1">
                 Tổng số
               </div>
@@ -271,10 +271,7 @@ export default function AdminReasonsPage() {
             </Card>
           </Col>
           <Col span={6}>
-            <Card
-              bordered={false}
-              className="shadow-sm border-l-4 border-red-500"
-            >
+            <Card className="shadow-sm border-l-4 border-red-500">
               <div className="text-slate-400 text-xs uppercase font-bold mb-1">
                 Thất bại (Lose)
               </div>

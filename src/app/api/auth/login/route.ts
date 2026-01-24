@@ -1,16 +1,19 @@
+// /app/api/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { SignJWT } from "jose"; // Dùng jose để đồng bộ với Middleware Next.js
+import { SignJWT } from "jose";
 import { db } from "@/lib/db";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "supersecretkey",
 );
-const APP_NAME = "used-car"; // Phải khớp với Middleware
+const APP_NAME = "used-car";
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, password } = await req.json();
+    const formData = await req.formData();
+    const username = formData.get("username") as string;
+    const password = formData.get("password") as string;
 
     if (!username || !password) {
       return NextResponse.json(
@@ -19,7 +22,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Tìm user kèm theo thông tin chi nhánh và phòng ban
     const user = await db.user.findUnique({
       where: { username },
       include: {
@@ -35,16 +37,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Kiểm tra password (Bỏ HASH_KEY nếu trong Seed không dùng)
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return NextResponse.json(
-        { message: "Mã nhân viên hoặc mật khẩu sai" },
+        { message: "Sai tài khoản hoặc mật khẩu" },
         { status: 401 },
       );
     }
 
-    // 3. Tạo JWT bằng 'jose' (chạy tốt trên cả Edge và Node runtime)
     const token = await new SignJWT({
       id: user.id,
       username: user.username,
@@ -57,28 +57,19 @@ export async function POST(req: NextRequest) {
       .setExpirationTime("24h")
       .sign(JWT_SECRET);
 
-    // 4. Tạo Response và Set Cookie
-    const response = NextResponse.json(
-      {
-        message: "Đăng nhập thành công",
-        user: {
-          username: user.username,
-          fullName: user.fullName,
-          role: user.role,
-          department: user.department?.name,
-          position: user.position?.name,
-          isGlobal: user.isGlobalManager,
-        },
-      },
-      { status: 200 },
+    const response = NextResponse.redirect(
+      new URL("/", req.url),
+      { status: 303 }, // 🔥 RẤT QUAN TRỌNG
     );
 
-    await response.cookies.set("used-car", token, {
+    response.headers.set("Cache-Control", "no-store");
+
+    response.cookies.set("used-car", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24, // 1 ngày
+      maxAge: 60 * 60 * 24,
     });
 
     return response;

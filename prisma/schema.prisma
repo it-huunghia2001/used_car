@@ -1,3 +1,6 @@
+// ==========================================
+// 1. CẤU HÌNH HỆ THỐNG
+// ==========================================
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,14 +10,431 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- HỆ THỐNG ĐƠN VỊ ---
-
 model LeadSetting {
-  id        String   @id @default("lead_config")
-  hotDays   Int      @default(3) // Ví dụ: dưới 3 ngày là Hot
-  warmDays  Int      @default(7) // Ví dụ: từ 3 - 7 ngày là Warm
-  // Cool sẽ là trên warmDays
+  id             String   @id @default("lead_config")
+  hotDays        Int      @default(3)
+  warmDays       Int      @default(7)
+  updatedAt      DateTime @updatedAt
+  maxLateMinutes Int      @default(30)
+}
+
+// ==========================================
+// 2. CƠ CẤU TỔ CHỨC
+// ==========================================
+model Branch {
+  id             String          @id @default(cuid())
+  name           String          @unique
+  address        String
+  cars           Car[]
+  users          User[]
+  salesSchedules SalesSchedule[]
+  customers      Customer[]      @relation("BranchCustomers")
+}
+
+model Department {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  positions Position[]
+  users     User[]
+  createdAt DateTime   @default(now())
+}
+
+model Position {
+  id           String     @id @default(cuid())
+  name         String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  users        User[]
+
+  @@unique([name, departmentId])
+}
+
+model CarModel {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  grade     String?
+  customers Customer[] @relation("InterestedModel")
+  cars      Car[]
+  leadCars  LeadCar[]
+}
+
+// ==========================================
+// 3. TÀI KHOẢN NGƯỜI DÙNG
+// ==========================================
+model User {
+  id       String  @id @default(cuid())
+  username String  @unique
+  fullName String?
+  email    String  @unique
+  password String
+  phone    String?
+  role     Role    @default(REFERRER)
+  active   Boolean @default(true)
+
+  branchId     String?
+  branch       Branch?     @relation(fields: [branchId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  positionId   String?
+  position     Position?   @relation(fields: [positionId], references: [id])
+
+  extension       String?
+  extensionPwd    String?
+  isGlobalManager Boolean @default(false)
+
+  // --- QUAN HỆ NGHIỆP VỤ XE ---
+  purchases      Car[] @relation("Purchaser")
+  negotiatedCars Car[] @relation("PriceNegotiator")
+  referrals      Car[] @relation("Referrer")
+  managedCars    Car[] @relation("CarManager")
+
+  // --- QUAN HỆ KHÁCH HÀNG ---
+  createdReferrals Customer[]      @relation("CreatedReferrals")
+  assignedLeads    Customer[]      @relation("AssignedLeads")
+  inspectedLeads   Customer[]      @relation("Inspector")
+  leadActivities   LeadActivity[]
+  salesSchedules   SalesSchedule[]
+
+  lastAssignedAt DateTime? @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  tasks          Task[]    @relation("UserTasks") // Thêm tên relation vào đây
+
+  @@index([branchId])
+}
+
+// ==========================================
+// 4. QUẢN LÝ KHÁCH HÀNG (LEADS)
+// ==========================================
+model Customer {
+  id     String       @id @default(cuid())
+  status LeadStatus   @default(NEW)
+  type   ReferralType @default(SELL)
+
+  referrerId   String
+  referrer     User     @relation("CreatedReferrals", fields: [referrerId], references: [id])
+  referralDate DateTime @default(now())
+
+  assignedToId String?
+  assignedTo   User?     @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  assignedAt   DateTime?
+
+  branchId String?
+  branch   Branch? @relation("BranchCustomers", fields: [branchId], references: [id])
+
+  fullName String
+  phone    String
+  province String?
+  address  String? @db.Text
+
+  firstContactAt DateTime? // THÊM DÒNG NÀY
+
+  carModelId    String?
+  carModel      CarModel? @relation("InterestedModel", fields: [carModelId], references: [id])
+  licensePlate  String?
+  carYear       String?
+  expectedPrice String?
+  budget        String?
+  note          String?   @db.Text
+
+  inspectorId     String?
+  inspector       User?     @relation("Inspector", fields: [inspectorId], references: [id])
+  inspectDate     DateTime?
+  inspectLocation String?
+  inspectStatus   String?
+  inspectDoneDate DateTime?
+  notSeenReason   String?   @db.Text
+
+  urgencyLevel      UrgencyType?
+  lastContactAt     DateTime?
+  lastContactResult String?      @db.Text
+  contactCount      Int          @default(0)
+  nextContactAt     DateTime?
+  nextContactNote   String?      @db.Text
+
+  carImages Json?
+  documents Json?
+
+  leadCar        LeadCar?
+  activities     LeadActivity[]
+  ownerHistories CarOwnerHistory[]
+
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  tasks     Task[]
+
+  @@index([status])
+  @@index([phone])
+}
+
+// ==========================================
+// 5. CHI TIẾT XE GIÁM ĐỊNH
+// ==========================================
+model LeadCar {
+  id         String   @id @default(cuid())
+  customerId String   @unique
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  modelName     String?
+  grade         String?
+  color         String?
+  interiorColor String?
+  year          Int?
+  vin           String?
+  engineNumber  String?
+  licensePlate  String?
+  odo           Int?
+  transmission  Transmission? @default(AUTOMATIC)
+  fuelType      FuelType?     @default(GASOLINE)
+  driveTrain    String?
+  engineSize    String?
+  carType       CarType?
+  origin        OriginType?   @default(VN)
+  ownerType     OwnerType?    @default(PERSONAL)
+  seats         Int?          @default(5)
+
+  registrationDeadline  DateTime?
+  insuranceTNDS         Boolean   @default(false)
+  insuranceTNDSDeadline DateTime?
+  insuranceVC           Boolean   @default(false)
+  insuranceVCCorp       String?
+  insuranceVCDeadline   DateTime?
+
+  tSurePrice    Decimal? @db.Decimal(15, 2)
+  expectedPrice Decimal? @db.Decimal(15, 2)
+  finalPrice    Decimal? @db.Decimal(15, 2)
+  tradeInModel  String?
+
+  carModelId String?
+  carModel   CarModel? @relation(fields: [carModelId], references: [id])
+
+  images    Json?
+  note      String?  @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@index([vin])
+}
+
+// ==========================================
+// 6. KHO XE THỰC TẾ
+// ==========================================
+model Car {
+  id        String @id @default(cuid())
+  stockCode String @unique
+  modelName String
+  vin       String
+
+  engineNumber String?
+  licensePlate String?
+  year         Int
+  odo          Int
+
+  transmission  Transmission @default(AUTOMATIC)
+  fuelType      FuelType     @default(GASOLINE)
+  carType       CarType      @default(SUV)
+  origin        OriginType   @default(VN)
+  ownerType     OwnerType    @default(PERSONAL)
+  color         String?
+  interiorColor String?
+  seats         Int          @default(5)
+  engineSize    String?
+  driveTrain    String?
+
+  registrationDeadline  DateTime?
+  insuranceTNDS         Boolean   @default(false)
+  insuranceTNDSDeadline DateTime?
+  insuranceVC           Boolean   @default(false)
+  insuranceVCCorp       String?
+  insuranceVCDeadline   DateTime?
+
+  images        Json?
+  videoUrl      String?
+  features      Json?
+  description   String?   @db.Text
+  isPublished   Boolean   @default(false)
+  isPromoted    Boolean   @default(false)
+  promotionNote String?
+  displayDate   DateTime?
+
+  status       CarStatus @default(PENDING)
+  costPrice    Decimal?  @db.Decimal(15, 2)
+  sellingPrice Decimal?  @db.Decimal(15, 2)
+  purchasedAt  DateTime?
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  purchaserId String?
+  purchaser   User?   @relation("Purchaser", fields: [purchaserId], references: [id])
+
+  referrerId String
+  referrer   User   @relation("Referrer", fields: [referrerId], references: [id])
+
+  managedById String?
+  managedBy   User?   @relation("CarManager", fields: [managedById], references: [id])
+
+  priceNegotiatorId String?
+  priceNegotiator   User?   @relation("PriceNegotiator", fields: [priceNegotiatorId], references: [id])
+
+  carModelId String?
+  carModel   CarModel? @relation(fields: [carModelId], references: [id])
+
+  ownerHistory CarOwnerHistory[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([vin])
+  @@index([stockCode])
+}
+
+// ==========================================
+// 7. NHẬT KÝ & LỊCH SỬ
+// ==========================================
+model LeadActivity {
+  id          String      @id @default(cuid())
+  customerId  String
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  status      LeadStatus
+  note        String?     @db.Text
+  lateMinutes Int?        @default(0) // Số phút trễ so với quy định/lịch hẹn
+  isLate      Boolean?    @default(false) // Đánh dấu nhanh bản ghi này có bị trễ hay không
+  // Thêm lại 2 dòng này để giữ dữ liệu
+  reasonId    String?
+  reason      LeadReason? @relation(fields: [reasonId], references: [id])
+
+  createdById String
+  user        User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model LeadReason {
+  id         String         @id @default(cuid())
+  content    String         @unique
+  type       LeadStatus
+  active     Boolean        @default(true)
+  activities LeadActivity[]
+}
+
+model CarOwnerHistory {
+  id         String   @id @default(cuid())
+  carId      String
+  car        Car      @relation(fields: [carId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  type       String
+  price      Decimal  @db.Decimal(15, 2)
+  date       DateTime @default(now())
+  contractNo String?
+  note       String?  @db.Text
+}
+
+model SalesSchedule {
+  id        String   @id @default(cuid())
+  date      DateTime
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([date, branchId])
+}
+
+model Task {
+  id      String  @id @default(cuid())
+  title   String
+  content String? @db.Text
+
+  // Thời gian
+  scheduledAt DateTime // Thời gian Sale hẹn khách
+  deadlineAt  DateTime // Thời gian Admin quy định phải hoàn thành (Deadline)
+  completedAt DateTime? // Thời gian thực tế bấm nút "Hoàn thành"
+
+  status      TaskStatus @default(PENDING)
+  isLate      Boolean    @default(false)
+  lateMinutes Int        @default(0)
+
+  // Quan hệ
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  assigneeId String
+  assignee   User     @relation("UserTasks", fields: [assigneeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 8. DANH MỤC CỐ ĐỊNH (ENUMS)
+// ==========================================
+enum TaskStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  EXPIRED // Quá hạn mà chưa làm
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  PURCHASE_STAFF
+  SALES_STAFF
+  REFERRER
+}
+
+enum ReferralType {
+  SELL
+  BUY
+  VALUATION
+  SELL_TRADE_NEW
+  SELL_TRADE_USED
+}
+
+enum LeadStatus {
+  NEW
+  ASSIGNED
+  FOLLOW_UP
+  CONTACTED
+  INSPECTING
+  PENDING_DEAL_APPROVAL
+  DEAL_DONE
+  CANCELLED
+  LOSE
+  FROZEN
+  PENDING_LOSE_APPROVAL
+  REJECTED_APPROVAL
+  PENDING_VIEW
+}
+
+enum CarStatus {
+  NEW
+  PENDING
+  REFURBISHING
+  READY_FOR_SALE
+  BOOKED
+  SOLD
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+  CVT
+}
+
+enum FuelType {
+  GASOLINE
+  DIESEL
+  HYBRID
+  ELECTRIC
+}
+
+enum CarType {
+  SEDAN
+  SUV
+  HATCHBACK
+  PICKUP
+  MPV
+  COUPE
 }
 
 enum UrgencyType {
@@ -31,355 +451,8 @@ enum OriginType {
 }
 
 enum OwnerType {
-  PERSONAL // Chính chủ
-  AUTHORIZATION_L1 // Ủy quyền lần 1
-  AUTHORIZATION_L2 // Ủy quyền lần 2
-  COMPANY_VAT // Công ty / Xuất hóa đơn
-}
-
-model Branch {
-  id             String          @id @default(cuid())
-  name           String          @unique // Tên chi nhánh (VD: Toyota Bình Dương)
-  address        String // Địa chỉ chi nhánh
-  cars           Car[] // Danh sách xe thuộc chi nhánh
-  users          User[] // Nhân viên thuộc chi nhánh
-  salesSchedules SalesSchedule[]
-}
-
-model Department {
-  id        String     @id @default(cuid())
-  name      String     @unique // Tên phòng ban (VD: Phòng Thu Mua, Phòng Kinh Doanh)
-  positions Position[] // Các chức vụ trong phòng này
-  users     User[] // Các nhân viên thuộc phòng này
-  createdAt DateTime   @default(now())
-}
-
-model Position {
-  id           String     @id @default(cuid())
-  name         String // Tên chức vụ (VD: Trưởng phòng, Nhân viên)
-  departmentId String
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  users        User[]
-
-  @@unique([name, departmentId]) // Đảm bảo tên chức vụ trong 1 phòng không trùng nhau
-}
-
-model CarModel {
-  id        String     @id @default(cuid())
-  name      String     @unique
-  customers Customer[] // Quan hệ ngược lại
-  grade     String? // Mã xe (A, B, C, D...)
-  cars      Car[] // Dùng cho cả bảng xe trong kho
-}
-
-// --- HỆ THỐNG NGƯỜI DÙNG ---
-
-model User {
-  id       String  @id @default(cuid())
-  username String  @unique // Mã nhân viên dùng để đăng nhập
-  fullName String? // Họ tên đầy đủ
-  email    String  @unique // Email công ty
-  password String // Mật khẩu đã hash
-  phone    String? // Số điện thoại nhân viên
-  role     Role    @default(REFERRER) // Quyền hệ thống (ADMIN, MANAGER, ...)
-  active   Boolean @default(true) // Trạng thái tài khoản
-
-  // --- QUAN HỆ ĐƠN VỊ ---
-  branchId     String?
-  branch       Branch?     @relation(fields: [branchId], references: [id])
-  departmentId String?
-  department   Department? @relation(fields: [departmentId], references: [id])
-  positionId   String?
-  position     Position?   @relation(fields: [positionId], references: [id])
-
-  // --- CẤU HÌNH TỔNG ĐÀI ---
-  extension       String? // Số máy lẻ
-  extensionPwd    String? // Mật khẩu máy lẻ
-  isGlobalManager Boolean @default(false) // Quản lý toàn hệ thống
-
-  // --- QUAN HỆ NGHIỆP VỤ VỚI XE (CAR) ---
-  purchases      Car[] @relation("Purchaser") // Xe nhân viên này trực tiếp đi thu mua
-  negotiatedCars Car[] @relation("PriceNegotiator") // Xe nhân viên này đứng ra đàm phán giá
-  referrals      Car[] @relation("Referrer") // Xe do nhân viên này giới thiệu nguồn
-
-  // --- QUAN HỆ VỚI KHÁCH HÀNG (CUSTOMER/LEADS) ---
-  createdReferrals Customer[] @relation("CreatedReferrals") // Khách do nhân viên này nhập lên hệ thống
-  assignedLeads    Customer[] @relation("AssignedLeads") // Khách được giao cho nhân viên này chăm sóc
-
-  // --- THEO DÕI HOẠT ĐỘNG ---
-  lastAssignedAt DateTime?       @default(now()) // Dùng để xoay vòng chia khách (Round Robin)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  leadActivities LeadActivity[]
-  cars           Car[]
-  salesSchedules SalesSchedule[]
-
-  @@index([branchId], map: "User_branchId_fkey")
-}
-
-// --- HỆ THỐNG QUẢN LÝ XE ---
-
-model Car {
-  id String @id @default(cuid())
-
-  // --- THÔNG TIN ĐỊNH DANH CƠ BẢN ---
-  modelName    String
-  vin          String
-  engineNumber String?
-  licensePlate String?
-  year         Int
-  stockCode    String  @unique
-
-  // --- THÔNG SỐ KỸ THUẬT CHI TIẾT ---
-  odo           Int
-  transmission  Transmission @default(AUTOMATIC)
-  fuelType      FuelType     @default(GASOLINE)
-  carType       CarType      @default(SUV)
-  engineSize    String?
-  driveTrain    String?
-  color         String?
-  interiorColor String?
-  seats         Int          @default(5)
-  origin        OriginType   @default(VN)
-  ownerType     OwnerType    @default(PERSONAL)
-
-  // --- BỔ SUNG TRƯỜNG MỚI THEO YÊU CẦU ---
-  authorizedOwnerName  String? // Người đứng ủy quyền (Tên cá nhân/pháp nhân)
-  registrationDeadline DateTime? // Thời hạn đăng kiểm
-  insuranceDeadline    DateTime? // Bảo hiểm (Thời hạn bảo hiểm dân sự/thân vỏ)
-  warrantyDeadline     DateTime? // Thời gian bảo hành (Đến ngày nào)
-
-  // --- QUAN HỆ NHÂN VIÊN XỬ LÝ ---
-  purchaserId String?
-  purchaser   User?   @relation("Purchaser", fields: [purchaserId], references: [id]) // Nhân viên thu mua
-
-  priceNegotiatorId String?
-  priceNegotiator   User?   @relation("PriceNegotiator", fields: [priceNegotiatorId], references: [id]) // Nhân viên deal giá
-
-  // ---------------------------------------
-
-  isPublished Boolean   @default(false)
-  displayDate DateTime?
-
-  // --- THÔNG TIN THƯƠNG MẠI ---
-  sellingPrice  Decimal? @db.Decimal(15, 2)
-  costPrice     Decimal? @db.Decimal(15, 2)
-  isPromoted    Boolean  @default(false)
-  promotionNote String?  @db.Text
-
-  // --- NỘI DUNG HIỂN THỊ (CMS) ---
-  images      Json?
-  videoUrl    String?
-  description String? @db.Text
-  features    String? @db.Text
-
-  // --- TRẠNG THÁI & QUẢN LÝ ---
-  status   CarStatus @default(PENDING)
-  branchId String
-  branch   Branch    @relation(fields: [branchId], references: [id])
-
-  // Quan hệ nhân sự khác
-  referrerId String
-  referrer   User   @relation("Referrer", fields: [referrerId], references: [id])
-
-  // --- THỜI GIAN ---
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  purchasedAt   DateTime?
-  refurbishedAt DateTime?
-  soldAt        DateTime?
-  carModel      CarModel? @relation(fields: [carModelId], references: [id])
-  carModelId    String?
-
-  ownerHistory CarOwnerHistory[]
-  user         User?             @relation(fields: [userId], references: [id])
-  userId       String?
-
-  @@index([branchId])
-  @@index([purchaserId])
-  @@index([priceNegotiatorId]) // Thêm index cho nhân viên deal giá
-  @@index([referrerId])
-  @@index([status])
-  @@index([stockCode])
-}
-
-// --- BỔ SUNG CÁC ENUM ĐỂ CHUẨN HÓA DỮ LIỆU ---
-
-enum Transmission {
-  MANUAL // Số sàn
-  AUTOMATIC // Số tự động
-  CVT // Số vô cấp
-}
-
-enum FuelType {
-  GASOLINE // Xăng
-  DIESEL // Dầu
-  HYBRID // Xăng pha điện
-  ELECTRIC // Điện
-}
-
-enum CarType {
-  SEDAN
-  SUV
-  HATCHBACK
-  PICKUP // Bán tải
-  MPV // Xe đa dụng (Vd: Innova)
-  COUPE
-}
-
-// --- HỆ THỐNG QUẢN LÝ KHÁCH HÀNG (LEADS) ---
-
-model Customer {
-  id       String       @id @default(cuid())
-  fullName String // Tên khách hàng
-  phone    String // Số điện thoại khách
-  type     ReferralType @default(SELL) // Nhu cầu: Bán/Mua/Định giá
-  status   LeadStatus   @default(NEW) // Trạng thái xử lý
-
-  // --- CÁC TRƯỜNG BỔ SUNG TỪ GIAO DIỆN ---
-  carYear       String? // Loại xe (Vd: Vios, Fortuner...)
-  licensePlate  String? // Biển số xe (Dành cho Bán xe & Định giá)
-  budget        String? // Ngân sách (Dành cho Mua xe)
-  expectedPrice String? // Giá mong muốn (Dành cho Định giá)
-
-  assignedAt     DateTime? // Thời điểm bàn giao khách cho NV
-  firstContactAt DateTime? // Thời điểm thực hiện cuộc gọi/liên hệ đầu tiên
-  lastContactAt  DateTime? // Lần liên hệ gần nhất
-  nextContactAt  DateTime? // Lần liên hệ tiếp theo (Hẹn gọi lại)
-  urgencyLevel   UrgencyType? // Lưu trạng thái Hot/Warm/Cool lúc mới tiếp cận
-
-  isPublished Boolean   @default(false) // Admin tích vào đây xe mới hiện lên web
-  displayDate DateTime? // Ngày bắt đầu cho hiện showroom (để sort xe mới về)
-
-  // Lưu trữ link hình ảnh (sau khi upload lên Cloudinary/S3)
-  carImages         String? @db.Text // JSON string hoặc danh sách link ảnh xe
-  registrationImage String? @db.Text // Ảnh đăng kiểm
-  idCardFront       String? @db.Text // Ảnh giấy tờ mặt trước
-  idCardBack        String? @db.Text // Ảnh giấy tờ mặt sau
-
-  carModelId String?
-  carModel   CarModel? @relation(fields: [carModelId], references: [id])
-
-  note String? @db.Text // Ghi chú chi tiết thêm
-  // ---------------------------------------
-
-  // Người giới thiệu khách (Referrer)
-  referrerId String
-  referrer   User   @relation("CreatedReferrals", fields: [referrerId], references: [id])
-
-  // Nhân viên được giao chăm sóc
-  assignedToId String?
-  assignedTo   User?   @relation("AssignedLeads", fields: [assignedToId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  activities        LeadActivity[]
-  carOwnerHistories CarOwnerHistory[]
-
-  // Thêm index cho status để tăng tốc độ truy vấn khi lọc khách hàng
-  @@index([status])
-  @@index([referrerId])
-  @@index([assignedToId])
-}
-
-model LeadActivity {
-  id         String   @id @default(cuid())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
-
-  status LeadStatus // Trạng thái tại thời điểm cập nhật
-
-  // Liên kết đến lý do mẫu từ Admin
-  reasonId String?
-  reason   LeadReason? @relation(fields: [reasonId], references: [id])
-
-  // Ghi chú thêm của nhân viên (không bắt buộc)
-  note String? @db.Text
-
-  createdById String
-  user        User     @relation(fields: [createdById], references: [id]) // Tên quan hệ ở đây
-  createdAt   DateTime @default(now())
-
-  @@index([customerId])
-  @@index([reasonId])
-}
-
-model LeadReason {
-  id         String         @id @default(cuid())
-  content    String         @unique // Nội dung lý do (VD: Khách chê giá thu thấp)
-  type       LeadStatus // Thuộc nhóm trạng thái nào (LOSE, FROZEN, PENDING_VIEW)
-  active     Boolean        @default(true) // Cho phép sử dụng hay ẩn đi
-  activities LeadActivity[] // Quan hệ ngược lại để truy xuất thống kê
-  createdAt  DateTime       @default(now())
-}
-
-model SalesSchedule {
-  id       String   @id @default(cuid())
-  date     DateTime
-  branchId String
-  branch   Branch   @relation(fields: [branchId], references: [id])
-  userId   String
-  user     User     @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  // Bỏ @unique cũ, thay bằng index để truy vấn nhanh
-  @@index([date, branchId])
-}
-
-// --- ENUMS (DANH MỤC CỐ ĐỊNH) ---
-
-enum Role {
-  ADMIN // Quản trị hệ thống
-  MANAGER // Quản lý chi nhánh/phòng ban
-  PURCHASE_STAFF // Nhân viên thu mua (Định giá/Mua xe)
-  SALES_STAFF // Nhân viên kinh doanh (Bán xe)
-  REFERRER // Người giới thiệu (Cộng tác viên/NV các phòng khác)
-}
-
-enum ReferralType {
-  SELL // Bán xe
-  BUY // Mua xe
-  VALUATION // Định giá
-  SELL_TRADE_NEW // Bán cũ đổi mới
-  SELL_TRADE_USED // Bán cũ đổi cũ
-}
-
-enum LeadStatus {
-  NEW // Mới tiếp nhận từ người giới thiệu
-  ASSIGNED // Đã phân bổ cho nhân viên chăm sóc
-  FOLLOW_UP //Liên hệ lại (Hẹn gọi lại sau)
-  CONTACTED // Đã liên hệ trao đổi với khách
-  DEAL_DONE // Đã giao dịch thành công (Mua hoặc Bán)
-  CANCELLED // Khách không còn nhu cầu hoặc sai thông tin
-  PENDING_DEAL_APPROVAL // Chờ duyệt Thu mua/Bán thành công
-  PENDING_LOSE_APPROVAL // Chờ duyệt Thất bại
-  REJECTED_APPROVAL //Từ chối phê duyệt
-  LOSE // Thất bại hoàn toàn
-  FROZEN // Đóng băng (Tạm dừng chăm sóc)
-  PENDING_VIEW // Nguyên nhân chưa xem xe được
-}
-
-enum CarStatus {
-  NEW
-  PENDING // Đang chờ kiểm tra/định giá
-  PURCHASE_FAILED // Không mua được xe
-  REFURBISHING // Đang trong quá trình làm đẹp (Maru-Kuri)
-  READY_FOR_SALE // Đã sẵn sàng trưng bày bán
-  BOOKED // Khách đã đặt cọc
-  SOLD // Đã bàn giao xe cho khách
-}
-
-model CarOwnerHistory {
-  id         String   @id @default(cuid())
-  carId      String
-  car        Car      @relation(fields: [carId], references: [id])
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
-  type       String // "PURCHASE" (Mua vào) hoặc "SALE" (Bán ra)
-  contractNo String?
-  price      Decimal  @db.Decimal(15, 2)
-  date       DateTime @default(now())
-  note       String?
+  PERSONAL
+  AUTHORIZATION_L1
+  AUTHORIZATION_L2
+  COMPANY_VAT
 }

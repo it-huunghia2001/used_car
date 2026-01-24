@@ -129,3 +129,201 @@ export async function getCustomerHistoryAction(customerId: string) {
     return { success: false, error: "Không thể tải lịch sử khách hàng" };
   }
 }
+
+export async function updateLeadCarSpecs(customerId: string, data: any) {
+  try {
+    // 1. Kiểm tra Customer có tồn tại không (Trong schema của bạn là Customer)
+    const existingCustomer = await db.customer.findUnique({
+      where: { id: customerId },
+    });
+
+    if (!existingCustomer) {
+      return { success: false, error: "Không tìm thấy khách hàng" };
+    }
+
+    // 2. Cập nhật hoặc Tạo mới LeadCar thông qua quan hệ 1-1 với Customer
+    const updated = await db.customer.update({
+      where: { id: customerId },
+      data: {
+        leadCar: {
+          upsert: {
+            create: {
+              modelName: data.modelName,
+              year: data.year,
+              odo: data.odo,
+              vin: data.vin,
+              licensePlate: data.licensePlate,
+              transmission: data.transmission,
+              fuelType: data.fuelType,
+              expectedPrice: data.expectedPrice,
+              registrationDeadline: data.registrationDeadline,
+              insuranceTNDS: data.insuranceTNDS || false,
+              insuranceTNDSDeadline: data.insuranceTNDSDeadline,
+              insuranceVC: data.insuranceVC || false,
+              insuranceVCCorp: data.insuranceVCCorp,
+              insuranceVCDeadline: data.insuranceVCDeadline,
+              note: data.note,
+              tradeInModel: data.tradeInModel,
+            },
+            update: {
+              modelName: data.modelName,
+              year: data.year,
+              odo: data.odo,
+              vin: data.vin,
+              licensePlate: data.licensePlate,
+              transmission: data.transmission,
+              fuelType: data.fuelType,
+              expectedPrice: data.expectedPrice,
+              registrationDeadline: data.registrationDeadline,
+              insuranceTNDS: data.insuranceTNDS,
+              insuranceTNDSDeadline: data.insuranceTNDSDeadline,
+              insuranceVC: data.insuranceVC,
+              insuranceVCCorp: data.insuranceVCCorp,
+              insuranceVCDeadline: data.insuranceVCDeadline,
+              note: data.note,
+              tradeInModel: data.tradeInModel,
+            },
+          },
+        },
+      },
+    });
+
+    revalidatePath("/assigned-tasks");
+    return { success: true, data: updated };
+  } catch (error: any) {
+    console.error("Lỗi Prisma:", error);
+    return { success: false, error: "Không thể cập nhật thông số xe" };
+  }
+}
+
+export async function updateLeadDetailAction(customerId: string, values: any) {
+  try {
+    const {
+      fullName,
+      phone,
+      licensePlate,
+      carYear, // Thông tin bảng Customer
+      carModelId,
+      modelName,
+      year,
+      vin,
+      odo,
+      transmission,
+      fuelType,
+      expectedPrice,
+      tSurePrice, // Thông tin bảng LeadCar
+    } = values;
+
+    await db.$transaction(async (tx) => {
+      // 1. Cập nhật bảng Customer
+      await tx.customer.update({
+        where: { id: customerId },
+        data: {
+          fullName,
+          phone,
+          licensePlate,
+          carYear: carYear ? String(carYear) : null,
+          carModelId, // Cập nhật cả model ở bảng customer
+        },
+      });
+
+      // 2. Cập nhật hoặc Tạo mới bảng LeadCar
+      await tx.leadCar.upsert({
+        where: { customerId: customerId },
+        update: {
+          carModelId,
+          modelName,
+          year: year ? Number(year) : null,
+          vin,
+          odo: odo ? Number(odo) : null,
+          transmission,
+          fuelType,
+          expectedPrice: expectedPrice ? Number(expectedPrice) : null,
+          tSurePrice: tSurePrice ? Number(tSurePrice) : null,
+        },
+        create: {
+          customerId: customerId,
+          carModelId,
+          modelName,
+          year: year ? Number(year) : null,
+          vin,
+          odo: odo ? Number(odo) : null,
+          transmission,
+          fuelType,
+          expectedPrice: expectedPrice ? Number(expectedPrice) : null,
+          tSurePrice: tSurePrice ? Number(tSurePrice) : null,
+        },
+      });
+    });
+
+    revalidatePath("/admin/tasks");
+    return { success: true };
+  } catch (error: any) {
+    console.error(error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateFullLeadDetail(customerId: string, values: any) {
+  try {
+    const {
+      fullName,
+      phone,
+      ...restValues // Chứa carModelId, color, odo, v.v.
+    } = values;
+
+    await db.$transaction(async (tx) => {
+      // 1. Cập nhật Customer
+      await tx.customer.update({
+        where: { id: customerId },
+        data: { fullName, phone },
+      });
+
+      // 2. Chuẩn hóa dữ liệu cho LeadCar
+      // Loại bỏ những trường không thuộc Schema LeadCar nếu cần
+      const carPayload = {
+        carModelId: restValues.carModelId,
+        modelName: restValues.modelName,
+        year: restValues.year ? Number(restValues.year) : null,
+        color: restValues.color,
+        licensePlate: restValues.licensePlate,
+        odo: restValues.odo ? Number(restValues.odo) : null,
+        transmission: restValues.transmission,
+        seats: restValues.seats ? Number(restValues.seats) : 5,
+        expectedPrice: restValues.expectedPrice
+          ? Number(restValues.expectedPrice)
+          : null,
+        tSurePrice: restValues.tSurePrice
+          ? Number(restValues.tSurePrice)
+          : null,
+        note: restValues.note,
+        // ÉP KIỂU DATE Ở ĐÂY
+        registrationDeadline: restValues.registrationDeadline
+          ? new Date(restValues.registrationDeadline)
+          : null,
+        insuranceVCDeadline: restValues.insuranceVCDeadline
+          ? new Date(restValues.insuranceVCDeadline)
+          : null,
+        insuranceTNDSDeadline: restValues.insuranceTNDSDeadline
+          ? new Date(restValues.insuranceTNDSDeadline)
+          : null,
+      };
+
+      // 3. Upsert LeadCar
+      await tx.leadCar.upsert({
+        where: { customerId: customerId },
+        update: carPayload,
+        create: {
+          customerId: customerId,
+          ...carPayload,
+        },
+      });
+    });
+
+    revalidatePath("/dashboard/assigned-tasks");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Update Error Chi Tiết:", error);
+    return { success: false, error: error.message };
+  }
+}

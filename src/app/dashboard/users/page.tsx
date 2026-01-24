@@ -345,7 +345,7 @@ export default function UserManagementPage() {
 
         <Row gutter={24} className="mb-8">
           <Col xs={24} sm={8}>
-            <Card bordered={false} className="rounded-2xl shadow-sm">
+            <Card className="rounded-2xl shadow-sm">
               <Statistic
                 title="Tổng nhân viên"
                 value={total}
@@ -354,7 +354,7 @@ export default function UserManagementPage() {
             </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Card bordered={false} className="rounded-2xl shadow-sm">
+            <Card className="rounded-2xl shadow-sm">
               <Statistic
                 title="Đang hoạt động"
                 value={stats.active}
@@ -364,11 +364,11 @@ export default function UserManagementPage() {
             </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Card bordered={false} className="rounded-2xl shadow-sm">
+            <Card className="rounded-2xl shadow-sm">
               <Statistic
                 title="Quản trị viên"
                 value={stats.global}
-                valueStyle={{ color: "#f59e0b" }}
+                style={{ color: "#f59e0b" }}
                 prefix={<SafetyCertificateOutlined className="mr-2" />}
               />
             </Card>

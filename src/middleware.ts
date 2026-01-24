@@ -7,9 +7,9 @@ const JWT_SECRET = process.env.JWT_SECRET!;
 const APP_NAME = "used-car";
 
 export async function middleware(req: NextRequest) {
-  console.log("===> TRUY CẬP TẠI:", req.nextUrl.pathname);
   const { pathname } = req.nextUrl;
-  console.log("🔥 Middleware chạy:", req.nextUrl.pathname);
+
+  console.log("🔥 Middleware:", pathname);
 
   // ✅ Public routes
   if (
@@ -24,8 +24,18 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ✅ Cookie riêng
   const token = req.cookies.get("used-car")?.value;
+  const justLoggedIn = req.cookies.get("just-logged-in")?.value;
+
+  console.log("🍪 token:", token);
+  console.log("🟢 justLoggedIn:", justLoggedIn);
+
+  // 🚀 SAFARI FIX: request đầu sau login
+  if (!token && justLoggedIn) {
+    return NextResponse.next();
+  }
+
+  // ❌ Không có gì cả → đá về login
   if (!token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
@@ -34,23 +44,18 @@ export async function middleware(req: NextRequest) {
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
 
-    // 🔐 CHECK APP
+    // 🔐 Check app
     if (payload.app !== APP_NAME) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
 
-    // (Optional) debug header
-    const res = NextResponse.next();
-
-    return res;
-  } catch (error) {
-    console.error("JWT invalid:", error);
+    return NextResponse.next();
+  } catch (err) {
+    console.error("❌ JWT invalid:", err);
     return NextResponse.redirect(new URL("/login", req.url));
   }
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next|api|api/auth|login|favicon|icons|storage|manifest|robots).*)",
-  ],
+  matcher: ["/((?!_next|api|login|favicon|robots|manifest|storage).*)"],
 };

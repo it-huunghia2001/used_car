@@ -167,7 +167,7 @@ export default function InventoryPage() {
       </div>
 
       {/* TABLE */}
-      <Card bordered={false} className="shadow-md rounded-2xl">
+      <Card className="shadow-md rounded-2xl">
         <Table
           dataSource={filteredCars}
           rowKey="id"

@@ -14,6 +14,8 @@ import {
   CarType,
   UrgencyType,
 } from "@prisma/client";
+import dayjs from "@/lib/dayjs"; // Sử dụng file config ở trên
+import { getCurrentUser } from "@/lib/session-server";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
 
@@ -38,73 +40,83 @@ export async function getActiveReasonsAction(type: LeadStatus) {
   });
 }
 
-export async function getMyAssignedLeads() {
-  const user = await getAuthUser();
-  if (!user || !user.id) return [];
+export async function getMyTasksAction() {
+  try {
+    const user = await getAuthUser();
+    if (!user?.id) return [];
 
-  // 1. Lấy cấu hình ngày của Admin
-  const config = await db.leadSetting.findUnique({
-    where: { id: "lead_config" },
-  });
-  const HOT_DAYS = config?.hotDays ?? 1;
-  const WARM_DAYS = config?.warmDays ?? 3;
+    const now = dayjs().tz("Asia/Ho_Chi_Minh");
 
-  // 2. Lấy danh sách khách hàng
-  const leads = await db.customer.findMany({
-    where: {
-      assignedToId: user.id,
-      status: { in: ["ASSIGNED", "CONTACTED", "NEW", "FOLLOW_UP"] },
-    },
-    include: {
-      carModel: { select: { id: true, name: true } },
-      referrer: { select: { id: true, fullName: true, phone: true } },
-      // Chỉ lấy 1 hoạt động mới nhất để hiển thị nhanh "Ghi chú lần cuối"
-      activities: {
-        take: 1,
-        orderBy: { createdAt: "desc" },
-        include: {
-          reason: { select: { content: true } },
+    const [config, tasks] = await Promise.all([
+      db.leadSetting.findFirst(),
+      db.task.findMany({
+        where: {
+          assigneeId: user.id,
+          status: "PENDING",
         },
-      },
-    },
-    // Sắp xếp: Ưu tiên những người có lịch hẹn (nextContactAt) sắp đến hoặc đã quá hạn
-    orderBy: [
-      { nextContactAt: "asc" },
-      { urgencyLevel: "asc" },
-      { updatedAt: "desc" },
-    ],
-  });
-  // 3. Xử lý dữ liệu trước khi trả về: Nếu urgencyLevel rỗng thì tự tính dựa trên thời gian thực
-  return leads.map((lead) => {
-    // Nếu chưa có (khách mới), tính toán dựa trên assignedAt
-    console.log("-------------------------");
-    if (lead.lastContactAt) {
-      const diffInDays =
-        (new Date().getTime() - new Date(lead.lastContactAt).getTime()) /
-        (1000 * 3600 * 24);
-      console.log(lead.lastContactAt);
-      let tempUrgency: UrgencyType = UrgencyType.COOL;
-      if (diffInDays <= HOT_DAYS) tempUrgency = UrgencyType.HOT;
-      else if (diffInDays <= WARM_DAYS) tempUrgency = UrgencyType.WARM;
+        include: {
+          customer: {
+            include: {
+              carModel: { select: { id: true, name: true } },
+              referrer: { select: { fullName: true } },
+              // LẤY ĐẦY ĐỦ THÔNG TIN XE Ở ĐÂY
+              leadCar: true,
 
-      return { ...lead, urgencyLevel: tempUrgency };
-    } else if (lead.assignedAt) {
-      const diffInDays =
-        (new Date().getTime() - new Date(lead.assignedAt).getTime()) /
-        (1000 * 3600 * 24);
-      console.log(lead.assignedAt);
+              activities: {
+                include: {
+                  user: { select: { fullName: true } }, // Để biết ai là người ghi chú
+                },
+                orderBy: { createdAt: "desc" }, // Mới nhất hiện lên đầu
+              },
+            },
+          },
+        },
+        orderBy: { scheduledAt: "asc" },
+      }),
+    ]);
 
-      let tempUrgency: UrgencyType = UrgencyType.COOL;
-      if (diffInDays <= HOT_DAYS) tempUrgency = UrgencyType.HOT;
-      else if (diffInDays <= WARM_DAYS) tempUrgency = UrgencyType.WARM;
+    const maxLate = config?.maxLateMinutes || 30;
 
-      return { ...lead, urgencyLevel: tempUrgency };
-    }
+    return tasks.map((task) => {
+      const scheduledAtVN = dayjs(task.scheduledAt).tz("Asia/Ho_Chi_Minh");
+      const deadline = scheduledAtVN.add(maxLate, "minute");
 
-    return { ...lead, urgencyLevel: UrgencyType.COOL };
-  });
+      const isOverdue = now.isAfter(deadline);
+      const minutesOverdue = isOverdue ? now.diff(deadline, "minute") : 0;
+
+      // Xử lý dữ liệu xe (Ép kiểu Decimal -> Number)
+      const rawLeadCar = task.customer.leadCar;
+      const formattedLeadCar = rawLeadCar
+        ? {
+            ...rawLeadCar,
+            tSurePrice: rawLeadCar.tSurePrice
+              ? Number(rawLeadCar.tSurePrice)
+              : null,
+            expectedPrice: rawLeadCar.expectedPrice
+              ? Number(rawLeadCar.expectedPrice)
+              : null,
+            finalPrice: rawLeadCar.finalPrice
+              ? Number(rawLeadCar.finalPrice)
+              : null,
+          }
+        : null;
+
+      // Trả về object Task kèm thông tin Customer và LeadCar đã xử lý
+      return {
+        ...JSON.parse(JSON.stringify(task)),
+        isOverdue,
+        minutesOverdue,
+        customer: {
+          ...JSON.parse(JSON.stringify(task.customer)),
+          leadCar: formattedLeadCar, // Thông tin xe nằm ở đây
+        },
+      };
+    });
+  } catch (error) {
+    console.error("Error in getMyTasksAction:", error);
+    return [];
+  }
 }
-
 /** --- MUTATIONS --- */
 
 // 1. Gửi duyệt Thu mua (Lưu toàn bộ form bao gồm Hợp đồng vào JSON)
@@ -469,91 +481,117 @@ export async function updateCustomerStatusAction(
   customerId: string,
   status: LeadStatus,
   note: string,
-  nextContactAt?: Date,
+
+  currentTaskId?: string, // QUAN TRỌNG: ID của Task Sale vừa nhấn vào
+  nextContactAt?: Date | null,
+  payload?: {
+    nextNote?: string;
+    reasonId?: string;
+  },
 ) {
   try {
+    const user = await getCurrentUser();
     const now = new Date();
 
+    if (!user) return { success: false, error: "không có user" };
     return await db.$transaction(async (tx) => {
-      const user = await getAuthUser();
-      if (!user || !user.id) return [];
-      // 1. Lấy cấu hình ngày từ Admin (LeadSetting)
-      const config = await tx.leadSetting.findUnique({
-        where: { id: "lead_config" },
-      });
+      // 1. Lấy cấu hình Admin & Task hiện tại
+      const [config, currentTask] = await Promise.all([
+        tx.leadSetting.findFirst(),
+        currentTaskId
+          ? tx.task.findUnique({ where: { id: currentTaskId } })
+          : null,
+      ]);
 
-      // Mặc định nếu chưa có cấu hình trong DB (hotDays: 3, warmDays: 7 như schema)
-      const HOT_DAYS = config?.hotDays ?? 3;
-      const WARM_DAYS = config?.warmDays ?? 7;
+      const maxLateMinutes = config?.maxLateMinutes || 30;
+      let isLate = false;
+      let lateMinutes = 0;
 
-      // 2. Lấy dữ liệu khách hàng hiện tại
-      const customer = await tx.customer.findUnique({
-        where: { id: customerId },
-        select: {
-          assignedAt: true,
-          firstContactAt: true,
-        },
-      });
+      // 2. XỬ LÝ ĐÓNG TASK CŨ (Nếu có taskId truyền vào)
+      if (currentTask && currentTask.status === "PENDING") {
+        const deadline = dayjs(currentTask.scheduledAt).add(
+          maxLateMinutes,
+          "minute",
+        );
+        isLate = dayjs(now).isAfter(deadline);
+        lateMinutes = isLate ? dayjs(now).diff(deadline, "minute") : 0;
 
-      if (!customer) throw new Error("Không tìm thấy khách hàng");
-
-      // 3. Chuẩn bị dữ liệu cập nhật cho Customer
-      const updateData: any = {
-        status: status,
-        lastContactAt: now,
-        nextContactAt: nextContactAt || null,
-      };
-
-      // 4. LOGIC TÍNH ĐỘ GẤP (URGENCY) DỰA TRÊN NGÀY ADMIN SET
-      // Chỉ tính khi chuyển sang CONTACTED lần đầu tiên và có ngày được giao (assignedAt)
-      if (
-        status === LeadStatus.CONTACTED &&
-        !customer.firstContactAt &&
-        customer.assignedAt
-      ) {
-        updateData.firstContactAt = now;
-
-        // Tính toán khoảng cách thời gian theo NGÀY
-        const diffInMs = now.getTime() - customer.assignedAt.getTime();
-        const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-
-        let urgency: UrgencyType = UrgencyType.COOL;
-
-        if (diffInDays <= HOT_DAYS) {
-          urgency = UrgencyType.HOT; // Dưới hoặc bằng số ngày Admin set cho Hot
-        } else if (diffInDays <= WARM_DAYS) {
-          urgency = UrgencyType.WARM; // Dưới hoặc bằng số ngày Admin set cho Warm
-        } else {
-          urgency = UrgencyType.COOL; // Vượt quá số ngày Warm
-        }
-
-        updateData.urgencyLevel = urgency;
+        await tx.task.update({
+          where: { id: currentTaskId },
+          data: {
+            status: "COMPLETED",
+            completedAt: now,
+            content: note, // Lưu kết quả cuộc gọi vào Task
+            isLate,
+            lateMinutes,
+          },
+        });
       }
 
-      // 5. Thực thi cập nhật Customer
-      const updatedCustomer = await tx.customer.update({
+      // 3. TÍNH TOÁN URGENCY (Giữ logic cũ của bạn)
+      const customer = await tx.customer.findUnique({
         where: { id: customerId },
-        data: updateData,
       });
+      if (!customer) throw new Error("Customer not found");
 
-      // 6. Ghi nhật ký hoạt động (LeadActivity)
-      await tx.leadActivity.create({
+      let urgencyLevel = customer.urgencyLevel;
+      if (customer.assignedAt) {
+        const diffDays = dayjs(now).diff(dayjs(customer.assignedAt), "day");
+        if (diffDays <= (config?.hotDays || 3)) urgencyLevel = "HOT";
+        else if (diffDays <= (config?.warmDays || 7)) urgencyLevel = "WARM";
+        else urgencyLevel = "COOL";
+      }
+
+      // 4. CẬP NHẬT CUSTOMER
+      await tx.customer.update({
+        where: { id: customerId },
         data: {
-          customerId: customerId,
-          status: status,
-          note: note,
-          createdById: user.id,
+          status,
+          urgencyLevel: urgencyLevel as any,
+          lastContactAt: now,
+          firstContactAt: customer.firstContactAt ? undefined : now,
+          nextContactAt: nextContactAt || null,
+          nextContactNote: payload?.nextNote || null,
+          contactCount: { increment: 1 },
         },
       });
 
-      // Làm mới dữ liệu phía Client
-      revalidatePath("/dashboard/assigned-tasks");
-      revalidatePath("/dashboard/customers");
+      // 5. TỰ ĐỘNG TẠO TASK MỚI (Nếu có hẹn gọi lại)
+      if (nextContactAt) {
+        await tx.task.create({
+          data: {
+            title: `Gọi lại: ${customer.fullName}`,
+            content: payload?.nextNote || "Chăm sóc định kỳ",
+            scheduledAt: nextContactAt,
+            // Hạn chót của task mới = Giờ hẹn + số phút quy định
+            deadlineAt: dayjs(nextContactAt)
+              .add(maxLateMinutes, "minute")
+              .toDate(),
+            customerId: customerId,
+            assigneeId: user.id,
+            status: "PENDING",
+          },
+        });
+      }
 
-      return { success: true, data: updatedCustomer };
+      // 6. GHI NHẬT KÝ HOẠT ĐỘNG (Lưu vết KPI)
+      await tx.leadActivity.create({
+        data: {
+          customerId,
+          status,
+          note: isLate ? `[TRỄ ${lateMinutes}m] ${note}` : note,
+          createdById: user.id,
+          reasonId: payload?.reasonId || null,
+          isLate,
+          lateMinutes,
+        },
+      });
+
+      revalidatePath("/dashboard/assigned-tasks");
+      return { success: true, isLate, lateMinutes };
     });
   } catch (error: any) {
-    console.error("Update Status Error:", error);
-    throw new Error(error.message || "Lỗi khi cập nhật trạng thái khách hàng");
+    console.error(error);
+    return { success: false, error: error.message };
   }
 }

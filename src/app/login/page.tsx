@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -17,7 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {}
+    {},
   );
   const spotlightRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
@@ -45,12 +46,7 @@ export default function LoginPage() {
       const res = await login(username, password);
 
       if (Number(res.status) === 0) {
-        // BƯỚC QUAN TRỌNG:
-        // Làm tươi lại các Server Components để Layout nhận token/role mới
-        router.refresh();
-
-        // Sau đó mới chuyển hướng
-        window.location.href = "/";
+        router.replace("/");
       } else {
         // Nếu server trả về lỗi (chưa active, sai mật khẩu, v.v.)
         // Giả sử server trả về { status: 1, message: "Tài khoản chưa active" }
@@ -112,12 +108,12 @@ export default function LoginPage() {
                 Nhập username và mật khẩu
               </p>
             </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form action="/api/auth/login" method="POST" className="space-y-4">
               <div className="space-y-1">
                 <Label htmlFor="username">Username</Label>
                 <Input
                   id="username"
+                  name="username"
                   type="string"
                   value={username}
                   onChange={(e) => {
@@ -137,6 +133,7 @@ export default function LoginPage() {
                 <div className="relative">
                   <Input
                     id="password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => {
@@ -167,7 +164,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 className="w-full mt-4 cursor-pointer"
-                // disabled={loading}
+                disabled={loading}
               >
                 {loading ? "Đang đăng nhập..." : "Đăng nhập"}
               </Button>

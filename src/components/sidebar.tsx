@@ -302,8 +302,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         placement="left"
         onClose={() => setVisible(false)}
         open={visible}
-        width={260}
-        bodyStyle={{ padding: 0, background: "#001529" }}
+        style={{ padding: 0, width: "260px", background: "#001529" }}
         closable={false}
       >
         <div className="h-full bg-[#001529]">{SidebarContent}</div>

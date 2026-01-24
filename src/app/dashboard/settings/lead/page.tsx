@@ -61,7 +61,7 @@ export default function LeadSlaSettings() {
         </Text>
       </header>
 
-      <Card bordered={false} className="shadow-lg rounded-xl">
+      <Card className="shadow-lg rounded-xl">
         <Alert
           className="mb-8"
           message="Nguyên lý hoạt động"
