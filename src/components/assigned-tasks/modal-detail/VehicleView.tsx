@@ -173,6 +173,17 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
             </div>
             <div className="flex justify-between p-2 bg-white border rounded-lg">
               <Text>
+                <SafetyCertificateOutlined className="text-blue-500 mr-2" /> Bảo
+                hành
+              </Text>
+              <Text strong>
+                {lc.insuranceDeadline
+                  ? dayjs(lc.insuranceDeadline).format("DD/MM/YYYY")
+                  : "---"}
+              </Text>
+            </div>
+            <div className="flex justify-between p-2 bg-white border rounded-lg">
+              <Text>
                 <FileProtectOutlined className="text-emerald-500 mr-2" /> BH
                 TNDS
               </Text>

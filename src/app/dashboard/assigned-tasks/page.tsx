@@ -415,13 +415,45 @@ export default function AssignedTasksPage() {
       <ModalApproveTransaction
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onFinish={async (v) => {
-          /* logic onFinish của bạn */
-        }}
         loading={loading}
         selectedLead={selectedLead}
         inventory={inventory}
         carModels={carModels}
+        onFinish={async (values) => {
+          setLoading(true);
+          try {
+            // values này nên chứa 2 phần: carData (thông tin xe) và contractData (giá chốt, số HĐ...)
+            const payload = {
+              carData: {
+                ...selectedLead.customer.leadCar, // Lấy data cũ
+                ...values.carUpdate, // Cập nhật data mới từ Form nếu có
+                carModelId: values.carModelId,
+              },
+              contractData: {
+                price: values.finalPrice,
+                contractNo: values.contractNo,
+                note: values.note,
+              },
+            };
+
+            const res = await requestPurchaseApproval(
+              selectedLead.customerId,
+              payload,
+            );
+
+            if (res.success) {
+              messageApi.success(
+                "Đã gửi yêu cầu phê duyệt thu mua cho Quản lý!",
+              );
+              setIsModalOpen(false);
+              loadData(); // Tải lại danh sách để Lead này biến mất (vì trạng thái đã đổi)
+            }
+          } catch (error: any) {
+            messageApi.error(error.message);
+          } finally {
+            setLoading(false);
+          }
+        }}
       />
       <ModalLoseLead
         isOpen={isFailModalOpen}

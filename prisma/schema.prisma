@@ -199,6 +199,7 @@ model LeadCar {
   insuranceVC           Boolean   @default(false)
   insuranceVCCorp       String?
   insuranceVCDeadline   DateTime?
+  insuranceDeadline     DateTime?
 
   tSurePrice    Decimal? @db.Decimal(15, 2)
   expectedPrice Decimal? @db.Decimal(15, 2)
@@ -246,6 +247,7 @@ model Car {
   insuranceVC           Boolean   @default(false)
   insuranceVCCorp       String?
   insuranceVCDeadline   DateTime?
+  insuranceDeadline     DateTime?
 
   images        Json?
   videoUrl      String?

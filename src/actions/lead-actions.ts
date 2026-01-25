@@ -316,6 +316,10 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
         insuranceTNDSDeadline: restValues.insuranceTNDSDeadline
           ? new Date(restValues.insuranceTNDSDeadline)
           : null,
+
+        insuranceDeadline: restValues.insuranceDeadline
+          ? new Date(restValues.insuranceDeadline)
+          : null,
       };
       await tx.customer.update({
         where: { id: customerId },

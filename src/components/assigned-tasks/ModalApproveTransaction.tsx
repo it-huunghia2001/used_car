@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Modal,
   Form,
@@ -18,6 +18,7 @@ import {
   DatePicker,
 } from "antd";
 import { SafetyCertificateOutlined, UserOutlined } from "@ant-design/icons";
+import dayjs from "@/lib/dayjs";
 
 interface ModalApproveTransactionProps {
   isOpen: boolean;
@@ -49,15 +50,90 @@ export default function ModalApproveTransaction({
 
   // Hàm xử lý trước khi gửi dữ liệu lên Server
   const handleSubmit = (values: any) => {
-    // 🛠 SỬA LỖI: Chuyển Dayjs sang chuỗi ISO hoặc Date thuần túy
-    const formattedValues = {
-      ...values,
-      registrationDeadline: values.registrationDeadline?.toISOString() || null,
-      insuranceDeadline: values.insuranceDeadline?.toISOString() || null,
-      warrantyDeadline: values.warrantyDeadline?.toISOString() || null,
+    // Tách biệt dữ liệu xe và dữ liệu hợp đồng
+    const payload = {
+      carData: {
+        carModelId: values.carModelId,
+        modelName: carModels.find((m) => m.id === values.carModelId)?.name,
+        licensePlate: values.licensePlate,
+        year: values.year,
+        vin: values.vin,
+        engineNumber: values.engineNumber,
+        odo: values.odo,
+        transmission: values.transmission,
+        seats: values.seats,
+        fuelType: values.fuelType,
+        origin: values.origin,
+        color: values.color,
+        interiorColor: values.interiorColor,
+        engineSize: values.engineSize,
+        carType: values.carType,
+        driveTrain: values.driveTrain,
+        ownerType: values.ownerType,
+        description: values.description,
+        features: values.features,
+        // Xử lý Date
+        registrationDeadline:
+          values.registrationDeadline?.toISOString() || null,
+        insuranceDeadline: values.insuranceDeadline?.toISOString() || null,
+        warrantyDeadline: values.warrantyDeadline?.toISOString() || null,
+      },
+      contractData: {
+        contractNo: values.contractNo,
+        price: values.actualPrice,
+        note: values.contractNote,
+        authorizedOwnerName: values.authorizedOwnerName,
+      },
     };
-    onFinish(formattedValues);
+
+    onFinish(payload);
   };
+
+  // Thêm useEffect vào trong ModalApproveTransaction
+  useEffect(() => {
+    if (isOpen && selectedLead?.customer) {
+      const customer = selectedLead.customer;
+      const leadCar = customer.leadCar;
+      console.log(leadCar);
+
+      // Map dữ liệu từ leadCar vào các field của Form
+      form.setFieldsValue({
+        // Thông tin xe
+        carModelId: leadCar?.carModelId || customer.carModelId,
+        licensePlate: leadCar?.licensePlate || customer.licensePlate,
+        year: leadCar?.year || customer.carYear,
+        vin: leadCar?.vin,
+        engineNumber: leadCar?.engineNumber,
+        odo: leadCar?.odo,
+        transmission: leadCar?.transmission || "AUTOMATIC",
+        fuelType: leadCar?.fuelType || "GASOLINE",
+        carType: leadCar?.carType || "SUV",
+        seats: leadCar?.seats || 5,
+        origin: leadCar?.origin || "VN",
+        color: leadCar?.color,
+        interiorColor: leadCar?.interiorColor,
+        engineSize: leadCar?.engineSize,
+        ownerType: leadCar?.ownerType,
+        registrationDeadline: leadCar?.registrationDeadline
+          ? dayjs(leadCar.registrationDeadline)
+          : null,
+        insuranceVCDeadline: leadCar?.insuranceVCDeadline
+          ? dayjs(leadCar.insuranceVCDeadline)
+          : null,
+        insuranceTNDSDeadline: leadCar?.insuranceTNDSDeadline
+          ? dayjs(leadCar.insuranceTNDSDeadline)
+          : null,
+        insuranceDeadline: leadCar?.insuranceDeadline
+          ? dayjs(leadCar.insuranceDeadline)
+          : null,
+        // Thông tin giao dịch (Pre-fill giá mong muốn vào giá thực tế để sale sửa)
+        actualPrice: leadCar?.expectedPrice || customer.expectedPrice,
+      });
+    } else if (!isOpen) {
+      form.resetFields(); // Xóa trắng form khi đóng modal
+    }
+  }, [isOpen, selectedLead, form]);
+
   return (
     <Modal
       title={
@@ -286,7 +362,7 @@ export default function ModalApproveTransaction({
                   <Form.Item name="ownerType" label="Hình thức sở hữu">
                     <Select
                       options={[
-                        { label: "Chính chủ", value: "PERSONAL_OWNER" },
+                        { label: "Chính chủ", value: "PERSONAL" },
                         { label: "Ủy quyền lần 1", value: "AUTHORIZATION_L1" },
                         { label: "Ủy quyền lần 2", value: "AUTHORIZATION_L2" },
 
@@ -312,7 +388,7 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="insuranceDeadline" label="Thời hạn bảo hiểm">
+                  <Form.Item name="insuranceVCDeadline" label="Thời hạn BHVC">
                     <DatePicker
                       className="w-full!"
                       placeholder="Chọn ngày"
@@ -321,7 +397,19 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="warrantyDeadline" label="Thời gian bảo hành">
+                  <Form.Item name="insuranceVCDeadline" label="Thời hạn BHDS">
+                    <DatePicker
+                      className="w-full!"
+                      placeholder="Chọn ngày"
+                      format="DD/MM/YYYY"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Item
+                    name="insuranceDeadline"
+                    label="Thời gian bảo hành"
+                  >
                     <DatePicker
                       className="w-full!"
                       placeholder="Đến ngày"

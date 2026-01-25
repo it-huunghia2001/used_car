@@ -299,6 +299,11 @@ export const VehicleFormFields = ({ carModels }: any) => {
             <DatePicker className="w-full" format="DD/MM/YYYY" />
           </Form.Item>
         </Col>
+        <Col xs={24} sm={8}>
+          <Form.Item name="insuranceDeadline" label="Thời hạn bảo hành">
+            <DatePicker className="w-full" format="DD/MM/YYYY" />
+          </Form.Item>
+        </Col>
         <Col xs={24}>
           <Form.Item name="note" label="Ghi chú kỹ thuật">
             <Input.TextArea

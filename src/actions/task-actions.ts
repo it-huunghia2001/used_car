@@ -128,35 +128,94 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
   const auth = await getAuthUser();
   if (!auth) throw new Error("Unauthorized");
 
+  if (!values.carData || !values.contractData) {
+    throw new Error("Dữ liệu xe hoặc hợp đồng không đầy đủ");
+  }
+
   try {
     return await db.$transaction(async (tx) => {
-      await tx.customer.update({
+      // 1. Kiểm tra khách hàng và trạng thái hiện tại
+      const customer = await tx.customer.findUnique({
         where: { id: leadId },
-        data: { status: LeadStatus.PENDING_DEAL_APPROVAL },
+        select: { status: true, fullName: true },
       });
 
-      // values lúc này phải bao gồm: carData (thông tin xe) và contractData (hợp đồng)
-      await tx.leadActivity.create({
+      if (!customer) throw new Error("Không tìm thấy khách hàng");
+      if (customer.status === LeadStatus.PENDING_DEAL_APPROVAL) {
+        throw new Error("Hồ sơ này đã được gửi duyệt trước đó");
+      }
+
+      // 2. CẬP NHẬT TRẠNG THÁI TASK (QUAN TRỌNG)
+      // Tìm task PENDING gần nhất của lead này để đóng lại
+      // Việc này giúp Sales không còn thấy Task này trong danh sách "Nhiệm vụ của tôi"
+      const now = new Date();
+      await tx.task.updateMany({
+        where: {
+          customerId: leadId,
+          assigneeId: auth.id,
+          status: "PENDING",
+        },
+        data: {
+          status: "COMPLETED",
+          completedAt: now,
+          content: `Đã gửi yêu cầu phê duyệt thu mua. Giá chốt: ${Number(
+            values.contractData.price,
+          ).toLocaleString()} VNĐ`,
+        },
+      });
+
+      // 3. Cập nhật trạng thái Customer
+      await tx.customer.update({
+        where: { id: leadId },
+        data: {
+          status: LeadStatus.PENDING_DEAL_APPROVAL,
+          // Xóa ngày hẹn tiếp theo vì đang chờ duyệt
+          nextContactAt: null,
+        },
+      });
+
+      // 4. Tạo Activity Snapshot (Dùng để Admin xem và Parse dữ liệu)
+      const activity = await tx.leadActivity.create({
         data: {
           customerId: leadId,
           status: LeadStatus.PENDING_DEAL_APPROVAL,
           note: JSON.stringify({
             requestType: "CAR_PURCHASE",
             carData: values.carData,
-            contractData: values.contractData, // Số HĐ, giá chốt, ngày ký...
+            contractData: values.contractData,
+            submittedAt: now.toISOString(),
           }),
           createdById: auth.id,
         },
       });
 
+      // 5. Đồng bộ dữ liệu vào bảng LeadCar
+      // Việc này giúp các phòng ban khác (giám định, kế toán) thấy được thông tin mới nhất
+      await tx.leadCar.upsert({
+        where: { customerId: leadId },
+        update: {
+          ...values.carData,
+          finalPrice: values.contractData.price, // Lưu giá chốt vào LeadCar luôn
+        },
+        create: {
+          customerId: leadId,
+          ...values.carData,
+          finalPrice: values.contractData.price,
+        },
+      });
+
+      // Revalidate các path liên quan
       revalidatePath("/dashboard/assigned-tasks");
-      return { success: true };
+      revalidatePath("/dashboard/approvals");
+      revalidatePath(`/dashboard/customers/${leadId}`);
+
+      return { success: true, activityId: activity.id };
     });
   } catch (error: any) {
-    throw new Error("Lỗi gửi yêu cầu: " + error.message);
+    console.error("Purchase Approval Error:", error);
+    throw new Error(error.message || "Lỗi hệ thống khi gửi yêu cầu");
   }
 }
-
 // 2. Phê duyệt nhập kho (Giải nén JSON, tạo Car VÀ tạo CarOwnerHistory)
 
 export async function approveCarPurchase(
