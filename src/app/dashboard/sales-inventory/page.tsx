@@ -1,157 +1,76 @@
-/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   Button,
-  Modal,
-  Form,
-  Input,
   Tag,
   Space,
   Card,
   Typography,
-  Row,
-  Col,
-  Select,
-  InputNumber,
-  Segmented,
   message,
   Badge,
-  Divider,
   Tooltip,
-  Alert,
-  DatePicker,
+  Segmented,
 } from "antd";
 import {
   SyncOutlined,
-  CloseCircleOutlined,
-  CarOutlined,
   DollarOutlined,
-  SafetyCertificateOutlined,
-  PhoneOutlined,
-  CalendarOutlined,
-  HistoryOutlined,
+  CheckCircleOutlined,
   ClockCircleOutlined,
+  HistoryOutlined,
   UserAddOutlined,
+  CarOutlined,
+  FireOutlined,
+  ThunderboltOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import {
   getMyTasksAction,
   getAvailableCars,
-  getActiveReasonsAction,
-  requestPurchaseApproval,
   requestSaleApproval,
-  requestLoseApproval,
+  getActiveReasonsAction,
   updateCustomerStatusAction,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
-import { LeadStatus, UrgencyType } from "@prisma/client";
+import dayjs from "@/lib/dayjs";
 
-import ModalApproveTransaction from "@/components/assigned-tasks/ModalApproveTransaction";
 import ModalLoseLead from "@/components/assigned-tasks/ModalLoseLead";
 import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndLeadCar";
 import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
-import dayjs from "@/lib/dayjs";
 import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
+import ModalApproveSales from "@/components/assigned-tasks/ModalApproveSales";
+import { UrgencyType } from "@prisma/client";
+import { UrgencyBadge } from "@/lib/urgencyBadge";
 
 const { Title, Text } = Typography;
 
-export default function AssignedTasksPage() {
-  const [contactForm] = Form.useForm();
-  const [form] = Form.useForm();
-  const [messageApi, contextHolder] = message.useMessage();
-
+export default function SalesTasksPage() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [inventory, setInventory] = useState([]);
-  const [reasons, setReasons] = useState<any[]>([]);
   const [carModels, setCarModels] = useState<any[]>([]);
+  const [reasons, setReasons] = useState<any[]>([]);
+  const [filterType, setFilterType] = useState<string>("Tất cả");
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSalesModalOpen, setIsSalesModalOpen] = useState(false);
   const [isFailModalOpen, setIsFailModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<any>(null);
-  const [filterType, setFilterType] = useState<any>("ALL");
-  const [isMobile, setIsMobile] = useState(false);
-  const [hasMounted, setHasMounted] = useState(false);
-  // Trong AssignedTasksPage.tsx
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [messageApi, contextHolder] = message.useMessage();
+  const [now, setNow] = useState(dayjs());
 
-  // --- MAPPING ---
-  const REFERRAL_TYPE_MAP: any = {
-    SELL: { label: "THU MUA XE", color: "orange", icon: <CarOutlined /> },
-    SELL_TRADE_NEW: {
-      label: "THU CŨ ĐỔI MỚI",
-      color: "red",
-      icon: <SyncOutlined />,
-    },
-    SELL_TRADE_USED: {
-      label: "THU CŨ ĐỔI CŨ",
-      color: "volcano",
-      icon: <SyncOutlined />,
-    },
-    BUY: { label: "BÁN XE", color: "green", icon: <DollarOutlined /> },
-    VALUATION: {
-      label: "ĐỊNH GIÁ XE",
-      color: "blue",
-      icon: <SafetyCertificateOutlined />,
-    },
-  };
-
-  // --- LOGIC TÍNH TOÁN ĐỘ TRỄ ---
-  const calculateDelay = (task: any) => {
-    // Đối với Task, mốc thời gian là scheduledAt
-    const scheduledTime = dayjs(task.scheduledAt).tz("Asia/Ho_Chi_Minh");
-    const now = dayjs().tz("Asia/Ho_Chi_Minh");
-
-    // Giả định Admin set maxLateMinutes là 30 (nên lấy từ config trả về từ server)
-    const RESPONSE_LIMIT = 30;
-    const deadline = scheduledTime.add(RESPONSE_LIMIT, "minute");
-
-    const isOverdue = now.isAfter(deadline);
-    const diffMinutes = now.diff(scheduledTime, "minute"); // Tính từ lúc bắt đầu hẹn
-
-    return {
-      isLate: isOverdue,
-      minutes: diffMinutes > 0 ? diffMinutes : 0,
-      lateMinutes: isOverdue ? now.diff(deadline, "minute") : 0,
-    };
-  };
-
-  // --- LOAD DATA ---
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [leads, cars, models]: any = await Promise.all([
-        getMyTasksAction(),
-        getAvailableCars(),
-        getCarModelsAction(),
-      ]);
-      setData(leads);
-      console.log(leads);
-
-      setInventory(cars);
-      setCarModels(models);
-    } catch (err) {
-      messageApi.error("Không thể tải danh sách dữ liệu");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // 2. Thiết lập interval cập nhật mỗi phút để tiết kiệm hiệu năng (hoặc 1s nếu muốn mượt hơn)
   useEffect(() => {
-    loadData();
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+    const timer = setInterval(() => {
+      setNow(dayjs());
+    }, 10000); // Cập nhật mỗi 10 giây là đủ để Sales theo dõi
+    return () => clearInterval(timer);
   }, []);
-
-  // Trong AssignedTasksPage.tsx
 
   const onContactFinish = async (values: any) => {
     try {
@@ -206,110 +125,134 @@ export default function AssignedTasksPage() {
     }
   };
 
-  const onFailFinish = async (values: any) => {
+  const loadData = async () => {
     setLoading(true);
-
     try {
-      const res = await requestLoseApproval(
-        selectedLead.id, // ID của Task hiện tại
-        selectedLead.customerId, // ID khách hàng
-        values.reasonId, // ID lý do hệ thống
-        values.status, // Trạng thái mục tiêu: LOSE/FROZEN/PENDING_VIEW
-        values.note, // Nội dung giải trình của sales
-      );
+      const [leads, cars, models]: any = await Promise.all([
+        getMyTasksAction(),
+        getAvailableCars(),
+        getCarModelsAction(),
+      ]);
+      setData(leads);
+      console.log(leads);
 
-      if (res.success) {
-        messageApi.success("Yêu cầu đã được gửi. Đang chờ Quản lý phê duyệt.");
-        setIsFailModalOpen(false);
-        loadData(); // Load lại để Task biến mất khỏi danh sách làm việc
-      } else {
-        const errorMsg = (res as any).error || "Gửi yêu cầu thất bại";
-
-        messageApi.error(errorMsg || "Gửi yêu cầu thất bại");
-      }
-    } catch (error) {
-      messageApi.error("Lỗi kết nối Server");
+      setInventory(cars);
+      setCarModels(models);
+    } catch (err) {
+      message.error("Không thể tải danh sách nhiệm vụ");
     } finally {
       setLoading(false);
     }
   };
-  // --- COLUMNS ---
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
   const columns = [
     {
       title: "Khách hàng",
       key: "customer",
-      render: (record: any) => {
-        const { isLate, lateMinutes } = calculateDelay(record);
-        return (
-          <div className="max-w-45">
-            <Space size={4} align="start">
-              <Text strong>{record.customer.fullName}</Text>
-              {isLate && (
-                <Tooltip title={`Trễ KPI: ${lateMinutes} phút`}>
-                  <Badge
-                    count={`-${lateMinutes}m`}
-                    style={{ backgroundColor: "#f5222d", fontSize: "10px" }}
-                  />
-                </Tooltip>
-              )}
-            </Space>
-            <div className="text-[11px] text-gray-500">
-              {record.customer.phone}
-            </div>
-            <div className="flex gap-1 mt-1">
-              <UrgencyBadge type={record.customer.urgencyLevel} />
-              {record.customer.status === "CONTACTED" && (
-                <Tag color="blue" className="text-[10px] m-0">
-                  Đã chăm sóc
-                </Tag>
-              )}
-            </div>
+      render: (task: any) => (
+        <div className="max-w-[180px]">
+          <Space size={4} align="start">
+            <Text strong className="text-slate-800">
+              {task.customer.fullName}
+            </Text>
+            {task.isOverdue && (
+              <Badge
+                count={`-${task.minutesOverdue}m`}
+                style={{ backgroundColor: "#ff4d4f", fontSize: "10px" }}
+              />
+            )}
+          </Space>
+          <div className="text-[11px] text-gray-500 font-medium">
+            {task.customer.phone}
           </div>
-        );
-      },
-    },
-    {
-      title: "Thông tin xe thu mua",
-      key: "leadCar",
-      responsive: ["md"] as any,
-      render: (record: any) => (
-        <div className="text-[12px]">
-          <div className="font-medium text-slate-700">
-            <CarOutlined />{" "}
-            {record.customer.carModel?.name || "Chưa cập nhật model"}
-          </div>
-          <div className="text-gray-500">
-            Năm: {record.customer?.leadCar?.year || "---"} | Giá mong muốn:{" "}
-            {record.customer.leadCar?.expectedPrice
-              ? `${record.customer.leadCar?.expectedPrice}`
-              : "---"}
+          <div className="mt-1">
+            <UrgencyBadge type={task.customer.urgencyLevel} />
           </div>
         </div>
       ),
     },
     {
-      title: "Lịch hẹn / KPI",
+      title: "Xe quan tâm / Trong kho",
+      key: "car_info",
+      render: (task: any) => {
+        const leadCar = task.customer.leadCar;
+        return (
+          <div className="text-[12px]">
+            <div className="font-bold text-emerald-700">
+              <CarOutlined className="mr-1" /> {task.customer.carModel?.name}
+            </div>
+            {leadCar ? (
+              <div className="mt-1 bg-emerald-50 p-1 rounded border border-emerald-100">
+                <div className="text-[10px] text-emerald-600 font-bold uppercase">
+                  Khớp mã kho:
+                </div>
+                <div className="text-emerald-800 font-medium">
+                  {leadCar.description}
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  Màu: {leadCar.color} | Năm: {leadCar.year}
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-400 italic mt-1">
+                Tìm theo nhu cầu chung
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: "Ngân sách & KPI",
       key: "kpi",
       render: (task: any) => {
-        const { isLate, lateMinutes } = calculateDelay(task);
-        const scheduledTime = dayjs(task.scheduledAt).tz("Asia/Ho_Chi_Minh");
+        const deadline = dayjs(task.deadlineAt);
+        const scheduled = dayjs(task.scheduledAt);
+
+        // Tính số phút chênh lệch giữa bây giờ và deadline
+        const diffMinutes = deadline.diff(now, "minute");
+        const isOverdue = now.isAfter(deadline);
 
         return (
           <div className="text-[11px]">
-            <div className="text-gray-400">
-              Hẹn: {scheduledTime.format("HH:mm DD/MM")}
+            {/* Hiển thị mốc giờ hẹn cố định */}
+            <div className="mb-1 text-gray-400 font-medium">
+              Hẹn: {scheduled.format("HH:mm DD/MM")}
             </div>
-            {isLate ? (
-              <div className="text-red-500 font-bold animate-pulse">
-                <ClockCircleOutlined /> QUÁ HẠN {lateMinutes} PHÚT
-              </div>
-            ) : dayjs().tz().isAfter(scheduledTime) ? (
-              <div className="text-orange-500 font-medium">
-                <SyncOutlined spin /> Sắp đến hẹn
+
+            {isOverdue ? (
+              <div className="flex flex-col gap-1 w-fit">
+                <Tag
+                  color="error"
+                  className="animate-pulse m-0 font-bold border-none shadow-sm"
+                >
+                  <ClockCircleOutlined /> QUÁ HẠN {now.diff(deadline, "minute")}{" "}
+                  PHÚT
+                </Tag>
               </div>
             ) : (
-              <div className="text-emerald-600">
-                <CalendarOutlined /> {scheduledTime.fromNow()}
+              <div className="flex flex-col gap-1 w-fit">
+                {/* Nếu còn dưới 60 phút thì hiện đếm ngược chi tiết */}
+                {diffMinutes <= 60 ? (
+                  <Tag
+                    color="warning"
+                    className="m-0 font-bold border-none shadow-sm w-fit"
+                  >
+                    <SyncOutlined spin className="mr-1" />
+                    CÒN {diffMinutes} PHÚT
+                  </Tag>
+                ) : (
+                  <Tag color="success" className="m-0 border-none font-medium">
+                    Sắp đến: {deadline.from(now)}
+                  </Tag>
+                )}
+                <Text type="secondary" className="text-[10px]">
+                  Nội dung: {task.content}
+                </Text>
               </div>
             )}
           </div>
@@ -321,7 +264,7 @@ export default function AssignedTasksPage() {
       align: "right" as const,
       render: (record: any) => (
         <Space onClick={(e) => e.stopPropagation()}>
-          <Tooltip title="Ghi chú & Cập nhật xe">
+          <Tooltip title="Chăm sóc">
             <Button
               icon={<HistoryOutlined />}
               size="small"
@@ -329,13 +272,6 @@ export default function AssignedTasksPage() {
               ghost
               onClick={() => {
                 setSelectedLead(record);
-                // Set initial values cho form từ data cũ
-                contactForm.setFieldsValue({
-                  carModelId: record.carModelId,
-                  manufactureYear: record.manufactureYear,
-                  expectedPrice: record.expectedPrice,
-                  urgencyLevel: record.urgencyLevel,
-                });
                 setIsContactModalOpen(true);
               }}
             />
@@ -343,21 +279,22 @@ export default function AssignedTasksPage() {
           <Button
             type="primary"
             size="small"
+            className="bg-emerald-600 border-emerald-600 hover:!bg-emerald-500"
+            icon={<CheckCircleOutlined />}
             onClick={() => {
               setSelectedLead(record);
-              setIsModalOpen(true);
+              setIsSalesModalOpen(true);
             }}
           >
-            Chốt
+            Chốt bán
           </Button>
           <Button
             danger
-            icon={<CloseCircleOutlined />}
+            icon={<ClockCircleOutlined />}
             size="small"
             onClick={() => {
               setSelectedLead(record);
               setIsFailModalOpen(true);
-              getActiveReasonsAction("LOSE").then(setReasons);
             }}
           />
         </Space>
@@ -365,72 +302,92 @@ export default function AssignedTasksPage() {
     },
   ];
 
-  const UrgencyBadge = ({ type }: { type: UrgencyType | null }) => {
-    const config = {
-      HOT: { color: "error", text: "HOT" },
-      WARM: { color: "warning", text: "WARM" },
-      COOL: { color: "processing", text: "COOL" },
-    };
-    if (!type || !config[type]) return null;
-    return (
-      <Tag color={config[type].color} className="text-[10px] m-0 font-bold">
-        {config[type].text}
-      </Tag>
-    );
-  };
-
   return (
-    <div className="p-4 bg-[#f0f2f5] min-h-screen">
+    <div className="p-6 bg-[#f8fafc] min-h-screen">
       {contextHolder}
-      <div className="max-w-6xl mx-auto">
-        <header className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-          <Title level={4} className="m-0! text-slate-800">
-            <CarOutlined className="mr-2" /> TRẠM THU MUA: NHIỆM VỤ CỦA TÔI
-          </Title>
+      <div className="max-w-7xl mx-auto">
+        <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-emerald-600 p-3 rounded-2xl shadow-lg shadow-emerald-100">
+              <DollarOutlined className="text-white text-2xl" />
+            </div>
+            <div>
+              <Title
+                level={3}
+                className="!m-0 text-slate-800 uppercase font-black tracking-tight"
+              >
+                Nhiệm vụ bán hàng
+              </Title>
+              <Text type="secondary" className="text-sm font-medium">
+                Theo dõi và chốt đơn khách hàng mua xe
+              </Text>
+            </div>
+          </div>
           <Space>
             <Button
               type="primary"
+              size="large"
+              className="rounded-xl font-bold shadow-md shadow-emerald-100"
               icon={<UserAddOutlined />}
               onClick={() => setIsAddModalOpen(true)}
             >
-              Tự thêm khách
+              THÊM KHÁCH MỚI
             </Button>
             <Segmented
-              options={[
-                { label: "Tất cả", value: "ALL" },
-                { label: "Hot Lead", value: "HOT" },
-                { label: "Đã trễ", value: "LATE" },
-              ]}
+              options={["Tất cả", "Sắp đến hạn", "Quá hạn"]}
               value={filterType}
-              onChange={setFilterType}
+              onChange={(v: any) => setFilterType(v)}
+              className="bg-white p-1 rounded-xl shadow-sm"
             />
           </Space>
         </header>
 
-        <Card className="shadow-sm rounded-xl">
+        <Card className="shadow-xl rounded-3xl border-none overflow-hidden">
           <Table
-            dataSource={data.filter((i) => {
-              if (filterType === "HOT") return i.urgencyLevel === "HOT";
-              if (filterType === "LATE") return calculateDelay(i).isLate;
-              return true;
-            })}
+            dataSource={data.filter((i) =>
+              filterType === "Quá hạn" ? i.isOverdue : true,
+            )}
             columns={columns}
             rowKey="id"
             loading={loading}
-            size="middle"
-            scroll={{ x: 800 }}
-            pagination={{ pageSize: 10 }}
+            pagination={{ pageSize: 8 }}
             onRow={(record) => ({
               onClick: () => {
                 setSelectedLead(record);
                 setIsDetailModalOpen(true);
               },
-              className: "cursor-pointer",
             })}
           />
         </Card>
       </div>
-      {/* --- MODAL GHI NHẬN TƯƠNG TÁC & CẬP NHẬT XE --- */}
+
+      <ModalApproveSales
+        isOpen={isSalesModalOpen}
+        onClose={() => setIsSalesModalOpen(false)}
+        selectedLead={selectedLead}
+        inventory={inventory}
+        loading={loading}
+        onFinish={async (values: any) => {
+          setLoading(true);
+          try {
+            const res = await requestSaleApproval(
+              selectedLead.customer.id,
+              selectedLead.id,
+              values,
+            );
+            if (res.success) {
+              message.success("Đã gửi yêu cầu phê duyệt chốt đơn!");
+              setIsSalesModalOpen(false);
+              loadData();
+            }
+          } catch (e: any) {
+            message.error(e.message);
+          } finally {
+            setLoading(false);
+          }
+        }}
+      />
+
       <ModalContactAndLeadCar
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
@@ -438,9 +395,8 @@ export default function AssignedTasksPage() {
         onFinish={onContactFinish}
         loading={loading}
       />
-      {/* --- CÁC MODAL CHI TIẾT & PHÊ DUYỆT --- */}
+
       <ModalDetailCustomer
-        carModels={carModels}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         selectedLead={selectedLead}
@@ -449,56 +405,18 @@ export default function AssignedTasksPage() {
           setIsContactModalOpen(true);
         }}
         UrgencyBadge={UrgencyBadge}
-        onUpdateSuccess={loadData}
       />
-      <ModalApproveTransaction
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        loading={loading}
-        selectedLead={selectedLead}
-        inventory={inventory}
-        carModels={carModels}
-        onFinish={async (values) => {
-          console.log(values);
 
-          setLoading(true);
-          try {
-            const res = await requestPurchaseApproval(
-              selectedLead.customerId,
-              values,
-            );
-
-            if (res.success) {
-              messageApi.success(
-                "Đã gửi yêu cầu phê duyệt thu mua cho Quản lý!",
-              );
-              setIsModalOpen(false);
-              loadData(); // Tải lại danh sách để Lead này biến mất (vì trạng thái đã đổi)
-            }
-          } catch (error: any) {
-            messageApi.error(error.message);
-          } finally {
-            setLoading(false);
-          }
-        }}
-      />
       <ModalLoseLead
         isOpen={isFailModalOpen}
         onClose={() => setIsFailModalOpen(false)}
-        onFinish={async (v) => {
-          onFailFinish(v);
-        }}
-        loading={loading}
         selectedLead={selectedLead}
+        onFinish={loadData}
+        loading={loading}
         reasons={reasons}
-        onStatusChange={(val) => {
-          console.log("Đang đổi sang trạng thái:", val);
-          // Gọi API lấy lý do tương ứng với trạng thái mới (LOSE/FROZEN...)
-          getActiveReasonsAction(val).then((res) => {
-            setReasons(res);
-          });
-        }}
+        onStatusChange={(val) => getActiveReasonsAction(val).then(setReasons)}
       />
+
       <ModalSelfAddCustomer
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}

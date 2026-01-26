@@ -160,10 +160,8 @@ export async function createCustomerAction(rawData: any) {
             where: { id: selectedCarId },
           });
         }
-        let stockCar = null;
-        if (selectedCarId) {
-          stockCar = await tx.car.findUnique({ where: { id: selectedCarId } });
-        }
+
+        console.log(stockCarInfo);
 
         const stockNote = stockCarInfo
           ? `\n[XE TRONG KHO]: ${stockCarInfo.stockCode} - ${stockCarInfo.modelName}`
@@ -183,25 +181,25 @@ export async function createCustomerAction(rawData: any) {
 
             // TỰ ĐỘNG TẠO LEADCAR TỪ XE TRONG KHO (Nếu có)
             // TẠO LEADCAR: Áp dữ liệu từ kho xe vào đây
-            leadCar: stockCar
+            leadCar: stockCarInfo
               ? {
                   create: {
-                    modelName: stockCar.modelName,
-                    year: stockCar.year,
-                    licensePlate: stockCar.licensePlate,
-                    odo: stockCar.odo,
-                    color: stockCar.color,
-                    interiorColor: stockCar.interiorColor,
-                    transmission: stockCar.transmission,
-                    fuelType: stockCar.fuelType,
-                    carType: stockCar.carType,
-                    origin: stockCar.origin,
-                    ownerType: stockCar.ownerType,
-                    seats: stockCar.seats,
-                    engineSize: stockCar.engineSize,
-                    driveTrain: stockCar.driveTrain,
-                    expectedPrice: stockCar.sellingPrice, // Lấy giá bán hiện tại làm giá kỳ vọng
-                    description: `Mã kho liên kết: ${stockCar.stockCode}`,
+                    modelName: stockCarInfo.modelName,
+                    year: stockCarInfo.year,
+                    licensePlate: stockCarInfo.licensePlate,
+                    odo: stockCarInfo.odo,
+                    color: stockCarInfo.color,
+                    interiorColor: stockCarInfo.interiorColor,
+                    transmission: stockCarInfo.transmission,
+                    fuelType: stockCarInfo.fuelType,
+                    carType: stockCarInfo.carType,
+                    origin: stockCarInfo.origin,
+                    ownerType: stockCarInfo.ownerType,
+                    seats: stockCarInfo.seats,
+                    engineSize: stockCarInfo.engineSize,
+                    driveTrain: stockCarInfo.driveTrain,
+                    expectedPrice: stockCarInfo.sellingPrice, // Lấy giá bán hiện tại làm giá kỳ vọng
+                    description: `Mã kho liên kết: ${stockCarInfo.stockCode}`,
                     note: "Khách hàng chọn xe trực tiếp từ kho xe có sẵn.",
                   },
                 }
@@ -310,8 +308,9 @@ export async function createCustomerAction(rawData: any) {
 
     revalidatePath("/dashboard/customers");
     revalidatePath("/dashboard/referrals/new");
+    const serializedCustomer = JSON.parse(JSON.stringify(newCustomer));
 
-    return { success: true, data: newCustomer };
+    return { success: true, data: serializedCustomer };
   } catch (error: any) {
     console.error("Lỗi createCustomerAction:", error);
     return {
@@ -387,6 +386,7 @@ export async function updateCustomerStatusAction(
     });
 
     revalidatePath("/dashboard/customers");
+
     return { success: true };
   } catch (error: any) {
     console.log("--- DEBUG ERROR ---");

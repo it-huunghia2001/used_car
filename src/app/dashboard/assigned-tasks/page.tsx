@@ -56,6 +56,7 @@ import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndL
 import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
 import dayjs from "@/lib/dayjs";
 import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
+import { UrgencyBadge } from "@/lib/urgencyBadge";
 
 const { Title, Text } = Typography;
 
@@ -364,20 +365,6 @@ export default function AssignedTasksPage() {
       ),
     },
   ];
-
-  const UrgencyBadge = ({ type }: { type: UrgencyType | null }) => {
-    const config = {
-      HOT: { color: "error", text: "HOT" },
-      WARM: { color: "warning", text: "WARM" },
-      COOL: { color: "processing", text: "COOL" },
-    };
-    if (!type || !config[type]) return null;
-    return (
-      <Tag color={config[type].color} className="text-[10px] m-0 font-bold">
-        {config[type].text}
-      </Tag>
-    );
-  };
 
   return (
     <div className="p-4 bg-[#f0f2f5] min-h-screen">

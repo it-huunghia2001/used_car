@@ -567,6 +567,8 @@ export async function getAvailableCars() {
       sellingPrice: true, // Đây là Decimal
       stockCode: true,
       year: true,
+      vin: true,
+      color: true,
     },
     orderBy: { createdAt: "desc" },
   });

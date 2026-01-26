@@ -31,7 +31,7 @@ export const CustomerBanner = ({
                 <span className="text-3xl font-bold tracking-tight">
                   {customerData.fullName}
                 </span>
-                <UrgencyBadge type={customerData.urgencyLevel} />
+                <UrgencyBadge type={customerData?.urgencyLevel} />
               </div>
               <Space
                 separator={

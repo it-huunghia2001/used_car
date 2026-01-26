@@ -283,7 +283,6 @@ export async function getInventoryAdvancedAction({
     return { data: [], total: 0, hasMore: false };
   }
 }
-// lấy dánh sách xe trong kho
 export async function getAvailableCarsAction() {
   try {
     const cars = await db.car.findMany({
@@ -296,13 +295,17 @@ export async function getAvailableCarsAction() {
         stockCode: true,
         modelName: true,
         year: true,
-        sellingPrice: true,
-        carModelId: true, // QUAN TRỌNG: Phải có dòng này
+        sellingPrice: true, // Đây là kiểu Decimal gây lỗi
+        carModelId: true,
       },
       orderBy: { createdAt: "desc" },
     });
-    return cars;
+
+    // QUAN TRỌNG: Chuyển đổi Decimal/Date sang chuỗi/số thuần JSON
+    // để tránh lỗi "Only plain objects can be passed to Client Components"
+    return JSON.parse(JSON.stringify(cars));
   } catch (error) {
+    console.error("Lỗi getAvailableCarsAction:", error);
     return [];
   }
 }
