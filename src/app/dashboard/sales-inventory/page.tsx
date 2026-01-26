@@ -1,9 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Table,
   Button,
@@ -14,169 +14,130 @@ import {
   Space,
   Card,
   Typography,
+  Row,
+  Col,
+  Select,
+  InputNumber,
   Segmented,
   message,
   Badge,
-  DatePicker,
-  Alert,
+  Divider,
   Tooltip,
+  Alert,
+  DatePicker,
 } from "antd";
 import {
   SyncOutlined,
   CloseCircleOutlined,
-  CheckCircleOutlined,
+  CarOutlined,
+  DollarOutlined,
+  SafetyCertificateOutlined,
   PhoneOutlined,
   CalendarOutlined,
-  DollarOutlined,
-  TeamOutlined,
-  CarOutlined,
+  HistoryOutlined,
+  ClockCircleOutlined,
   UserAddOutlined,
 } from "@ant-design/icons";
 import {
-  getMyAssignedLeads,
+  getMyTasksAction,
   getAvailableCars,
   getActiveReasonsAction,
-  requestSaleApproval, // Chỉ dùng request bán
+  requestPurchaseApproval,
+  requestSaleApproval,
   requestLoseApproval,
   updateCustomerStatusAction,
 } from "@/actions/task-actions";
-import dayjs from "dayjs";
+import { getCarModelsAction } from "@/actions/car-actions";
 import { LeadStatus, UrgencyType } from "@prisma/client";
-import "dayjs/locale/vi";
 
-// Component con đã tách (bạn nên giữ các file này để tái sử dụng)
-import ModalDetailCustomer from "@/components/assigned-tasks/ModalDetailCustomer";
 import ModalApproveTransaction from "@/components/assigned-tasks/ModalApproveTransaction";
 import ModalLoseLead from "@/components/assigned-tasks/ModalLoseLead";
-import ModalSaleTransaction from "@/components/assigned-tasks/ModalSaleTransaction";
-import { createSelfAssignedLeadAction } from "@/actions/customer-actions";
-import ModalAddSelfLead from "@/components/assigned-tasks/ModalAddSelfLead";
-import { getCarModelsAction } from "@/actions/car-actions";
-import { getCurrentUser } from "@/lib/session-server";
-import { getCurrentUserAction } from "@/actions/auth-actions";
+import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndLeadCar";
+import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
+import dayjs from "@/lib/dayjs";
+import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
 
 const { Title, Text } = Typography;
 
-export default function SalesTasksPage() {
-  const [form] = Form.useForm();
+export default function AssignedTasksPage() {
   const [contactForm] = Form.useForm();
+  const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
 
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<any[]>([]);
   const [inventory, setInventory] = useState([]);
   const [reasons, setReasons] = useState<any[]>([]);
+  const [carModels, setCarModels] = useState<any[]>([]);
 
-  // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFailModalOpen, setIsFailModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-
   const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [filterType, setFilterType] = useState<any>("ALL");
   const [isMobile, setIsMobile] = useState(false);
-
+  const [hasMounted, setHasMounted] = useState(false);
+  // Trong AssignedTasksPage.tsx
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [carModels, setCarModels] = useState([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // 3. Hàm xử lý khi submit form tạo khách
-  const onFinishAddLead = async (values: any) => {
-    setLoading(true);
-    try {
-      await createSelfAssignedLeadAction(values);
-      messageApi.success("Đã thêm khách hàng vào danh sách của bạn");
-      setIsAddModalOpen(false);
-      loadData(); // Tải lại danh sách
-    } catch (err: any) {
-      messageApi.error(err.message);
-    } finally {
-      setLoading(false);
-    }
+  // --- MAPPING ---
+  const REFERRAL_TYPE_MAP: any = {
+    SELL: { label: "THU MUA XE", color: "orange", icon: <CarOutlined /> },
+    SELL_TRADE_NEW: {
+      label: "THU CŨ ĐỔI MỚI",
+      color: "red",
+      icon: <SyncOutlined />,
+    },
+    SELL_TRADE_USED: {
+      label: "THU CŨ ĐỔI CŨ",
+      color: "volcano",
+      icon: <SyncOutlined />,
+    },
+    BUY: { label: "BÁN XE", color: "green", icon: <DollarOutlined /> },
+    VALUATION: {
+      label: "ĐỊNH GIÁ XE",
+      color: "blue",
+      icon: <SafetyCertificateOutlined />,
+    },
   };
 
-  const getStatusConfig = (status: string) => {
-    const configs: Record<
-      string,
-      {
-        color: string;
-        text: string;
-        badge: "default" | "error" | "success" | "processing" | "warning";
-      }
-    > = {
-      NEW: { color: "cyan", text: "Mới", badge: "default" },
-      ASSIGNED: { color: "blue", text: "Đã phân bổ", badge: "processing" },
-      CONTACTED: {
-        color: "geekblue",
-        text: "Đã liên hệ",
-        badge: "processing",
-      },
-      DEAL_DONE: { color: "green", text: "Thành công", badge: "success" },
-      CANCELLED: { color: "default", text: "Đã hủy", badge: "default" },
-      PENDING_DEAL_APPROVAL: {
-        color: "orange",
-        text: "Chờ duyệt Deal",
-        badge: "warning",
-      },
-      REJECTED_APPROVAL: {
-        color: "magenta",
-        text: "Từ chối phê duyệt",
-        badge: "error",
-      },
-      PENDING_LOSE_APPROVAL: {
-        color: "volcano",
-        text: "Chờ duyệt Đóng",
-        badge: "warning",
-      },
-      LOSE: { color: "red", text: "Thất bại", badge: "error" },
-      FROZEN: { color: "purple", text: "Đóng băng", badge: "default" },
-      PENDING_VIEW: { color: "gold", text: "Chờ xem xe", badge: "warning" },
+  // --- LOGIC TÍNH TOÁN ĐỘ TRỄ ---
+  const calculateDelay = (task: any) => {
+    // Đối với Task, mốc thời gian là scheduledAt
+    const scheduledTime = dayjs(task.scheduledAt).tz("Asia/Ho_Chi_Minh");
+    const now = dayjs().tz("Asia/Ho_Chi_Minh");
+
+    // Giả định Admin set maxLateMinutes là 30 (nên lấy từ config trả về từ server)
+    const RESPONSE_LIMIT = 30;
+    const deadline = scheduledTime.add(RESPONSE_LIMIT, "minute");
+
+    const isOverdue = now.isAfter(deadline);
+    const diffMinutes = now.diff(scheduledTime, "minute"); // Tính từ lúc bắt đầu hẹn
+
+    return {
+      isLate: isOverdue,
+      minutes: diffMinutes > 0 ? diffMinutes : 0,
+      lateMinutes: isOverdue ? now.diff(deadline, "minute") : 0,
     };
-
-    return (
-      configs[status] || { color: "default", text: status, badge: "default" }
-    );
   };
 
-  const UrgencyBadge = ({ type }: { type: UrgencyType | null }) => {
-    const config = {
-      HOT: { color: "error", text: "🔥 HOT", class: "animate-pulse" },
-      WARM: { color: "warning", text: "☀️ WARM", class: "" },
-      COOL: { color: "processing", text: "❄️ COOL", class: "" },
-    };
-    if (!type || !config[type]) return null;
-    return (
-      <Tag
-        color={config[type].color}
-        className={`font-bold ${config[type].class}`}
-      >
-        {config[type].text}
-      </Tag>
-    );
-  };
-
-  // 1. TẢI DỮ LIỆU
+  // --- LOAD DATA ---
   const loadData = async () => {
     setLoading(true);
     try {
-      const [leads, cars, carsModelAll, currentUserAPI]: any =
-        await Promise.all([
-          getMyAssignedLeads(),
-          getAvailableCars(),
-          getCarModelsAction(), // Chỉ lấy xe READY_FOR_SALE
-          getCurrentUserAction(), // Lấy thông tin user đang đăng nhập
-        ]);
+      const [leads, cars, models]: any = await Promise.all([
+        getMyTasksAction(),
+        getAvailableCars(),
+        getCarModelsAction(),
+      ]);
+      setData(leads);
+      console.log(leads);
 
-      // LỌC CHỈ LẤY KHÁCH HÀNG CÓ NHU CẦU "BUY" (MUA XE)
-      const salesLeads = leads.filter((item: any) => item.type === "BUY");
-      console.log(carsModelAll);
-
-      setData(salesLeads);
       setInventory(cars);
-      setCarModels(carsModelAll);
-      setCurrentUser(currentUserAPI);
+      setCarModels(models);
     } catch (err) {
-      messageApi.error("Không thể tải danh sách bán hàng");
+      messageApi.error("Không thể tải danh sách dữ liệu");
     } finally {
       setLoading(false);
     }
@@ -190,125 +151,168 @@ export default function SalesTasksPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // 2. XỬ LÝ CHỐT HỢP ĐỒNG BÁN
-  const onFinishSale = async (values: any) => {
+  // Trong AssignedTasksPage.tsx
+
+  const onContactFinish = async (values: any) => {
     try {
       setLoading(true);
-      // Cấu trúc dữ liệu y chang như API cũ của bạn yêu cầu
-      const contractData = {
-        contractNo: values.contractNo,
-        price: values.actualPrice,
-        note: values.contractNote,
-      };
+      const taskId = selectedLead.id;
+      const customerId = selectedLead.customerId;
 
-      // Gọi API duyệt bán xe (giữ nguyên logic bạn đã có)
-      await requestSaleApproval(selectedLead.id, values.carId, contractData);
+      // XỬ LÝ AN TOÀN: Bọc bằng dayjs để đảm bảo có hàm toISOString
+      let nextContactAtISO = null;
+      if (values.nextContactAt) {
+        const dateObj = dayjs(values.nextContactAt);
+        if (dateObj.isValid()) {
+          nextContactAtISO = dateObj.toISOString();
+        }
+      }
 
-      messageApi.success("Đã gửi yêu cầu duyệt bán xe!");
-      setIsModalOpen(false); // Đóng modal
-      loadData(); // Tải lại bảng dữ liệu
-    } catch (err: any) {
-      messageApi.error(err.message || "Lỗi khi gửi yêu cầu");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 3. CẬP NHẬT TRẠNG THÁI LIÊN HỆ
-  const onContactUpdate = async (values: any) => {
-    try {
-      setLoading(true);
-      await updateCustomerStatusAction(
-        selectedLead.id,
-        "CONTACTED" as LeadStatus,
+      const result = await updateCustomerStatusAction(
+        customerId,
+        "CONTACTED",
         values.note,
-        values.nextContactAt ? values.nextContactAt.toDate() : null,
+        taskId,
+        nextContactAtISO, // Truyền chuỗi ISO sạch vào đây
+        {
+          nextNote: values.nextContactNote,
+        },
       );
-      messageApi.success("Đã cập nhật nhật ký tư vấn");
-      setIsContactModalOpen(false);
-      contactForm.resetFields();
-      loadData();
+
+      // 3. Xử lý kết quả trả về
+      if (result.success) {
+        // Ép kiểu để lấy thông tin KPI
+        const { isLate, lateMinutes } = result as {
+          isLate: boolean;
+          lateMinutes: number;
+        };
+
+        if (isLate) {
+          messageApi.warning(`Đã lưu! Ghi nhận trễ ${lateMinutes} phút.`);
+        } else {
+          messageApi.success("Tuyệt vời! Bạn đã hoàn thành nhiệm vụ đúng hạn.");
+        }
+
+        setIsContactModalOpen(false);
+        loadData(); // Reload lại danh sách Task
+      } else {
+        messageApi.error("Lỗi cập nhật trạng thái");
+      }
     } catch (err: any) {
-      messageApi.error(err.message || "Lỗi cập nhật");
+      console.error("Contact Finish Error:", err);
+      messageApi.error("Có lỗi xảy ra, vui lòng thử lại sau");
     } finally {
       setLoading(false);
     }
   };
 
-  // 4. CẤU HÌNH BẢNG (ĐÃ TỐI ƯU CHO SALES)
+  const onFailFinish = async (values: any) => {
+    setLoading(true);
+
+    try {
+      const res = await requestLoseApproval(
+        selectedLead.id, // ID của Task hiện tại
+        selectedLead.customerId, // ID khách hàng
+        values.reasonId, // ID lý do hệ thống
+        values.status, // Trạng thái mục tiêu: LOSE/FROZEN/PENDING_VIEW
+        values.note, // Nội dung giải trình của sales
+      );
+
+      if (res.success) {
+        messageApi.success("Yêu cầu đã được gửi. Đang chờ Quản lý phê duyệt.");
+        setIsFailModalOpen(false);
+        loadData(); // Load lại để Task biến mất khỏi danh sách làm việc
+      } else {
+        const errorMsg = (res as any).error || "Gửi yêu cầu thất bại";
+
+        messageApi.error(errorMsg || "Gửi yêu cầu thất bại");
+      }
+    } catch (error) {
+      messageApi.error("Lỗi kết nối Server");
+    } finally {
+      setLoading(false);
+    }
+  };
+  // --- COLUMNS ---
   const columns = [
     {
-      title: "Thông tin khách hàng",
+      title: "Khách hàng",
       key: "customer",
-      render: (record: any) => (
-        <div>
-          <Space>
-            <Text strong className="text-indigo-700">
-              {record.fullName}
-            </Text>
-            <UrgencyBadge type={record.urgencyLevel} />
-          </Space>
-          <div className="text-[12px] text-gray-500">
-            <PhoneOutlined /> {record.phone}
-          </div>
-          {isMobile && (
-            <div className="mt-1">
-              <Tag color="blue">
-                Hẹn: {dayjs(record.nextContactAt).format("DD/MM HH:mm")}
-              </Tag>
+      render: (record: any) => {
+        const { isLate, lateMinutes } = calculateDelay(record);
+        return (
+          <div className="max-w-45">
+            <Space size={4} align="start">
+              <Text strong>{record.customer.fullName}</Text>
+              {isLate && (
+                <Tooltip title={`Trễ KPI: ${lateMinutes} phút`}>
+                  <Badge
+                    count={`-${lateMinutes}m`}
+                    style={{ backgroundColor: "#f5222d", fontSize: "10px" }}
+                  />
+                </Tooltip>
+              )}
+            </Space>
+            <div className="text-[11px] text-gray-500">
+              {record.customer.phone}
             </div>
-          )}
-        </div>
-      ),
+            <div className="flex gap-1 mt-1">
+              <UrgencyBadge type={record.customer.urgencyLevel} />
+              {record.customer.status === "CONTACTED" && (
+                <Tag color="blue" className="text-[10px] m-0">
+                  Đã chăm sóc
+                </Tag>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
-      title: "Dòng xe quan tâm",
-      key: "interest",
+      title: "Thông tin xe thu mua",
+      key: "leadCar",
       responsive: ["md"] as any,
       render: (record: any) => (
-        <div className="flex flex-col text-[13px]">
-          <Text italic>
-            <CarOutlined /> {record.carModel?.name || "Chưa xác định"}
-          </Text>
-          <Text type="secondary">
-            Nguồn: {record.referrer?.fullName || "Hệ thống"}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: "Lịch hẹn tư vấn",
-      key: "appointment",
-      responsive: ["lg"] as any,
-      render: (record: any) => (
         <div className="text-[12px]">
-          <div className="text-rose-500 font-medium">
-            <CalendarOutlined /> Hẹn:{" "}
-            {record.nextContactAt
-              ? dayjs(record.nextContactAt).format("DD/MM/YYYY HH:mm")
-              : "Chưa có"}
+          <div className="font-medium text-slate-700">
+            <CarOutlined />{" "}
+            {record.customer.carModel?.name || "Chưa cập nhật model"}
           </div>
-          <div className="text-gray-400">
-            Lần cuối:{" "}
-            {record.lastContactAt
-              ? dayjs(record.lastContactAt).fromNow()
-              : "Chưa gọi"}
+          <div className="text-gray-500">
+            Năm: {record.customer?.leadCar?.year || "---"} | Giá mong muốn:{" "}
+            {record.customer.leadCar?.expectedPrice
+              ? `${record.customer.leadCar?.expectedPrice}`
+              : "---"}
           </div>
         </div>
       ),
     },
     {
-      title: "Trạng thái",
-      dataIndex: "status",
-      render: (status: string) => {
-        const config = getStatusConfig(status);
+      title: "Lịch hẹn / KPI",
+      key: "kpi",
+      render: (task: any) => {
+        const { isLate, lateMinutes } = calculateDelay(task);
+        const scheduledTime = dayjs(task.scheduledAt).tz("Asia/Ho_Chi_Minh");
+
         return (
-          <Tag
-            color={config.color}
-            className="m-0 border-none px-2 font-medium"
-          >
-            <Badge status={config.badge} /> {config.text}
-          </Tag>
+          <div className="text-[11px]">
+            <div className="text-gray-400">
+              Hẹn: {scheduledTime.format("HH:mm DD/MM")}
+            </div>
+            {isLate ? (
+              <div className="text-red-500 font-bold animate-pulse">
+                <ClockCircleOutlined /> QUÁ HẠN {lateMinutes} PHÚT
+              </div>
+            ) : dayjs().tz().isAfter(scheduledTime) ? (
+              <div className="text-orange-500 font-medium">
+                <SyncOutlined spin /> Sắp đến hẹn
+              </div>
+            ) : (
+              <div className="text-emerald-600">
+                <CalendarOutlined /> {scheduledTime.fromNow()}
+              </div>
+            )}
+          </div>
         );
       },
     },
@@ -317,12 +321,21 @@ export default function SalesTasksPage() {
       align: "right" as const,
       render: (record: any) => (
         <Space onClick={(e) => e.stopPropagation()}>
-          <Tooltip title="Ghi chú tương tác">
+          <Tooltip title="Ghi chú & Cập nhật xe">
             <Button
-              icon={<SyncOutlined />}
+              icon={<HistoryOutlined />}
               size="small"
+              type="primary"
+              ghost
               onClick={() => {
                 setSelectedLead(record);
+                // Set initial values cho form từ data cũ
+                contactForm.setFieldsValue({
+                  carModelId: record.carModelId,
+                  manufactureYear: record.manufactureYear,
+                  expectedPrice: record.expectedPrice,
+                  urgencyLevel: record.urgencyLevel,
+                });
                 setIsContactModalOpen(true);
               }}
             />
@@ -330,14 +343,12 @@ export default function SalesTasksPage() {
           <Button
             type="primary"
             size="small"
-            icon={<DollarOutlined />}
-            disabled={record.status.startsWith("PENDING_")}
             onClick={() => {
               setSelectedLead(record);
               setIsModalOpen(true);
             }}
           >
-            Lên Hợp Đồng
+            Chốt
           </Button>
           <Button
             danger
@@ -354,62 +365,82 @@ export default function SalesTasksPage() {
     },
   ];
 
+  const UrgencyBadge = ({ type }: { type: UrgencyType | null }) => {
+    const config = {
+      HOT: { color: "error", text: "HOT" },
+      WARM: { color: "warning", text: "WARM" },
+      COOL: { color: "processing", text: "COOL" },
+    };
+    if (!type || !config[type]) return null;
+    return (
+      <Tag color={config[type].color} className="text-[10px] m-0 font-bold">
+        {config[type].text}
+      </Tag>
+    );
+  };
+
   return (
-    <div className="p-4 md:p-8 bg-[#f8fafc] min-h-screen">
+    <div className="p-4 bg-[#f0f2f5] min-h-screen">
       {contextHolder}
-      <div className="max-w-350 mx-auto">
-        <header className="mb-6 flex justify-between items-center">
-          <div>
-            <Title level={3} className="mb-1!">
-              🎯 Mục tiêu Bán hàng
-            </Title>
-            <Text type="secondary">
-              Quản lý danh sách khách hàng tiềm năng đang cần mua xe
-            </Text>
-          </div>
+      <div className="max-w-6xl mx-auto">
+        <header className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+          <Title level={4} className="m-0! text-slate-800">
+            <CarOutlined className="mr-2" /> TRẠM THU MUA: NHIỆM VỤ CỦA TÔI
+          </Title>
           <Space>
             <Button
               type="primary"
               icon={<UserAddOutlined />}
-              size="large"
-              className="bg-green-600 hover:bg-green-700"
               onClick={() => setIsAddModalOpen(true)}
             >
-              Thêm khách của tôi
+              Tự thêm khách
             </Button>
-            <Badge count={data.length} showZero color="#4f46e5">
-              <Button icon={<TeamOutlined />} size="large">
-                Đang chăm sóc
-              </Button>
-            </Badge>
+            <Segmented
+              options={[
+                { label: "Tất cả", value: "ALL" },
+                { label: "Hot Lead", value: "HOT" },
+                { label: "Đã trễ", value: "LATE" },
+              ]}
+              value={filterType}
+              onChange={setFilterType}
+            />
           </Space>
         </header>
 
-        <Card className="shadow-sm border-none rounded-2xl overflow-hidden">
+        <Card className="shadow-sm rounded-xl">
           <Table
-            dataSource={data}
+            dataSource={data.filter((i) => {
+              if (filterType === "HOT") return i.urgencyLevel === "HOT";
+              if (filterType === "LATE") return calculateDelay(i).isLate;
+              return true;
+            })}
             columns={columns}
             rowKey="id"
             loading={loading}
-            size={isMobile ? "small" : "middle"}
-            scroll={{ x: "max-content" }}
+            size="middle"
+            scroll={{ x: 800 }}
+            pagination={{ pageSize: 10 }}
             onRow={(record) => ({
               onClick: () => {
                 setSelectedLead(record);
                 setIsDetailModalOpen(true);
               },
-              className: "cursor-pointer hover:bg-slate-50 transition-colors",
+              className: "cursor-pointer",
             })}
-            pagination={{ pageSize: 10 }}
           />
         </Card>
       </div>
-
-      {/* MODALS TÁI SỬ DỤNG NHƯNG TÙY BIẾN CHO SALES */}
-
-      {/* 1. Modal Chi Tiết */}
+      {/* --- MODAL GHI NHẬN TƯƠNG TÁC & CẬP NHẬT XE --- */}
+      <ModalContactAndLeadCar
+        isOpen={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
+        selectedLead={selectedLead}
+        onFinish={onContactFinish}
+        loading={loading}
+      />
+      {/* --- CÁC MODAL CHI TIẾT & PHÊ DUYỆT --- */}
       <ModalDetailCustomer
-        UrgencyBadge={UrgencyBadge}
+        carModels={carModels}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         selectedLead={selectedLead}
@@ -417,102 +448,62 @@ export default function SalesTasksPage() {
           setIsDetailModalOpen(false);
           setIsContactModalOpen(true);
         }}
+        UrgencyBadge={UrgencyBadge}
+        onUpdateSuccess={loadData}
       />
-
-      {/* 2. Modal Lên Hợp Đồng (Bán xe) */}
-      <ModalSaleTransaction
+      <ModalApproveTransaction
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onFinish={onFinishSale}
         loading={loading}
         selectedLead={selectedLead}
         inventory={inventory}
-      />
+        carModels={carModels}
+        onFinish={async (values) => {
+          console.log(values);
 
-      {/* 3. Modal Nhật ký tương tác */}
-      <Modal
-        title={
-          <Space>
-            <PhoneOutlined className="text-blue-500" /> CẬP NHẬT TIẾN ĐỘ TƯ VẤN
-          </Space>
-        }
-        open={isContactModalOpen}
-        onOk={() => contactForm.submit()}
-        onCancel={() => setIsContactModalOpen(false)}
-        okText="Lưu tiến độ"
-        centered
-      >
-        <Form
-          form={contactForm}
-          layout="vertical"
-          onFinish={onContactUpdate}
-          className="mt-4"
-        >
-          <Alert
-            message={`Khách hàng: ${selectedLead?.fullName}`}
-            type="info"
-            className="mb-4"
-          />
-          <Form.Item
-            name="nextContactAt"
-            label={
-              <Text strong className="text-blue-600">
-                Lịch hẹn khách lái thử / Xem xe
-              </Text>
-            }
-          >
-            <DatePicker showTime className="w-full" format="DD/MM/YYYY HH:mm" />
-          </Form.Item>
-          <Form.Item
-            name="note"
-            label="Ghi chú phản hồi của khách"
-            rules={[{ required: true }]}
-          >
-            <Input.TextArea
-              rows={4}
-              placeholder="Ví dụ: Khách đang phân vân màu trắng, hẹn thứ 7 qua showroom xem xe..."
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 4. Modal Thất bại */}
-      {/* --- MODAL 4: DỪNG CHĂM SÓC --- */}
-      <ModalLoseLead
-        isOpen={isFailModalOpen}
-        onClose={() => setIsFailModalOpen(false)}
-        onFinish={async (v: any) => {
           setLoading(true);
           try {
-            // TRUYỀN THÊM v.status Ở ĐÂY
-            await requestLoseApproval(
-              selectedLead.id,
-              v.reasonId,
-              v.note,
-              v.status, // v.status sẽ là "LOSE", "FROZEN", hoặc "PENDING_VIEW"
+            const res = await requestPurchaseApproval(
+              selectedLead.customerId,
+              values,
             );
 
-            message.success("Đã gửi yêu cầu phê duyệt thành công");
-            setIsFailModalOpen(false);
-            loadData();
-          } catch (err: any) {
-            message.error(err.message || "Có lỗi xảy ra");
+            if (res.success) {
+              messageApi.success(
+                "Đã gửi yêu cầu phê duyệt thu mua cho Quản lý!",
+              );
+              setIsModalOpen(false);
+              loadData(); // Tải lại danh sách để Lead này biến mất (vì trạng thái đã đổi)
+            }
+          } catch (error: any) {
+            messageApi.error(error.message);
           } finally {
             setLoading(false);
           }
         }}
+      />
+      <ModalLoseLead
+        isOpen={isFailModalOpen}
+        onClose={() => setIsFailModalOpen(false)}
+        onFinish={async (v) => {
+          onFailFinish(v);
+        }}
         loading={loading}
         selectedLead={selectedLead}
         reasons={reasons}
-        onStatusChange={(val) => getActiveReasonsAction(val).then(setReasons)}
+        onStatusChange={(val) => {
+          console.log("Đang đổi sang trạng thái:", val);
+          // Gọi API lấy lý do tương ứng với trạng thái mới (LOSE/FROZEN...)
+          getActiveReasonsAction(val).then((res) => {
+            setReasons(res);
+          });
+        }}
       />
-      <ModalAddSelfLead
-        currentUser={currentUser}
+      <ModalSelfAddCustomer
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onFinish={onFinishAddLead}
-        loading={loading}
         carModels={carModels}
+        onSuccess={loadData}
       />
     </div>
   );

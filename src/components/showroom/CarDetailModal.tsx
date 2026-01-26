@@ -238,7 +238,7 @@ export default function CarDetailModal({
                     <SafetyCertificateOutlined /> Tính năng nổi bật
                   </Title>
                   <div className="flex flex-wrap gap-2">
-                    {car?.features.map((f: string, i: number) => (
+                    {car?.features.split(",").map((f: string, i: number) => (
                       <Tag
                         key={i}
                         className="bg-indigo-50 text-indigo-600 border-indigo-100 px-3 py-1 rounded-lg"

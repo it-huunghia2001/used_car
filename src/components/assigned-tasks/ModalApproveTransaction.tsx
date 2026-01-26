@@ -76,7 +76,9 @@ export default function ModalApproveTransaction({
         registrationDeadline:
           values.registrationDeadline?.toISOString() || null,
         insuranceDeadline: values.insuranceDeadline?.toISOString() || null,
-        warrantyDeadline: values.warrantyDeadline?.toISOString() || null,
+        insuranceVCDeadline: values.insuranceVCDeadline?.toISOString() || null,
+        insuranceTNDSDeadline:
+          values.insuranceTNDSDeadline?.toISOString() || null,
       },
       contractData: {
         contractNo: values.contractNo,
@@ -397,7 +399,7 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="insuranceVCDeadline" label="Thời hạn BHDS">
+                  <Form.Item name="insuranceTNDSDeadline" label="Thời hạn BHDS">
                     <DatePicker
                       className="w-full!"
                       placeholder="Chọn ngày"

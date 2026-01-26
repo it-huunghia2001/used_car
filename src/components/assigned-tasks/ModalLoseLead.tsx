@@ -2,10 +2,20 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Modal, Form, Select, Input, Typography, Divider, Space } from "antd";
+import {
+  Modal,
+  Form,
+  Select,
+  Input,
+  Typography,
+  Divider,
+  Space,
+  Alert,
+} from "antd";
 import {
   ExclamationCircleOutlined,
   InfoCircleOutlined,
+  LoadingOutlined,
 } from "@ant-design/icons";
 import { LeadStatus } from "@prisma/client";
 
@@ -32,15 +42,27 @@ export default function ModalLoseLead({
 }: ModalLoseLeadProps) {
   const [form] = Form.useForm();
 
-  // Tự động load lý do mặc định khi mở Modal
   useEffect(() => {
     if (isOpen) {
+      // 1. Chỉ set giá trị mặc định lên giao diện
       form.setFieldsValue({ status: "LOSE" });
+
+      // 2. Chỉ gọi API lấy lý do 1 lần duy nhất khi mở modal
       onStatusChange("LOSE" as LeadStatus);
     } else {
       form.resetFields();
     }
-  }, [isOpen, form, onStatusChange]);
+    // QUAN TRỌNG: Loại bỏ onStatusChange khỏi mảng này
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, form]);
+
+  // Khi đổi trạng thái (Lose/Frozen...), cần xóa lý do cũ đã chọn
+  const handleStatusChange = (value: LeadStatus) => {
+    form.setFieldsValue({ reasonId: undefined }); // Reset lý do khi đổi mục tiêu
+    if (onStatusChange) {
+      onStatusChange(value);
+    }
+  };
 
   return (
     <Modal
@@ -48,32 +70,37 @@ export default function ModalLoseLead({
       onOk={() => form.submit()}
       onCancel={onClose}
       confirmLoading={loading}
-      okButtonProps={{ danger: true, className: "rounded-lg" }}
-      cancelButtonProps={{ className: "rounded-lg" }}
+      okButtonProps={{ danger: true, className: "rounded-lg h-10" }}
+      cancelButtonProps={{ className: "rounded-lg h-10" }}
       okText="Gửi yêu cầu phê duyệt"
       title={
         <Space>
           <ExclamationCircleOutlined className="text-red-500" />
-          <span>Dừng xử lý khách hàng</span>
+          <span className="uppercase font-bold text-slate-700">
+            Dừng xử lý hồ sơ khách hàng
+          </span>
         </Space>
       }
       centered
-      width={480}
+      width={520}
     >
-      <div className="bg-red-50 p-4 rounded-xl border border-red-100 mb-6 mt-2">
-        <div className="flex gap-3">
-          <InfoCircleOutlined className="text-red-500 mt-1" />
-          <div>
-            <Text strong className="text-red-800 block">
-              Yêu cầu lưu trữ: {selectedLead?.fullName}
-            </Text>
-            <Text className="text-red-600 text-xs">
-              Hồ sơ sẽ chuyển sang trạng thái <b>Chờ phê duyệt</b>. Bạn sẽ tạm
-              thời không thể thao tác cho đến khi Quản lý phản hồi.
-            </Text>
-          </div>
-        </div>
-      </div>
+      <Alert
+        className="mb-6 mt-2 rounded-xl"
+        message={
+          <Text strong className="text-red-800">
+            Hồ sơ: {selectedLead?.customer?.fullName || selectedLead?.fullName}
+          </Text>
+        }
+        description={
+          <Text className="text-red-600 text-xs">
+            Sau khi gửi, hồ sơ sẽ chuyển sang trạng thái <b>Chờ phê duyệt</b>.
+            Bạn sẽ không thể thao tác cho đến khi Quản lý duyệt yêu cầu này.
+          </Text>
+        }
+        type="error"
+        showIcon
+        icon={<InfoCircleOutlined />}
+      />
 
       <Form
         form={form}
@@ -83,15 +110,19 @@ export default function ModalLoseLead({
       >
         <Form.Item
           name="status"
-          label={<Text strong>Bạn muốn chuyển khách vào mục:</Text>}
+          label={
+            <Text strong className="text-slate-600">
+              Phân loại lưu trữ:
+            </Text>
+          }
         >
           <Select
             size="large"
-            onChange={onStatusChange}
+            onChange={handleStatusChange}
             className="w-full"
             options={[
               {
-                label: "🔴 Thất bại (Lose) - Khách không mua nữa",
+                label: "🔴 Thất bại (Lose) - Khách không mua/bán nữa",
                 value: "LOSE",
               },
               {
@@ -99,7 +130,7 @@ export default function ModalLoseLead({
                 value: "FROZEN",
               },
               {
-                label: "🟡 Chờ xem xe (Pending View) - Chưa gặp được",
+                label: "🟡 Chờ xem xe (Pending View) - Đang sắp xếp lịch",
                 value: "PENDING_VIEW",
               },
             ]}
@@ -108,15 +139,33 @@ export default function ModalLoseLead({
 
         <Form.Item
           name="reasonId"
-          label={<Text strong>Lý do chi tiết:</Text>}
+          label={
+            <Text strong className="text-slate-600">
+              Lý do cụ thể (Do Admin cấu hình):
+            </Text>
+          }
           rules={[{ required: true, message: "Vui lòng chọn lý do cụ thể" }]}
         >
           <Select
             size="large"
-            placeholder="Chọn lý do từ danh sách..."
+            placeholder={
+              reasons.length > 0
+                ? "Chọn lý do từ danh sách..."
+                : "Đang tải danh sách lý do..."
+            }
             options={reasons.map((r) => ({ label: r.content, value: r.id }))}
             showSearch
             optionFilterProp="label"
+            loading={reasons.length === 0}
+            notFoundContent={
+              reasons.length === 0 ? (
+                <Space>
+                  <LoadingOutlined /> Đang tải lý do...
+                </Space>
+              ) : (
+                "Không tìm thấy lý do"
+              )
+            }
           />
         </Form.Item>
 
@@ -124,12 +173,22 @@ export default function ModalLoseLead({
 
         <Form.Item
           name="note"
-          label={<Text strong>Giải trình thêm cho Quản lý:</Text>}
+          label={
+            <Text strong className="text-slate-600">
+              Giải trình chi tiết với Quản lý:
+            </Text>
+          }
+          rules={[
+            {
+              required: true,
+              message: "Vui lòng nhập giải trình chi tiết để Admin dễ duyệt",
+            },
+          ]}
         >
           <Input.TextArea
             rows={4}
-            placeholder="Nhập ghi chú chi tiết về tình trạng khách hàng để Quản lý dễ dàng phê duyệt..."
-            className="rounded-lg"
+            placeholder="Ví dụ: Khách báo giá cao hơn thị trường 50 triệu, không thương lượng được..."
+            className="rounded-lg shadow-sm"
           />
         </Form.Item>
       </Form>

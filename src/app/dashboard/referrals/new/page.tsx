@@ -1,455 +1,88 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  Form,
-  Input,
-  Button,
-  message,
-  Radio,
-  Typography,
-  Row,
-  Col,
-  ConfigProvider,
-  Select,
-  InputNumber,
-  Tag,
-  Modal,
-  notification,
-} from "antd";
-import {
-  SendOutlined,
-  UserOutlined,
-  PhoneOutlined,
-  AuditOutlined,
-  DollarOutlined,
-  InfoCircleOutlined,
-  CalendarOutlined,
-  UndoOutlined,
-} from "@ant-design/icons";
-import { createCustomerAction } from "@/actions/customer-actions";
+import { ArrowLeftOutlined } from "@ant-design/icons";
+import FormSellCar from "./_components/FormSellCar";
+import FormBuyCar from "./_components/FormBuyCar";
 import { getCarModelsAction } from "@/actions/car-actions";
+import FormTypeSelector from "./_components/FormTypeSelector";
+import { Button, ConfigProvider, Typography } from "antd";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 export default function NewReferralPage() {
-  const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-  const [currentType, setCurrentType] = useState("SELL");
-  const [userId, setUserId] = useState<string | null>(null);
+  const [step, setStep] = useState<"SELECT" | "FORM">("SELECT");
+  const [referralType, setReferralType] = useState<
+    "SELL" | "BUY" | "VALUATION"
+  >("SELL");
   const [carModels, setCarModels] = useState<any[]>([]);
-  const [modal, modalContextHolder] = Modal.useModal();
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Lấy thông tin user hiện tại
     fetch("/api/auth/me")
       .then((res) => res.json())
-      .then((session) => {
-        if (session?.id) setUserId(session.id);
-      });
-
-    const fetchModels = async () => {
-      const models = await getCarModelsAction();
-      setCarModels(models);
-    };
-    fetchModels();
+      .then((data) => setUserId(data.id));
+    // Lấy danh mục xe
+    getCarModelsAction().then(setCarModels);
   }, []);
 
-  const SELL_SUB_TYPES = [
-    { value: "SELL", label: "Chỉ bán xe cũ" },
-    { value: "SELL_TRADE_NEW", label: "Bán xe cũ - Đổi xe mới" },
-    { value: "SELL_TRADE_USED", label: "Bán xe cũ - Đổi xe cũ" },
-  ];
-  const onFinish = async (values: any) => {
-    if (!userId) return message.error("Phiên đăng nhập đã hết hạn.");
-    setLoading(true);
-
-    try {
-      const res = await createCustomerAction({ ...values, referrerId: userId });
-
-      // TRƯỜNG HỢP 1: THẤT BẠI (Lỗi nghiệp vụ hoặc bị trùng)
-      if (res && !res.success) {
-        // Kiểm tra nếu lỗi là do trùng biển số (Dựa trên string error bạn trả về từ Action)
-        const isDuplicate =
-          res.error?.includes("đã tồn tại") || res.error?.includes("trùng");
-
-        modal.confirm({
-          title: isDuplicate ? "Yêu cầu đã tồn tại" : "Không thể gửi thông tin",
-          icon: isDuplicate ? (
-            <InfoCircleOutlined style={{ color: "#faad14" }} />
-          ) : (
-            <AuditOutlined style={{ color: "#ff4d4f" }} />
-          ),
-          content: (
-            <div className="py-2">
-              <Paragraph className="text-gray-600">{res.error}</Paragraph>
-              {isDuplicate && (
-                <Text type="secondary" className="text-[12px]">
-                  * Lưu ý: Hệ thống chỉ tiếp nhận mỗi xe một lần để đảm bảo
-                  quyền lợi của người giới thiệu đầu tiên.
-                </Text>
-              )}
-            </div>
-          ),
-          okText: "Đã hiểu",
-          cancelButtonProps: { style: { display: "none" } }, // Ẩn nút cancel
-          centered: true,
-          okButtonProps: { danger: !isDuplicate, className: "rounded-lg" },
-        });
-        return;
-      }
-
-      // TRƯỜNG HỢP 2: THÀNH CÔNG
-      modal.success({
-        title: (
-          <span className="text-green-600 font-bold text-xl">
-            GỬI THÀNH CÔNG!
-          </span>
-        ),
-        content: (
-          <div className="pt-4 pb-2">
-            <Paragraph>
-              Thông tin khách hàng <b>{values.fullName}</b> đã được chuyển đến
-              hệ thống CRM.
-            </Paragraph>
-            <div className="bg-green-50 p-3 rounded-lg border border-green-100">
-              <ul className="text-[13px] text-green-700 list-disc ml-4 mb-0">
-                <li>Bộ phận thu mua sẽ liên hệ khách trong vòng 15-30 phút.</li>
-                <li>Bạn có thể theo dõi tiến độ tại mục Lịch sử giới thiệu.</li>
-                <li>
-                  Hoa hồng sẽ được ghi nhận ngay sau khi giao dịch hoàn tất.
-                </li>
-              </ul>
-            </div>
-          </div>
-        ),
-        okText: "Đồng ý",
-        centered: true,
-        okButtonProps: {
-          className: "bg-green-600 border-green-600 rounded-lg h-10 px-8",
-        },
-        onOk: () => {
-          form.resetFields();
-          setCurrentType("SELL");
-        },
-      });
-    } catch (err: any) {
-      // TRƯỜNG HỢP 3: LỖI HỆ THỐNG (Crash hoặc Mất mạng)
-      modal.error({
-        title: "Lỗi kết nối",
-        content:
-          "Hệ thống đang bảo trì hoặc mất kết nối internet. Vui lòng thử lại sau.",
-        centered: true,
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleSelectType = (type: any) => {
+    setReferralType(type);
+    setStep("FORM");
   };
+
   return (
     <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: "#d32f2f",
-          borderRadius: 8,
-        },
-      }}
+      theme={{ token: { colorPrimary: "#d32f2f", borderRadius: 12 } }}
     >
-      {modalContextHolder}
-      <div className="max-w-4xl mx-auto py-4 md:py-8 px-3 md:px-4 animate-fadeIn">
-        {/* Header Section - Responsive Flex */}
-        <div className="mb-6 md:mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-          <div>
-            <Title
-              level={2}
-              className="!mb-1 !text-xl md:!text-2xl !font-bold tracking-tight text-gray-800 uppercase"
-            >
-              Gửi giới thiệu mới
-            </Title>
-            <Paragraph className="text-gray-500 mb-0! text-sm md:text-base">
-              Hệ thống tiếp nhận thông tin khách hàng 24/7.
-            </Paragraph>
-          </div>
-          <Tag
-            color="blue"
-            icon={<InfoCircleOutlined />}
-            className="py-1 px-3 m-0"
+      <div className="max-w-4xl mx-auto py-6 md:py-10 px-4">
+        {step === "FORM" && (
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => setStep("SELECT")}
+            className="mb-6 border-none bg-gray-100 hover:bg-gray-200 rounded-full"
           >
-            Phòng kinh doanh
-          </Tag>
+            Quay lại chọn nhu cầu
+          </Button>
+        )}
+
+        <div className="mb-8 text-center md:text-left">
+          <Title
+            level={2}
+            className="uppercase !font-black !mb-1 tracking-tighter"
+          >
+            {step === "SELECT"
+              ? "Bạn muốn giới thiệu gì?"
+              : "Thông tin chi tiết"}
+          </Title>
+          <Text type="secondary">
+            Hệ thống Toyota Bình Dương tiếp nhận yêu cầu 24/7
+          </Text>
         </div>
 
-        <Card className="shadow-md border-none rounded-xl md:rounded-2xl overflow-hidden">
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={onFinish}
-            size="large"
-            initialValues={{ type: "SELL" }}
-            className="p-0 md:p-2"
-          >
-            {/* 1. KHỐI NHU CẦU - Cuộn ngang trên mobile nếu cần */}
-            <section className="mb-8">
-              <Text
-                strong
-                className="block mb-4 text-[11px] md:text-sm text-gray-400 uppercase tracking-widest"
-              >
-                Bước 1: Chọn nhu cầu khách hàng
-              </Text>
-              <Form.Item name="type" className="mb-0">
-                <Radio.Group
-                  block
-                  optionType="button"
-                  buttonStyle="solid"
-                  onChange={(e) => setCurrentType(e.target.value)}
-                  className="flex flex-col sm:flex-row gap-2 bg-transparent md:bg-gray-50 p-0 md:p-1 md:rounded-xl"
-                >
-                  <Radio.Button
-                    value="SELL"
-                    className="flex-1 rounded-lg! border-gray-200 text-center font-semibold h-12 md:h-14 leading-[46px] md:leading-[52px]"
-                  >
-                    BÁN / ĐỔI XE
-                  </Radio.Button>
-                  <Radio.Button
-                    value="BUY"
-                    className="flex-1 rounded-lg! border-gray-200 text-center font-semibold h-12 md:h-14 leading-[46px] md:leading-[52px]"
-                  >
-                    MUA XE CŨ
-                  </Radio.Button>
-                  <Radio.Button
-                    value="VALUATION"
-                    className="flex-1 rounded-lg! border-gray-200 text-center font-semibold h-12 md:h-14 leading-[46px] md:leading-[52px]"
-                  >
-                    ĐỊNH GIÁ
-                  </Radio.Button>
-                </Radio.Group>
-              </Form.Item>
-              {/* HIỆN THÊM LỰA CHỌN KHI CHỌN SELL */}
-              {currentType === "SELL" && (
-                <Form.Item
-                  name="type" // Ghi đè trực tiếp vào field type để gửi lên Prisma
-                  label={
-                    <span className="text-indigo-600 font-bold">
-                      Hình thức bán / đổi
-                    </span>
-                  }
-                  rules={[
-                    {
-                      required: true,
-                      message: "Vui lòng chọn hình thức cụ thể",
-                    },
-                  ]}
-                  initialValue="SELL"
-                  className="animate-slideDown"
-                >
-                  <Select
-                    size="large"
-                    placeholder="Chọn hình thức chi tiết"
-                    options={SELL_SUB_TYPES}
-                    className="w-full"
-                  />
-                </Form.Item>
-              )}
-            </section>
-
-            {/* 2. THÔNG TIN KHÁCH HÀNG - 1 cột mobile, 2 cột desktop */}
-            <section className="mb-8">
-              <Text
-                strong
-                className="block mb-6 text-[11px] md:text-sm text-gray-400 uppercase tracking-widest"
-              >
-                Bước 2: Thông tin liên hệ
-              </Text>
-              <Row gutter={[16, 0]}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="fullName"
-                    label={<span className="font-medium">Tên khách hàng</span>}
-                    rules={[{ required: true, message: "Bắt buộc nhập" }]}
-                  >
-                    <Input
-                      prefix={<UserOutlined className="text-gray-300" />}
-                      placeholder="Họ và tên"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="phone"
-                    label={<span className="font-medium">Số điện thoại</span>}
-                    rules={[
-                      { required: true, message: "Bắt buộc nhập" },
-                      { pattern: /^[0-9]+$/, message: "SĐT không hợp lệ" },
-                    ]}
-                  >
-                    <Input
-                      prefix={<PhoneOutlined className="text-gray-300" />}
-                      placeholder="Nhập số điện thoại"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </section>
-
-            {/* 3. CHI TIẾT XE */}
-            <section className="mb-6 bg-gray-50/50 p-4 md:p-6 rounded-xl border border-dashed border-gray-200">
-              <Text
-                strong
-                className="block mb-6 text-[11px] md:text-sm text-gray-400 uppercase tracking-widest"
-              >
-                Bước 3: Chi tiết yêu cầu
-              </Text>
-              <Row gutter={[16, 0]}>
-                {(currentType === "SELL" || currentType === "VALUATION") && (
-                  <Col span={24} className="mb-4">
-                    <Form.Item
-                      name="licensePlate"
-                      label={<span className="font-medium">Biển số xe</span>}
-                      extra={
-                        <span className="text-[10px] text-gray-400">
-                          Hệ thống sẽ kiểm tra trùng lặp dựa trên biển số này
-                        </span>
-                      }
-                      getValueFromEvent={
-                        (e) =>
-                          e.target.value
-                            .toUpperCase()
-                            .replace(/[^A-Z0-9]/g, "")
-                            .slice(0, 9) // ✅ CHẶN TỐI ĐA 9 KÝ TỰ
-                      }
-                      rules={[
-                        {
-                          required: true,
-                          message: "Vui lòng nhập biển số xe!",
-                        },
-                        {
-                          min: 5,
-                          message: "Biển số không hợp lệ",
-                        },
-                        {
-                          max: 9,
-                          message: "Biển số tối đa 9 ký tự",
-                        },
-                      ]}
-                    >
-                      <Input
-                        prefix={<AuditOutlined className="text-gray-300" />}
-                        placeholder="Vd: 61A12345"
-                        className="uppercase font-bold text-blue-600"
-                        maxLength={9} // ✅ CHẶN NGAY TỪ INPUT
-                        showCount // (tuỳ chọn) hiển thị số ký tự
-                      />
-                    </Form.Item>
-                  </Col>
-                )}
-
-                <Col xs={24} md={16}>
-                  <Form.Item
-                    name="carModelId"
-                    label={<span className="font-medium">Mẫu xe</span>}
-                    rules={[{ required: true, message: "Chọn mẫu xe" }]}
-                  >
-                    <Select
-                      showSearch
-                      placeholder="Chọn dòng xe"
-                      optionFilterProp="label"
-                      options={carModels.map((m) => ({
-                        label: m.name,
-                        value: m.id,
-                      }))}
-                    />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} md={8}>
-                  <Form.Item
-                    name="carYear"
-                    label={<span className="font-medium">Đời xe (Năm)</span>}
-                  >
-                    <InputNumber
-                      placeholder="Vd: 2022"
-                      className="w-full! rounded-lg"
-                      prefix={<CalendarOutlined className="text-gray-300" />}
-                    />
-                  </Form.Item>
-                </Col>
-
-                {currentType === "BUY" && (
-                  <Col span={24}>
-                    <Form.Item
-                      name="budget"
-                      label={
-                        <span className="font-medium">Ngân sách dự kiến</span>
-                      }
-                    >
-                      <InputNumber
-                        className="w-full!"
-                        placeholder="Vd: 500.000.000"
-                        formatter={(value) =>
-                          `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                        }
-                        parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
-                        addonAfter="VNĐ"
-                      />
-                    </Form.Item>
-                  </Col>
-                )}
-
-                {currentType === "VALUATION" && (
-                  <Col span={24}>
-                    <Form.Item
-                      name="expectedPrice"
-                      label={<span className="font-medium">Giá mong muốn</span>}
-                    >
-                      <Input
-                        prefix={<DollarOutlined className="text-gray-300" />}
-                        placeholder="Mức giá kỳ vọng"
-                      />
-                    </Form.Item>
-                  </Col>
-                )}
-
-                <Col span={24}>
-                  <Form.Item
-                    name="note"
-                    label={<span className="font-medium">Ghi chú</span>}
-                  >
-                    <Input.TextArea
-                      rows={3}
-                      placeholder="Mô tả thêm tình trạng xe..."
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </section>
-
-            {/* Nút hành động - Full width trên mobile */}
-            <div className="flex flex-col-reverse md:flex-row justify-end gap-3 pt-6 border-t border-gray-100">
-              <Button
-                size="large"
-                icon={<UndoOutlined />}
-                className="w-full md:w-auto rounded-lg px-8 h-12 text-gray-500"
-                onClick={() => {
-                  form.resetFields();
-                  setCurrentType("SELL");
-                }}
-              >
-                Làm lại
-              </Button>
-              <Button
-                type="primary"
-                size="large"
-                htmlType="submit"
-                loading={loading}
-                icon={<SendOutlined />}
-                className="w-full md:w-auto rounded-lg px-10 h-12 font-bold shadow-lg"
-              >
-                GỬI GIỚI THIỆU
-              </Button>
-            </div>
-          </Form>
-        </Card>
+        {step === "SELECT" ? (
+          <FormTypeSelector onSelect={handleSelectType} />
+        ) : (
+          <div className="animate-in slide-in-from-bottom-4 duration-500">
+            {(referralType === "SELL" || referralType === "VALUATION") && (
+              <FormSellCar
+                type={referralType}
+                carModels={carModels}
+                userId={userId}
+                onSuccess={() => setStep("SELECT")}
+              />
+            )}
+            {referralType === "BUY" && (
+              <FormBuyCar
+                carModels={carModels}
+                userId={userId}
+                onSuccess={() => setStep("SELECT")}
+              />
+            )}
+          </div>
+        )}
       </div>
     </ConfigProvider>
   );

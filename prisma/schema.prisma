@@ -175,28 +175,29 @@ model LeadCar {
   customerId String   @unique
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  modelName     String?
-  grade         String?
-  color         String?
-  interiorColor String?
-  year          Int?
-  vin           String?
-  engineNumber  String?
-  licensePlate  String?
-  odo           Int?
-  transmission  Transmission? @default(AUTOMATIC)
-  fuelType      FuelType?     @default(GASOLINE)
-  driveTrain    String?
-  engineSize    String?
-  carType       CarType?
-  origin        OriginType?   @default(VN)
-  ownerType     OwnerType?    @default(PERSONAL)
-  seats         Int?          @default(5)
-
+  modelName             String?
+  grade                 String?
+  color                 String?
+  interiorColor         String?
+  year                  Int?
+  vin                   String?
+  engineNumber          String?
+  licensePlate          String?
+  odo                   Int?
+  description           String?       @db.Text
+  transmission          Transmission? @default(AUTOMATIC)
+  fuelType              FuelType?     @default(GASOLINE)
+  driveTrain            String?
+  engineSize            String?
+  carType               CarType?
+  origin                OriginType?   @default(VN)
+  ownerType             OwnerType?    @default(PERSONAL)
+  seats                 Int?          @default(5)
+  features              Json?
   registrationDeadline  DateTime?
-  insuranceTNDS         Boolean   @default(false)
+  insuranceTNDS         Boolean       @default(false)
   insuranceTNDSDeadline DateTime?
-  insuranceVC           Boolean   @default(false)
+  insuranceVC           Boolean       @default(false)
   insuranceVCCorp       String?
   insuranceVCDeadline   DateTime?
   insuranceDeadline     DateTime?

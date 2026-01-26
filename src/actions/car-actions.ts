@@ -283,3 +283,26 @@ export async function getInventoryAdvancedAction({
     return { data: [], total: 0, hasMore: false };
   }
 }
+// lấy dánh sách xe trong kho
+export async function getAvailableCarsAction() {
+  try {
+    const cars = await db.car.findMany({
+      where: {
+        status: { in: ["READY_FOR_SALE", "REFURBISHING"] },
+        isPublished: true,
+      },
+      select: {
+        id: true,
+        stockCode: true,
+        modelName: true,
+        year: true,
+        sellingPrice: true,
+        carModelId: true, // QUAN TRỌNG: Phải có dòng này
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return cars;
+  } catch (error) {
+    return [];
+  }
+}

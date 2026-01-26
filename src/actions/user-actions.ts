@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
+import { getCurrentUser } from "@/lib/session-server";
 
 /**
  * 1. LẤY DANH SÁCH NGƯỜI DÙNG (Cập nhật hỗ trợ Filter & Pagination)
@@ -16,6 +17,7 @@ export async function getUsersAction(params: {
   search?: string;
   branchId?: string | null;
   departmentId?: string | null;
+  role?: string;
 }) {
   try {
     const { page = 1, limit = 10, search, branchId, departmentId } = params;
@@ -30,6 +32,7 @@ export async function getUsersAction(params: {
         { username: { contains: search, mode: "insensitive" } },
         { fullName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
+        { role: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -149,9 +152,7 @@ export async function upsertUserAction(data: any) {
     // ==============================
     // 2. RELATIONS
     // ==============================
-    if (isGlobalManager) {
-      userData.branchId = undefined;
-    } else if (branchId) {
+    if (branchId) {
       userData.branch = { connect: { id: branchId } };
     }
 
@@ -243,5 +244,44 @@ export async function toggleUserStatusAction(
     return { success: true };
   } catch (error) {
     throw new Error("Lỗi khi thay đổi trạng thái người dùng");
+  }
+}
+
+// lấy nhân viên trong chi nhánh
+export async function getStaffByBranchAction() {
+  const auth = await getCurrentUser();
+
+  if (!auth) {
+    return { success: false, error: "Unauthorized", data: [] };
+  }
+
+  // Quyền Admin hoặc Quản trị toàn cầu
+  const isSuperUser = auth.role === "ADMIN" || auth.isGlobalManager === true;
+
+  try {
+    const staff = await db.user.findMany({
+      where: {
+        role: "PURCHASE_STAFF",
+        active: true,
+        // Nếu không phải SuperUser thì mới lọc theo chi nhánh
+        ...(isSuperUser ? {} : { branchId: auth.branchId }),
+      },
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        // Thêm thông tin chi nhánh để Admin biết nhân viên đó thuộc đâu
+        branch: {
+          select: { name: true },
+        },
+      },
+      orderBy: {
+        fullName: "asc",
+      },
+    });
+
+    return { success: true, data: staff };
+  } catch (error: any) {
+    return { success: false, error: error.message, data: [] };
   }
 }

@@ -36,6 +36,7 @@ import {
   CalendarOutlined,
   HistoryOutlined,
   ClockCircleOutlined,
+  UserAddOutlined,
 } from "@ant-design/icons";
 import {
   getMyTasksAction,
@@ -54,6 +55,7 @@ import ModalLoseLead from "@/components/assigned-tasks/ModalLoseLead";
 import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndLeadCar";
 import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
 import dayjs from "@/lib/dayjs";
+import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
 
 const { Title, Text } = Typography;
 
@@ -76,6 +78,8 @@ export default function AssignedTasksPage() {
   const [filterType, setFilterType] = useState<any>("ALL");
   const [isMobile, setIsMobile] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+  // Trong AssignedTasksPage.tsx
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // --- MAPPING ---
   const REFERRAL_TYPE_MAP: any = {
@@ -197,6 +201,34 @@ export default function AssignedTasksPage() {
     } catch (err: any) {
       console.error("Contact Finish Error:", err);
       messageApi.error("Có lỗi xảy ra, vui lòng thử lại sau");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onFailFinish = async (values: any) => {
+    setLoading(true);
+
+    try {
+      const res = await requestLoseApproval(
+        selectedLead.id, // ID của Task hiện tại
+        selectedLead.customerId, // ID khách hàng
+        values.reasonId, // ID lý do hệ thống
+        values.status, // Trạng thái mục tiêu: LOSE/FROZEN/PENDING_VIEW
+        values.note, // Nội dung giải trình của sales
+      );
+
+      if (res.success) {
+        messageApi.success("Yêu cầu đã được gửi. Đang chờ Quản lý phê duyệt.");
+        setIsFailModalOpen(false);
+        loadData(); // Load lại để Task biến mất khỏi danh sách làm việc
+      } else {
+        const errorMsg = (res as any).error || "Gửi yêu cầu thất bại";
+
+        messageApi.error(errorMsg || "Gửi yêu cầu thất bại");
+      }
+    } catch (error) {
+      messageApi.error("Lỗi kết nối Server");
     } finally {
       setLoading(false);
     }
@@ -355,15 +387,24 @@ export default function AssignedTasksPage() {
           <Title level={4} className="m-0! text-slate-800">
             <CarOutlined className="mr-2" /> TRẠM THU MUA: NHIỆM VỤ CỦA TÔI
           </Title>
-          <Segmented
-            options={[
-              { label: "Tất cả", value: "ALL" },
-              { label: "Hot Lead", value: "HOT" },
-              { label: "Đã trễ", value: "LATE" },
-            ]}
-            value={filterType}
-            onChange={setFilterType}
-          />
+          <Space>
+            <Button
+              type="primary"
+              icon={<UserAddOutlined />}
+              onClick={() => setIsAddModalOpen(true)}
+            >
+              Tự thêm khách
+            </Button>
+            <Segmented
+              options={[
+                { label: "Tất cả", value: "ALL" },
+                { label: "Hot Lead", value: "HOT" },
+                { label: "Đã trễ", value: "LATE" },
+              ]}
+              value={filterType}
+              onChange={setFilterType}
+            />
+          </Space>
         </header>
 
         <Card className="shadow-sm rounded-xl">
@@ -389,7 +430,6 @@ export default function AssignedTasksPage() {
           />
         </Card>
       </div>
-
       {/* --- MODAL GHI NHẬN TƯƠNG TÁC & CẬP NHẬT XE --- */}
       <ModalContactAndLeadCar
         isOpen={isContactModalOpen}
@@ -398,7 +438,6 @@ export default function AssignedTasksPage() {
         onFinish={onContactFinish}
         loading={loading}
       />
-
       {/* --- CÁC MODAL CHI TIẾT & PHÊ DUYỆT --- */}
       <ModalDetailCustomer
         carModels={carModels}
@@ -420,25 +459,13 @@ export default function AssignedTasksPage() {
         inventory={inventory}
         carModels={carModels}
         onFinish={async (values) => {
+          console.log(values);
+
           setLoading(true);
           try {
-            // values này nên chứa 2 phần: carData (thông tin xe) và contractData (giá chốt, số HĐ...)
-            const payload = {
-              carData: {
-                ...selectedLead.customer.leadCar, // Lấy data cũ
-                ...values.carUpdate, // Cập nhật data mới từ Form nếu có
-                carModelId: values.carModelId,
-              },
-              contractData: {
-                price: values.finalPrice,
-                contractNo: values.contractNo,
-                note: values.note,
-              },
-            };
-
             const res = await requestPurchaseApproval(
               selectedLead.customerId,
-              payload,
+              values,
             );
 
             if (res.success) {
@@ -459,12 +486,24 @@ export default function AssignedTasksPage() {
         isOpen={isFailModalOpen}
         onClose={() => setIsFailModalOpen(false)}
         onFinish={async (v) => {
-          /* logic onFailFinish của bạn */
+          onFailFinish(v);
         }}
         loading={loading}
         selectedLead={selectedLead}
         reasons={reasons}
-        onStatusChange={(val) => getActiveReasonsAction(val).then(setReasons)}
+        onStatusChange={(val) => {
+          console.log("Đang đổi sang trạng thái:", val);
+          // Gọi API lấy lý do tương ứng với trạng thái mới (LOSE/FROZEN...)
+          getActiveReasonsAction(val).then((res) => {
+            setReasons(res);
+          });
+        }}
+      />
+      <ModalSelfAddCustomer
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        carModels={carModels}
+        onSuccess={loadData}
       />
     </div>
   );
