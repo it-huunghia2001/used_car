@@ -18,7 +18,7 @@ import {
 import {
   SaveOutlined,
   DashboardOutlined,
-  InfoCircleOutlined,
+  ClockCircleOutlined, // Icon mới cho thời gian
 } from "@ant-design/icons";
 import { getLeadSettings, updateLeadSettings } from "@/actions/lead-actions";
 
@@ -26,13 +26,22 @@ const { Title, Text } = Typography;
 
 export default function LeadSlaSettings() {
   const [loading, setLoading] = useState(false);
-  const [settings, setSettings] = useState({ hotDays: 3, warmDays: 7 });
+  // Thêm maxLateMinutes vào state
+  const [settings, setSettings] = useState({
+    hotDays: 3,
+    warmDays: 7,
+    maxLateMinutes: 30,
+  });
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const loadData = async () => {
       const data = await getLeadSettings();
-      setSettings({ hotDays: data.hotDays, warmDays: data.warmDays });
+      setSettings({
+        hotDays: data.hotDays,
+        warmDays: data.warmDays,
+        maxLateMinutes: data.maxLateMinutes, // Nhận dữ liệu từ DB
+      });
     };
     loadData();
   }, []);
@@ -40,8 +49,13 @@ export default function LeadSlaSettings() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await updateLeadSettings(settings.hotDays, settings.warmDays);
-      messageApi.success("Đã cập nhật cấu hình phân loại khách hàng!");
+      // Cập nhật hàm gọi action với 3 tham số
+      await updateLeadSettings(
+        settings.hotDays,
+        settings.warmDays,
+        settings.maxLateMinutes,
+      );
+      messageApi.success("Đã cập nhật cấu hình SLA hệ thống!");
     } catch (err: any) {
       messageApi.error(err.message);
     } finally {
@@ -54,17 +68,18 @@ export default function LeadSlaSettings() {
       {contextHolder}
       <header className="mb-6">
         <Title level={2}>
-          <DashboardOutlined /> Cấu hình phân loại Lead
+          <DashboardOutlined /> Cấu hình SLA & Phân loại Lead
         </Title>
         <Text type="secondary">
-          Thiết lập mốc thời gian để hệ thống tự động gắn nhãn mức độ ưu tiên.
+          Thiết lập mốc thời gian để hệ thống tự động gắn nhãn mức độ ưu tiên và
+          kiểm soát KPI xử lý.
         </Text>
       </header>
 
       <Card className="shadow-lg rounded-xl">
         <Alert
           className="mb-8"
-          message="Nguyên lý hoạt động"
+          message="Nguyên lý hoạt động SLA"
           description={
             <ul className="list-disc ml-4 mt-2">
               <li>
@@ -83,11 +98,11 @@ export default function LeadSlaSettings() {
                 <b>{settings.warmDays}</b> ngày.
               </li>
               <li>
-                Mức{" "}
-                <Text type="secondary" strong>
-                  COOL (❄️)
-                </Text>
-                : Trên <b>{settings.warmDays}</b> ngày không tương tác.
+                Thời gian xử lý: Cho phép trễ tối đa{" "}
+                <Text strong className="text-blue-600">
+                  {settings.maxLateMinutes} phút
+                </Text>{" "}
+                so với lịch hẹn trước khi đánh dấu vi phạm KPI.
               </li>
             </ul>
           }
@@ -110,9 +125,6 @@ export default function LeadSlaSettings() {
                   setSettings({ ...settings, hotDays: val || 0 })
                 }
               />
-              <p className="mt-2 text-xs text-gray-400 italic font-normal">
-                Số ngày tối đa để còn được coi là khách hàng Nóng.
-              </p>
             </div>
           </Col>
 
@@ -130,8 +142,30 @@ export default function LeadSlaSettings() {
                   setSettings({ ...settings, warmDays: val || 0 })
                 }
               />
+            </div>
+          </Col>
+
+          {/* INPUT MỚI: maxLateMinutes */}
+          <Col span={24}>
+            <Divider className="text-blue-600 font-bold">
+              Cấu hình phản hồi (KPI)
+            </Divider>
+            <div className="mb-6">
+              <label className="block mb-2 font-bold text-blue-700 flex items-center gap-2">
+                <ClockCircleOutlined /> Thời gian trễ tối đa cho phép (Phút)
+              </label>
+              <InputNumber
+                className="w-full"
+                size="large"
+                min={0}
+                value={settings.maxLateMinutes}
+                onChange={(val) =>
+                  setSettings({ ...settings, maxLateMinutes: val || 0 })
+                }
+              />
               <p className="mt-2 text-xs text-gray-400 italic font-normal">
-                Khách hàng sẽ chuyển sang trạng thái Nguội nếu vượt mốc này.
+                Nếu nhân viên phản hồi muộn hơn mốc này so với lịch hẹn, hệ
+                thống sẽ tự động đánh dấu là Trễ hạn (isLate).
               </p>
             </div>
           </Col>

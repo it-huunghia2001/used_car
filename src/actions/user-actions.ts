@@ -1,7 +1,6 @@
+"use server"; // Cánh cửa bảo vệ
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-"use server";
-
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
@@ -85,23 +84,42 @@ export async function getUsersAction(params: {
  */
 export async function getEligibleStaffAction() {
   try {
-    return await db.user.findMany({
-      where: {
-        active: true,
-        role: {
-          in: ["SALES_STAFF", "PURCHASE_STAFF", "MANAGER"], // Lọc theo yêu cầu của bạn
-        },
+    const auth = await getCurrentUser();
+    if (!auth) throw new Error("Chưa đăng nhập");
+
+    // Khởi tạo bộ lọc mặc định
+    const whereClause: any = {
+      active: true,
+      id:
+        auth.role === "SALES_STAFF" || auth.role === "PURCHASE_STAFF"
+          ? auth.id
+          : undefined,
+      role: {
+        in: ["SALES_STAFF", "PURCHASE_STAFF", "MANAGER"],
       },
+    };
+
+    // LOGIC PHÂN QUYỀN:
+    // Nếu KHÔNG PHẢI Admin và KHÔNG PHẢI Global Manager
+    if (auth.role !== "ADMIN" && !auth.isGlobalManager) {
+      // Chỉ lấy những nhân viên cùng chi nhánh với người đang đăng nhập
+      whereClause.branchId = auth.branchId;
+    }
+
+    return await db.user.findMany({
+      where: whereClause,
       select: {
         id: true,
         fullName: true,
         role: true,
+        branchId: true,
         branch: { select: { name: true } },
       },
       orderBy: { fullName: "asc" },
     });
   } catch (error) {
-    throw new Error("Không thể lấy danh sách nhân viên thu mua/quản lý");
+    console.error("Staff fetch error:", error);
+    throw new Error("Không thể lấy danh sách nhân viên");
   }
 }
 

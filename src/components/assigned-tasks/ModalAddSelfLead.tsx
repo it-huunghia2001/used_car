@@ -134,7 +134,7 @@ export default function ModalAddSelfLead({
           </Select>
         </Form.Item>
 
-        <Divider orientation="vertical" plain>
+        <Divider plain>
           <CarOutlined /> Thông tin nhu cầu chi tiết
         </Divider>
 

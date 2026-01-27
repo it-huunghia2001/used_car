@@ -95,7 +95,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
             {/* ================= THÔNG TIN CƠ BẢN ================= */}
             <section>
-              <Divider orientation="vertical">Thông tin cơ bản</Divider>
+              <Divider>Thông tin cơ bản</Divider>
 
               <Form.Item
                 label="Địa chỉ Email"
@@ -147,7 +147,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
 
             {/* ================= ĐỔI MẬT KHẨU ================= */}
             <section>
-              <Divider orientation="vertical">Đổi mật khẩu</Divider>
+              <Divider>Đổi mật khẩu</Divider>
 
               <Form.Item name="oldPassword" label="Mật khẩu hiện tại">
                 <Input.Password

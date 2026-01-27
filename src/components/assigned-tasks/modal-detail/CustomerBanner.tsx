@@ -34,9 +34,7 @@ export const CustomerBanner = ({
                 <UrgencyBadge type={customerData?.urgencyLevel} />
               </div>
               <Space
-                separator={
-                  <Divider orientation="vertical" className="bg-slate-700" />
-                }
+                separator={<Divider className="bg-slate-700" />}
                 className="text-slate-400"
               >
                 <span className="flex items-center gap-2 text-indigo-300 font-medium">

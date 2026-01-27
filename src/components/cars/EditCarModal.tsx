@@ -319,7 +319,7 @@ export default function EditCarModal({
                 <div className="space-y-6">
                   {/* Group 2: Thông số kỹ thuật chi tiết */}
                   <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
-                    <Divider orientation="vertical" plain>
+                    <Divider plain>
                       <Text strong>THÔNG SỐ KỸ THUẬT</Text>
                     </Divider>
                     <Row gutter={20}>

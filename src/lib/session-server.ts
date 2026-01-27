@@ -1,11 +1,11 @@
 // src/lib/session-server.ts
-import { cookies } from "next/headers";
+import "server-only"; // Thêm dòng này (cần cài: npm install server-only)
 import { getUserFromToken } from "./auth";
-
+import { cookies } from "next/headers";
 export async function getCurrentUser() {
   try {
-    const cookieStore = cookies(); // ❌ KHÔNG await
-    const token = (await cookieStore).get("used-car")?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("used-car")?.value;
 
     if (!token) return null;
 

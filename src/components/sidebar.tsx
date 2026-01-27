@@ -15,6 +15,7 @@ import {
   UserAddOutlined,
   HomeOutlined,
   MenuOutlined,
+  PhoneOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -113,7 +114,11 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         },
       ],
     },
-
+    {
+      key: "/dashboard/late-kpi-report",
+      icon: <PhoneOutlined />,
+      label: <Link href="/dashboard/late-kpi-report">DS liên hệ trễ</Link>,
+    },
     // --- NHÓM 5: QUẢN LÝ KHTN (DÀNH CHO MANAGER) ---
     (role === "ADMIN" || role === "MANAGER") && {
       key: "manager-customer-menu",

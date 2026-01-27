@@ -21,7 +21,11 @@ export async function getLeadSettings() {
 }
 
 // Cập nhật cấu hình
-export async function updateLeadSettings(hotDays: number, warmDays: number) {
+export async function updateLeadSettings(
+  hotDays: number,
+  warmDays: number,
+  maxLateMinutes: number,
+) {
   try {
     if (hotDays >= warmDays) {
       throw new Error("Số ngày mức HOT phải nhỏ hơn số ngày mức WARM");
@@ -29,7 +33,7 @@ export async function updateLeadSettings(hotDays: number, warmDays: number) {
 
     const result = await db.leadSetting.update({
       where: { id: "lead_config" },
-      data: { hotDays, warmDays },
+      data: { hotDays, warmDays, maxLateMinutes },
     });
 
     revalidatePath("/admin/settings");

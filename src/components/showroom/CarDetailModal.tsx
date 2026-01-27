@@ -232,24 +232,46 @@ export default function CarDetailModal({
                 </Descriptions.Item>
               </Descriptions>
               {/* SECTION 4: TÍNH NĂNG & MÔ TẢ */}
-              {car?.features.length > 0 ? (
+              {/* SECTION 4: TÍNH NĂNG & MÔ TẢ */}
+              {car?.features && (
                 <div className="mb-6">
                   <Title level={4} className="flex items-center gap-2">
-                    <SafetyCertificateOutlined /> Tính năng nổi bật
+                    <SafetyCertificateOutlined className="text-indigo-600" />
+                    Tính năng nổi bật
                   </Title>
                   <div className="flex flex-wrap gap-2">
-                    {car?.features.split(",").map((f: string, i: number) => (
-                      <Tag
-                        key={i}
-                        className="bg-indigo-50 text-indigo-600 border-indigo-100 px-3 py-1 rounded-lg"
-                      >
-                        ✓ {f.trim()}
-                      </Tag>
-                    ))}
+                    {(() => {
+                      // Chuyển đổi dữ liệu về dạng mảng để map
+                      let featureList: string[] = [];
+
+                      if (Array.isArray(car.features)) {
+                        featureList = car.features;
+                      } else if (
+                        typeof car.features === "string" &&
+                        car.features.trim() !== ""
+                      ) {
+                        featureList = car.features.split(",");
+                      }
+
+                      // Nếu không có dữ liệu sau khi xử lý
+                      if (featureList.length === 0)
+                        return (
+                          <Text type="secondary" className="italic">
+                            Đang cập nhật...
+                          </Text>
+                        );
+
+                      return featureList.map((f: string, i: number) => (
+                        <Tag
+                          key={i}
+                          className="bg-indigo-50 text-indigo-600 border-indigo-100 px-3 py-1 rounded-lg font-medium"
+                        >
+                          ✓ {f.trim()}
+                        </Tag>
+                      ));
+                    })()}
                   </div>
                 </div>
-              ) : (
-                ""
               )}
 
               <Title level={4} className="flex items-center gap-2">
