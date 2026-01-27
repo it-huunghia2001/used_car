@@ -14,6 +14,7 @@ import {
   Badge,
   Tooltip,
   Segmented,
+  Divider,
 } from "antd";
 import {
   SyncOutlined,
@@ -33,6 +34,9 @@ import {
   requestSaleApproval,
   getActiveReasonsAction,
   updateCustomerStatusAction,
+  requestLoseApproval,
+  completeMaintenanceTaskAction,
+  getMaintenanceTasksAction,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
 import dayjs from "@/lib/dayjs";
@@ -63,6 +67,7 @@ export default function SalesTasksPage() {
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [messageApi, contextHolder] = message.useMessage();
   const [now, setNow] = useState(dayjs());
+  const [maintenanceTasks, setMaintenanceTasks] = useState<any[]>([]);
 
   // 2. Thiết lập interval cập nhật mỗi phút để tiết kiệm hiệu năng (hoặc 1s nếu muốn mượt hơn)
   useEffect(() => {
@@ -71,6 +76,34 @@ export default function SalesTasksPage() {
     }, 10000); // Cập nhật mỗi 10 giây là đủ để Sales theo dõi
     return () => clearInterval(timer);
   }, []);
+
+  const onFailFinish = async (values: any) => {
+    setLoading(true);
+
+    try {
+      const res = await requestLoseApproval(
+        selectedLead.id, // ID của Task hiện tại
+        selectedLead.customerId, // ID khách hàng
+        values.reasonId, // ID lý do hệ thống
+        values.status, // Trạng thái mục tiêu: LOSE/FROZEN/PENDING_VIEW
+        values.note, // Nội dung giải trình của sales
+      );
+
+      if (res.success) {
+        messageApi.success("Yêu cầu đã được gửi. Đang chờ Quản lý phê duyệt.");
+        setIsFailModalOpen(false);
+        loadData(); // Load lại để Task biến mất khỏi danh sách làm việc
+      } else {
+        const errorMsg = (res as any).error || "Gửi yêu cầu thất bại";
+
+        messageApi.error(errorMsg || "Gửi yêu cầu thất bại");
+      }
+    } catch (error) {
+      messageApi.error("Lỗi kết nối Server");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onContactFinish = async (values: any) => {
     try {
@@ -132,6 +165,7 @@ export default function SalesTasksPage() {
         getMyTasksAction(),
         getAvailableCars(),
         getCarModelsAction(),
+        getMaintenanceTasksAction(), // Bạn cần viết thêm Action này
       ]);
       setData(leads);
       console.log(leads);
@@ -145,10 +179,96 @@ export default function SalesTasksPage() {
     }
   };
 
+  const handleCompleteMaintenance = async (taskId: string) => {
+    const hide = message.loading("Đang xử lý...", 0);
+    try {
+      const res = await completeMaintenanceTaskAction(taskId);
+      if (res.success) {
+        message.success("Đã xác nhận hoàn thành nhiệm vụ chăm sóc!");
+        loadData(); // Tải lại dữ liệu để cập nhật danh sách
+      } else {
+        message.error("Lỗi: Không thể cập nhật trạng thái");
+      }
+    } catch (error) {
+      message.error("Lỗi kết nối hệ thống");
+    } finally {
+      hide();
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
-
+  const maintenanceColumns = [
+    {
+      title: "KHÁCH HÀNG",
+      key: "customer",
+      render: (task: any) => (
+        <Space direction="vertical" size={0}>
+          <Text strong className="text-slate-800">
+            {task.customer?.fullName}
+          </Text>
+          <Text type="secondary" className="text-[11px]">
+            {task.customer?.phone}
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: "NỘI DUNG",
+      dataIndex: "title",
+      key: "title",
+      render: (text: string) => (
+        <Tag
+          color="cyan"
+          className="font-medium border-cyan-100 uppercase text-[10px]"
+        >
+          {text}
+        </Tag>
+      ),
+    },
+    {
+      title: "HẠN KPI",
+      key: "deadline",
+      render: (task: any) => {
+        const deadline = dayjs(task.deadlineAt);
+        const isLate = dayjs().isAfter(deadline);
+        return (
+          <div className="flex flex-col">
+            <Text className="text-[12px]">
+              {deadline.format("DD/MM/YYYY HH:mm")}
+            </Text>
+            {isLate && (
+              <Tag
+                color="error"
+                className="m-0 text-[10px] w-fit font-bold border-none animate-pulse"
+              >
+                QUÁ HẠN
+              </Tag>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: "THAO TÁC",
+      align: "right" as const, // CHÌA KHÓA FIX LỖI: Thêm "as const" ở đây
+      render: (task: any) => (
+        <Button
+          type="primary"
+          size="small"
+          icon={<CheckCircleOutlined />}
+          className="bg-blue-600 hover:!bg-blue-500 rounded-lg shadow-sm font-medium"
+          onClick={(e) => {
+            e.stopPropagation(); // Ngăn sự kiện click row
+            handleCompleteMaintenance(task.id);
+          }}
+        >
+          Xác nhận đã gọi
+        </Button>
+      ),
+    },
+  ];
   const columns = [
     {
       title: "Khách hàng",
@@ -248,6 +368,7 @@ export default function SalesTasksPage() {
                 ) : (
                   <Tag color="success" className="m-0 border-none font-medium">
                     Sắp đến: {deadline.from(now)}
+                    {deadline.format("HH:MM")}
                   </Tag>
                 )}
                 <Text type="secondary" className="text-[10px]">
@@ -359,6 +480,25 @@ export default function SalesTasksPage() {
             })}
           />
         </Card>
+
+        <Divider titlePlacement="left" className="mt-12">
+          <Space>
+            <HistoryOutlined />{" "}
+            <Title level={4} className="m-0!">
+              CHĂM SÓC KHÁCH HÀNG & BẢO DƯỠNG
+            </Title>
+          </Space>
+        </Divider>
+
+        <Card className="shadow-lg rounded-2xl border-none overflow-hidden mt-4 bg-white/60">
+          <Table
+            dataSource={maintenanceTasks}
+            columns={maintenanceColumns}
+            rowKey="id"
+            size="small"
+            pagination={{ pageSize: 5 }}
+          />
+        </Card>
       </div>
 
       <ModalApproveSales
@@ -411,7 +551,10 @@ export default function SalesTasksPage() {
         isOpen={isFailModalOpen}
         onClose={() => setIsFailModalOpen(false)}
         selectedLead={selectedLead}
-        onFinish={loadData}
+        // onFinish={loadData}
+        onFinish={async (v) => {
+          onFailFinish(v);
+        }}
         loading={loading}
         reasons={reasons}
         onStatusChange={(val) => getActiveReasonsAction(val).then(setReasons)}

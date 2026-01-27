@@ -430,51 +430,137 @@ export async function processLeadStatusUpdate(
 
 // 4. Lấy danh sách chờ duyệt (Giữ nguyên)
 export async function getPendingApprovalsAction() {
-  return await db.leadActivity.findMany({
-    where: {
-      status: { in: ["PENDING_DEAL_APPROVAL", "PENDING_LOSE_APPROVAL"] },
-    },
-    include: {
-      customer: { select: { fullName: true, phone: true } },
-      user: { select: { fullName: true } },
-      reason: true, // QUAN TRỌNG: Thêm dòng này để lấy content lý do
-    },
-    orderBy: { createdAt: "desc" },
-  });
-}
-
-// 5. Gửi duyệt Bán xe (Tích hợp thông tin hợp đồng vào JSON)
-export async function requestSaleApproval(
-  leadId: string,
-  carId: string,
-  contractData: any,
-) {
-  const auth = await getCurrentUser();
-  if (!auth) throw new Error("Unauthorized");
-
-  await db.$transaction(async (tx) => {
-    await tx.customer.update({
-      where: { id: leadId },
-      data: { status: LeadStatus.PENDING_DEAL_APPROVAL },
-    });
-
-    await tx.leadActivity.create({
-      data: {
-        customerId: leadId,
-        status: LeadStatus.PENDING_DEAL_APPROVAL,
-        note: JSON.stringify({
-          requestType: "CAR_SALE",
-          carId,
-          contractData, // Thông tin hợp đồng bán
-        }),
-        createdById: auth.id,
+  try {
+    const approvals = await db.leadActivity.findMany({
+      where: {
+        status: { in: ["PENDING_DEAL_APPROVAL", "PENDING_LOSE_APPROVAL"] },
       },
+      include: {
+        customer: {
+          include: {
+            leadCar: true, // LẤY THÔNG TIN XE LIÊN KẾT TẠI ĐÂY
+            carModel: true, // Lấy tên Model để hiển thị cho đẹp
+          },
+        },
+        user: { select: { fullName: true } },
+        reason: true, // Lấy nội dung lý do (cho yêu cầu LOSE)
+      },
+      orderBy: { createdAt: "desc" },
     });
-  });
-  revalidatePath("/dashboard/assigned-tasks");
-  return { success: true };
+
+    // QUAN TRỌNG: Chuyển đổi Decimal/Date sang chuỗi JSON thuần
+    // để tránh lỗi "Only plain objects can be passed to Client Components"
+    return JSON.parse(JSON.stringify(approvals));
+  } catch (error) {
+    console.error("Lỗi getPendingApprovalsAction:", error);
+    return [];
+  }
 }
 
+export async function requestSaleApproval(
+  customerId: string,
+  taskId: string,
+  data: {
+    carId: string;
+    finalPrice: number;
+    paymentMethod: string;
+    note: string;
+  },
+) {
+  try {
+    const auth = await getCurrentUser();
+    if (!auth) throw new Error("Bạn cần đăng nhập để thực hiện");
+
+    const now = new Date();
+
+    const result = await db.$transaction(
+      async (tx) => {
+        // 1. LẤY TASK ĐỂ TÍNH KPI
+        const currentTask = await tx.task.findUnique({
+          where: { id: taskId },
+          select: { deadlineAt: true },
+        });
+
+        if (!currentTask) throw new Error("Nhiệm vụ không tồn tại.");
+
+        const deadline = new Date(currentTask.deadlineAt);
+        const isLate = now > deadline;
+        const lateMinutes = isLate
+          ? Math.floor((now.getTime() - deadline.getTime()) / (1000 * 60))
+          : 0;
+
+        // 2. CẬP NHẬT TRẠNG THÁI KHÁCH HÀNG (PENDING_DEAL_APPROVAL)
+        // Đồng thời cập nhật leadCar để gắn xe thực tế trong kho vào hồ sơ
+        await tx.customer.update({
+          where: { id: customerId },
+          data: {
+            status: LeadStatus.PENDING_DEAL_APPROVAL,
+            leadCar: {
+              update: {
+                finalPrice: data.finalPrice,
+                note: `Chốt bán: ${data.note} | HTTT: ${data.paymentMethod}`,
+                // Nếu bạn muốn lưu carId liên kết chính thức từ kho:
+                // carId: data.carId
+              },
+            },
+          },
+        });
+
+        // 3. ĐÓNG TASK VÀ LƯU KPI
+        await tx.task.update({
+          where: { id: taskId },
+          data: {
+            status: TaskStatus.COMPLETED,
+            completedAt: now,
+            isLate: isLate,
+            lateMinutes: lateMinutes,
+          },
+        });
+
+        // 4. LẤY THÔNG TIN XE ĐỂ GHI LOG (Tùy chọn)
+        const car = await tx.car.findUnique({
+          where: { id: data.carId },
+          select: { stockCode: true, modelName: true },
+        });
+
+        // 5. TẠO LỊCH SỬ HOẠT ĐỘNG
+        const activity = await tx.leadActivity.create({
+          data: {
+            customerId: customerId,
+            status: LeadStatus.PENDING_DEAL_APPROVAL,
+            note: `[YÊU CẦU CHỐT ĐƠN]: Bán xe ${car?.stockCode} - ${car?.modelName}. 
+                 Giá chốt: ${data.finalPrice.toLocaleString()}đ. 
+                 PTTT: ${data.paymentMethod}. 
+                 Ghi chú: ${data.note}`,
+            createdById: auth.id,
+            isLate: isLate,
+            lateMinutes: lateMinutes,
+          },
+        });
+
+        // 6. CẬP NHẬT TRẠNG THÁI XE TRONG KHO (Tạm khóa xe)
+        await tx.car.update({
+          where: { id: data.carId },
+          data: { status: "BOOKED" }, // Chuyển sang trạng thái Đã đặt cọc/Chờ duyệt
+        });
+
+        return { isLate, lateMinutes, activity };
+      },
+      {
+        timeout: 20000, // Tăng lên 20 giây (20000 ms) để tránh lỗi P2028
+      },
+    );
+
+    revalidatePath("/dashboard/sales-tasks");
+    revalidatePath("/dashboard/approvals"); // Trang dành cho quản lý duyệt
+
+    // Làm sạch dữ liệu trước khi gửi về Client (Decimal -> String)
+    return { success: true, data: JSON.parse(JSON.stringify(result)) };
+  } catch (error: any) {
+    console.error("Sale Approval Error:", error);
+    return { success: false, error: error.message || "Lỗi hệ thống" };
+  }
+}
 /**
  * 6. Gửi duyệt Dừng xử lý khách hàng (Lose/Frozen/Pending View)
  * Luồng đi:
@@ -492,45 +578,51 @@ export async function requestLoseApproval(
   const auth = await getCurrentUser();
   if (!auth) throw new Error("Bạn cần đăng nhập để thực hiện thao tác này");
 
-  // --- BƯỚC 0: KIỂM TRA LÝ DO HỢP LỆ ---
-  // Tránh lỗi P2003 ngay lập tức nếu reasonId bị sai hoặc rỗng
-  if (!reasonId) {
-    return {
-      success: false,
-      error: "Vui lòng chọn lý do dừng xử lý khách hàng.",
-    };
-  }
+  // --- KIỂM TR LÝ DO ---
+  if (!reasonId) return { success: false, error: "Vui lòng chọn lý do." };
 
   const existingReason = await db.leadReason.findUnique({
     where: { id: reasonId },
   });
-
-  if (!existingReason) {
-    console.error(`ReasonId không tồn tại: ${reasonId}`);
-    return {
-      success: false,
-      error: "Lý do không hợp lệ hoặc đã bị gỡ bỏ khỏi hệ thống.",
-    };
-  }
+  if (!existingReason) return { success: false, error: "Lý do không hợp lệ." };
 
   try {
     const result = await db.$transaction(async (tx) => {
-      // 1. Cập nhật trạng thái khách hàng sang "Chờ duyệt đóng"
+      // 1. Lấy thông tin Task để tính toán KPI trước khi đóng
+      const currentTask = await tx.task.findUnique({
+        where: { id: taskId },
+        select: { deadlineAt: true },
+      });
+
+      if (!currentTask) throw new Error("Không tìm thấy nhiệm vụ yêu cầu.");
+
+      const now = new Date();
+      const deadline = new Date(currentTask.deadlineAt);
+
+      // Tính toán độ trễ
+      const isLate = now > deadline;
+      const lateMinutes = isLate
+        ? Math.floor((now.getTime() - deadline.getTime()) / (1000 * 60))
+        : 0;
+
+      // 2. Cập nhật trạng thái khách hàng
       const customer = await tx.customer.update({
         where: { id: customerId },
         data: { status: LeadStatus.PENDING_LOSE_APPROVAL },
       });
 
-      // 2. Đóng Task hiện tại (CANCELLED để biến mất khỏi "Nhiệm vụ của tôi")
+      // 3. Đóng Task và CẬP NHẬT KPI
       await tx.task.update({
         where: { id: taskId },
         data: {
           status: TaskStatus.CANCELLED,
-          completedAt: new Date(),
+          completedAt: now,
+          isLate: isLate,
+          lateMinutes: lateMinutes,
         },
       });
 
-      // 3. Tạo lịch sử hoạt động (Foreign Key bây giờ đã an toàn)
+      // 4. Tạo lịch sử hoạt động
       const activity = await tx.leadActivity.create({
         data: {
           customerId: customerId,
@@ -538,10 +630,13 @@ export async function requestLoseApproval(
           reasonId: reasonId,
           note: `[YÊU CẦU DUYỆT ĐÓNG - MỤC TIÊU: ${targetStatus}]: ${note}`,
           createdById: auth.id,
+          // Lưu vết KPI vào activity để quản lý dễ theo dõi khi duyệt
+          isLate: isLate,
+          lateMinutes: lateMinutes,
         },
       });
 
-      return { customer, activity };
+      return { customer, activity, isLate, lateMinutes };
     });
 
     revalidatePath("/dashboard/assigned-tasks");
@@ -550,10 +645,7 @@ export async function requestLoseApproval(
     return { success: true, data: result };
   } catch (error: any) {
     console.error("Lose Approval Error:", error);
-    return {
-      success: false,
-      error: error.message || "Lỗi xử lý yêu cầu dừng chăm sóc",
-    };
+    return { success: false, error: error.message || "Lỗi hệ thống" };
   }
 }
 // 7. Lấy danh sách xe sẵn sàng (Giữ nguyên)
@@ -983,4 +1075,164 @@ export async function unfreezeCustomerAction(
   } catch (error: any) {
     return { success: false, error: error.message };
   }
+}
+
+export async function approveDealAction(
+  activityId: string,
+  decision: "APPROVE" | "REJECT",
+  adminNote: string,
+) {
+  try {
+    const auth = await getCurrentUser();
+    if (!auth || (auth.role !== "MANAGER" && !auth.isGlobalManager)) {
+      throw new Error("Bạn không có quyền thực hiện phê duyệt này.");
+    }
+
+    const activity = await db.leadActivity.findUnique({
+      where: { id: activityId },
+      include: {
+        customer: {
+          include: { leadCar: true },
+        },
+      },
+    });
+
+    if (!activity) throw new Error("Không tìm thấy yêu cầu phê duyệt.");
+
+    return await db.$transaction(
+      async (tx) => {
+        const customerId = activity.customerId;
+        const stockCodeMatch =
+          activity.customer?.leadCar?.description?.match(/([A-Z0-9-]{5,})/);
+        const stockCode = stockCodeMatch ? stockCodeMatch[0] : null;
+
+        if (decision === "REJECT") {
+          // --- TRƯỜNG HỢP TỪ CHỐI (Giữ nguyên) ---
+          await tx.customer.update({
+            where: { id: customerId },
+            data: { status: LeadStatus.FOLLOW_UP },
+          });
+
+          if (stockCode) {
+            await tx.car.update({
+              where: { stockCode },
+              data: { status: "READY_FOR_SALE" },
+            });
+          }
+
+          await tx.leadActivity.update({
+            where: { id: activityId },
+            data: {
+              status: LeadStatus.REJECTED_APPROVAL,
+              note: `[TỪ CHỐI CHỐT ĐƠN]: ${adminNote}`,
+            },
+          });
+        } else {
+          // --- TRƯỜNG HỢP PHÊ DUYỆT ---
+
+          // 1. Chốt khách hàng
+          await tx.customer.update({
+            where: { id: customerId },
+            data: { status: LeadStatus.DEAL_DONE },
+          });
+
+          // 2. Chốt xe
+          if (stockCode) {
+            const car = await tx.car.update({
+              where: { stockCode },
+              data: { status: "SOLD", purchasedAt: new Date() },
+            });
+
+            // 3. Tạo lịch sử sở hữu xe
+            await tx.carOwnerHistory.create({
+              data: {
+                carId: car.id,
+                customerId: customerId,
+                type: "SALE",
+                price: activity.customer?.leadCar?.finalPrice || 0,
+                date: new Date(),
+                note: `Quản lý ${auth.fullName} phê duyệt chốt bán. Ghi chú: ${adminNote}`,
+              },
+            });
+
+            // =========================================================
+            // 4. TỰ ĐỘNG TẠO TASK NHẮC BẢO DƯỠNG (KPI SAU 1 THÁNG)
+            // =========================================================
+            const now = new Date();
+            const maintenanceDate = new Date();
+            maintenanceDate.setMonth(now.getMonth() + 1); // Hẹn 1 tháng sau
+
+            const deadlineDate = new Date(maintenanceDate);
+            deadlineDate.setDate(deadlineDate.getDate() + 3); // Cho phép làm trễ tối đa 3 ngày
+
+            await tx.task.create({
+              data: {
+                title: "NHẮC BẢO DƯỠNG ĐỊNH KỲ (1 THÁNG)",
+                content: `Nhiệm vụ: Liên hệ khách hàng ${activity.customer?.fullName} để nhắc lịch bảo dưỡng định kỳ cho xe ${car.modelName} (${car.stockCode}). Đây là quy định bắt buộc tính KPI.`,
+                scheduledAt: maintenanceDate, // Ngày bắt đầu nhắc
+                deadlineAt: deadlineDate, // Hạn chót phải hoàn thành
+                status: "PENDING",
+                customerId: customerId,
+                assigneeId: activity.createdById, // Giao cho chính nhân viên đã gửi yêu cầu chốt đơn
+              },
+            });
+          }
+
+          // 5. Cập nhật Activity thành công
+          await tx.leadActivity.update({
+            where: { id: activityId },
+            data: {
+              status: LeadStatus.DEAL_DONE,
+              note: `[PHÊ DUYỆT CHỐT ĐƠN]: ${adminNote}`,
+            },
+          });
+        }
+
+        return { success: true };
+      },
+      { timeout: 20000 },
+    );
+  } catch (error: any) {
+    console.error("Approve Deal Error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// actions/task-actions.ts
+export async function getMaintenanceTasksAction() {
+  const auth = await getCurrentUser();
+  if (!auth) return { success: false, error: "Unauthorized" };
+  return await db.task.findMany({
+    where: {
+      assigneeId: auth.id,
+      status: "PENDING",
+      title: { contains: "BẢO DƯỠNG" }, // Lọc theo từ khóa chúng ta đã set lúc Approve
+    },
+    include: { customer: true },
+    orderBy: { deadlineAt: "asc" },
+  });
+}
+
+export async function completeMaintenanceTaskAction(taskId: string) {
+  const now = new Date();
+  const task = await db.task.findUnique({ where: { id: taskId } });
+
+  if (!task) return { success: false };
+
+  // Tính KPI trễ phút nếu cần
+  const isLate = now > task.deadlineAt;
+  const lateMinutes = isLate
+    ? Math.floor((now.getTime() - task.deadlineAt.getTime()) / 60000)
+    : 0;
+
+  await db.task.update({
+    where: { id: taskId },
+    data: {
+      status: "COMPLETED",
+      completedAt: now,
+      isLate: isLate,
+      lateMinutes: lateMinutes,
+    },
+  });
+  return { success: true };
 }

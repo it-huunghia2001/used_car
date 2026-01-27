@@ -25,10 +25,12 @@ import {
   getPendingApprovalsAction,
   approveCarPurchase,
   approveLoseRequestAction,
+  approveDealAction, // Bạn cần import hàm này cho luồng Bán xe
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
 import ModalApprovalDetail from "@/components/approval-customer/ApprovalDetailModal";
 import ModalApproveLose from "@/components/assigned-tasks/ModalApproveLose";
+import ModalApprovalSalesDetail from "@/components/approval-customer/ModalApprovalSalesDetail";
 import dayjs from "@/lib/dayjs";
 import { getCustomerHistoryAction } from "@/actions/lead-actions";
 
@@ -41,27 +43,67 @@ export default function ApprovalsPage() {
 
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isLoseModalOpen, setIsLoseModalOpen] = useState(false);
+  const [isSalesDealModalOpen, setIsSalesDealModalOpen] = useState(false);
+
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [customerHistory, setCustomerHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Hàm load lịch sử
+  // --- LOGIC MỞ MODAL (Đã sửa lỗi trùng lặp) ---
+  const openApprovalModal = (record: any) => {
+    setSelectedActivity(record);
+    loadCustomerHistory(record.customerId);
+
+    if (record.status === "PENDING_DEAL_APPROVAL") {
+      // Nếu khách có type là BUY hoặc hồ sơ có liên quan đến việc bán xe trong kho
+      if (record.customer?.type === "BUY") {
+        setIsSalesDealModalOpen(true);
+      } else {
+        setIsPurchaseModalOpen(true);
+      }
+    } else {
+      setIsLoseModalOpen(true);
+    }
+  };
+
+  const handleAdminDecisionLose = async (
+    activityId: string,
+    decision: "APPROVE" | "REJECT",
+    targetStatus?: string,
+  ) => {
+    setLoading(true);
+    try {
+      // Gọi API Server Action (Hàm này chúng ta đã viết ở bước trước)
+      const res = await approveLoseRequestAction(
+        activityId,
+        decision,
+        targetStatus,
+      );
+
+      if (res.success) {
+        message.success(
+          decision === "APPROVE"
+            ? `Đã phê duyệt dừng hồ sơ (Trạng thái: ${targetStatus})`
+            : "Đã từ chối yêu cầu dừng chăm sóc.",
+        );
+        handleCloseModals(); // Đóng Modal và xóa dữ liệu tạm
+        loadData(); // Tải lại danh sách phê duyệt để cập nhật UI
+      } else {
+        message.error(res.error || "Có lỗi xảy ra khi phê duyệt");
+      }
+    } catch (error: any) {
+      console.error("Lỗi handleAdminDecisionLose:", error);
+      message.error("Lỗi hệ thống: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadCustomerHistory = async (customerId: string) => {
     setHistoryLoading(true);
     const res = await getCustomerHistoryAction(customerId);
     if (res.success) setCustomerHistory(res.data || []);
     setHistoryLoading(false);
-  };
-
-  const openApprovalModal = (record: any) => {
-    setSelectedActivity(record);
-    loadCustomerHistory(record.customerId); // Gọi load lịch sử ngay khi mở modal
-
-    if (record.status === "PENDING_DEAL_APPROVAL") {
-      setIsPurchaseModalOpen(true);
-    } else {
-      setIsLoseModalOpen(true);
-    }
   };
 
   const loadData = async () => {
@@ -84,47 +126,57 @@ export default function ApprovalsPage() {
     loadData();
   }, []);
 
-  // Đóng modal và dọn dẹp dữ liệu để tránh lỗi Parse JSON ở lần mở sau
   const handleCloseModals = () => {
     setIsPurchaseModalOpen(false);
     setIsLoseModalOpen(false);
+    setIsSalesDealModalOpen(false);
     setSelectedActivity(null);
   };
 
-  const handleApprovePurchase = async (updatedData: any) => {
+  // --- LUỒNG PHÊ DUYỆT BÁN XE ---
+  const handleApproveSales = async (updatedData: any) => {
     setLoading(true);
     try {
-      const res = await approveCarPurchase(
+      // Gọi action chuyên dụng để chốt Deal bán hàng
+      const res = await approveDealAction(
         selectedActivity.id,
-        "APPROVE",
+        updatedData.isReject ? "REJECT" : "APPROVE",
         updatedData.adminNote,
-        updatedData,
       );
+
       if (res.success) {
-        message.success("Đã phê duyệt nhập kho xe!");
+        message.success(
+          updatedData.isReject
+            ? "Đã từ chối chốt đơn."
+            : "Đã phê duyệt chốt đơn thành công!",
+        );
         handleCloseModals();
         loadData();
-      } else message.error(res.error);
+      } else {
+        message.error((res as any).error);
+      }
     } catch (e: any) {
-      message.error(e.message);
+      message.error("Lỗi hệ thống: " + e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAdminDecisionLose = async (
-    id: string,
-    decision: "APPROVE" | "REJECT",
-    targetStatus?: string,
-  ) => {
+  // --- LUỒNG THU MUA ---
+  const handleApprovePurchase = async (updatedData: any) => {
     setLoading(true);
     try {
-      const res = await approveLoseRequestAction(id, decision, targetStatus);
+      const res = await approveCarPurchase(
+        selectedActivity.id,
+        updatedData.isReject ? "REJECT" : "APPROVE",
+        updatedData.adminNote,
+        updatedData,
+      );
       if (res.success) {
         message.success(
-          decision === "APPROVE"
-            ? "Đã đồng ý dừng hồ sơ!"
-            : "Đã từ chối yêu cầu.",
+          updatedData.isReject
+            ? "Đã từ chối nhập kho."
+            : "Đã phê duyệt nhập kho xe!",
         );
         handleCloseModals();
         loadData();
@@ -136,16 +188,6 @@ export default function ApprovalsPage() {
     }
   };
 
-  // const openApprovalModal = (record: any) => {
-  //   setSelectedActivity(record);
-  //   // Phân luồng dựa trên status
-  //   if (record.status === "PENDING_DEAL_APPROVAL") {
-  //     setIsPurchaseModalOpen(true);
-  //   } else {
-  //     setIsLoseModalOpen(true);
-  //   }
-  // };
-
   return (
     <div className="p-6 bg-[#f0f2f5] min-h-screen">
       <div className="max-w-7xl mx-auto">
@@ -154,8 +196,7 @@ export default function ApprovalsPage() {
             level={3}
             className="m-0! flex items-center gap-3 text-slate-700"
           >
-            <FileSearchOutlined className="text-blue-600" />
-            TRUNG TÂM PHÊ DUYỆT HỆ THỐNG
+            <FileSearchOutlined className="text-blue-600" /> TRUNG TÂM PHÊ DUYỆT
           </Title>
         </header>
 
@@ -167,7 +208,6 @@ export default function ApprovalsPage() {
             columns={[
               {
                 title: "KHÁCH HÀNG",
-                key: "customer",
                 render: (r) => (
                   <div className="flex flex-col">
                     <Text strong>{r.customer?.fullName}</Text>
@@ -180,22 +220,32 @@ export default function ApprovalsPage() {
               {
                 title: "LOẠI YÊU CẦU",
                 dataIndex: "status",
-                render: (s) => {
-                  const isDeal = s === "PENDING_DEAL_APPROVAL";
+                render: (s, record) => {
+                  if (s === "PENDING_DEAL_APPROVAL") {
+                    const isSales = record.customer?.type === "BUY";
+                    return (
+                      <Tag
+                        icon={<CarOutlined />}
+                        color={isSales ? "cyan" : "green"}
+                        className="rounded-full px-3"
+                      >
+                        {isSales ? "CHỐT BÁN" : "CHỐT THU"}
+                      </Tag>
+                    );
+                  }
                   return (
                     <Tag
-                      icon={isDeal ? <CarOutlined /> : <StopOutlined />}
-                      color={isDeal ? "green" : "volcano"}
+                      icon={<StopOutlined />}
+                      color="volcano"
                       className="rounded-full px-3"
                     >
-                      {isDeal ? "THU MUA" : "DỪNG CHĂM SÓC"}
+                      DỪNG CHĂM SÓC
                     </Tag>
                   );
                 },
               },
               {
                 title: "NHÂN VIÊN",
-                key: "user",
                 render: (r) => (
                   <Text className="text-slate-600 font-medium">
                     {r.user?.fullName}
@@ -221,35 +271,45 @@ export default function ApprovalsPage() {
         </Card>
       </div>
 
-      {/* --- PHÂN LUỒNG MODAL TRIỆT ĐỂ --- */}
+      {/* MODAL DUYỆT THU MUA */}
+      {isPurchaseModalOpen && (
+        <ModalApprovalDetail
+          isOpen={isPurchaseModalOpen}
+          onClose={handleCloseModals}
+          selectedActivity={selectedActivity}
+          carModels={carModels}
+          loading={loading}
+          onApprove={handleApprovePurchase}
+          onReject={(reason) =>
+            handleApprovePurchase({ adminNote: reason, isReject: true })
+          }
+        />
+      )}
 
-      {/* Chỉ render Modal Duyệt Xe nếu đúng là yêu cầu DEAL */}
-      {isPurchaseModalOpen &&
-        selectedActivity?.status === "PENDING_DEAL_APPROVAL" && (
-          <ModalApprovalDetail
-            isOpen={isPurchaseModalOpen}
-            onClose={handleCloseModals}
-            selectedActivity={selectedActivity}
-            carModels={carModels}
-            loading={loading}
-            onApprove={handleApprovePurchase}
-            onReject={(reason: string) =>
-              handleApprovePurchase({ adminNote: reason, isReject: true })
-            }
-          />
-        )}
+      {/* MODAL DUYỆT BÁN XE */}
+      {isSalesDealModalOpen && (
+        <ModalApprovalSalesDetail
+          isOpen={isSalesDealModalOpen}
+          onClose={handleCloseModals}
+          selectedActivity={selectedActivity}
+          loading={loading}
+          onApprove={handleApproveSales}
+          onReject={(reason) =>
+            handleApproveSales({ adminNote: reason, isReject: true })
+          }
+        />
+      )}
 
-      {/* Chỉ render Modal Duyệt Lose nếu đúng là yêu cầu LOSE */}
-      {isLoseModalOpen &&
-        selectedActivity?.status !== "PENDING_DEAL_APPROVAL" && (
-          <ModalApproveLose
-            isOpen={isLoseModalOpen}
-            onClose={handleCloseModals}
-            selectedActivity={selectedActivity}
-            loading={loading}
-            onConfirm={handleAdminDecisionLose}
-          />
-        )}
+      {/* MODAL DUYỆT DỪNG CHĂM SÓC */}
+      {isLoseModalOpen && (
+        <ModalApproveLose
+          isOpen={isLoseModalOpen}
+          onClose={handleCloseModals}
+          selectedActivity={selectedActivity}
+          loading={loading}
+          onConfirm={handleAdminDecisionLose}
+        />
+      )}
     </div>
   );
 }

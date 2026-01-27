@@ -143,6 +143,12 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         }
       : null,
 
+    {
+      key: "/dashboard/inventory-report",
+      icon: <CarOutlined />,
+      label: <Link href="/dashboard/inventory-report">Xe đã bán</Link>,
+    },
+
     // --- PHẦN QUẢN LÝ XE ---
     role === "ADMIN" || role === "MANAGER"
       ? {
