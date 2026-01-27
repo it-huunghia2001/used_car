@@ -204,7 +204,7 @@ export default function SalesTasksPage() {
       title: "KHÁCH HÀNG",
       key: "customer",
       render: (task: any) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong className="text-slate-800">
             {task.customer?.fullName}
           </Text>

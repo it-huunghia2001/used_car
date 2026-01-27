@@ -43,23 +43,18 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await login(username, password);
+      const res = await login(username, password); // Gọi API trả về JSON
 
-      if (Number(res.status) === 0) {
-        router.replace("/");
+      if (res.status === 0) {
+        // Đợi một chút (khoảng 100ms) để chắc chắn Cookie đã được set
+        setTimeout(() => {
+          window.location.href = "/"; // Dùng cái này sẽ ép trình duyệt load lại hoàn toàn, an toàn hơn router.push
+        }, 100);
       } else {
-        // Nếu server trả về lỗi (chưa active, sai mật khẩu, v.v.)
-        // Giả sử server trả về { status: 1, message: "Tài khoản chưa active" }
-        if (res.message?.toLowerCase().includes("active")) {
-          newErrors.email = res.message; // hiển thị dưới username
-        } else {
-          newErrors.password = res.message; // hiển thị dưới password
-        }
-        setErrors({ ...newErrors });
+        setErrors({ password: res.message });
       }
-    } catch (err: any) {
-      newErrors.password = err.message || "Lỗi server, thử lại sau";
-      setErrors({ ...newErrors });
+    } catch (err) {
+      setErrors({ password: "Lỗi hệ thống" });
     } finally {
       setLoading(false);
     }
@@ -108,7 +103,7 @@ export default function LoginPage() {
                 Nhập username và mật khẩu
               </p>
             </div>
-            <form action="/api/auth/login" method="POST" className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1">
                 <Label htmlFor="username">Username</Label>
                 <Input

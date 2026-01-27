@@ -64,7 +64,7 @@ export default function InventoryReportPage() {
     {
       title: "THÔNG TIN XE",
       render: (r: any) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong className="text-blue-700">
             {r.modelName}
           </Text>

@@ -307,7 +307,7 @@ export default function UserManagementPage() {
         {/* --- TOP HEADER & STATS --- */}
         <Row gutter={[24, 24]} className="mb-8 items-center">
           <Col xs={24} md={12}>
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Title level={2} className="m-0 tracking-tight text-slate-900">
                 Quản trị Nhân sự
               </Title>

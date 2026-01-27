@@ -140,7 +140,7 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
       >
         {/* Header Ribbon - Responsive Stack */}
         <div className="bg-white px-4 py-5 sm:px-8 sm:py-6 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <div className="flex items-center gap-3">
               <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-100 shrink-0">
                 <CalendarOutlined className="text-white text-xl sm:text-2xl" />

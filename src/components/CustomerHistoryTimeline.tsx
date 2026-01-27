@@ -43,7 +43,7 @@ export default function CustomerTimeline({ history }: { history: any[] }) {
           >
             <Card className="shadow-none border-gray-100 bg-gray-50/50 hover:bg-white transition-all rounded-xl mb-2">
               <div className="flex justify-between items-start mb-2">
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   <Text strong className="text-sm uppercase">
                     {item.status}
                   </Text>

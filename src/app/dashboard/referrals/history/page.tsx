@@ -48,7 +48,7 @@ export default function MyReferralHistoryPage() {
       key: "createdAt",
       width: 150,
       render: (date: any) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text>{dayjs(date).format("DD/MM/YYYY")}</Text>
           <Text type="secondary" className="text-[11px]">
             {dayjs(date).format("HH:mm")}
@@ -60,7 +60,7 @@ export default function MyReferralHistoryPage() {
       title: "Khách hàng",
       key: "customer",
       render: (record: any) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong>
             <UserOutlined /> {record.fullName}
           </Text>
@@ -80,7 +80,7 @@ export default function MyReferralHistoryPage() {
           VALUATION: { color: "blue", text: "Định giá" },
         };
         return (
-          <Space direction="vertical" size={4}>
+          <Space orientation="vertical" size={4}>
             <Tag color={typeConfig[record.type]?.color} className="m-0">
               {typeConfig[record.type]?.text || record.type}
             </Tag>
@@ -99,7 +99,7 @@ export default function MyReferralHistoryPage() {
         const deal = record.carOwnerHistories?.[0];
         if (!deal || !deal.car) return <Text type="secondary">--</Text>;
         return (
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Tag color="magenta" className="font-mono font-bold">
               {deal.car.stockCode || "N/A"}
             </Tag>

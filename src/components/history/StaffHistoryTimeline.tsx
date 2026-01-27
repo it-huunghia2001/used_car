@@ -3,8 +3,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Timeline, Card, Tag, Typography, Empty, Spin, Badge } from "antd";
-import { getStaffHistoryAction } from "@/actions/history-actions"; // Đường dẫn file action của bạn
+import {
+  Timeline,
+  Card,
+  Tag,
+  Typography,
+  Empty,
+  Spin,
+  Badge,
+  Flex,
+} from "antd";
+import { getStaffHistoryAction } from "@/actions/history-actions";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
 import {
@@ -12,7 +21,6 @@ import {
   PhoneOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
-  DollarOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
 
@@ -61,13 +69,6 @@ export default function StaffHistoryTimeline() {
     }
   };
 
-  if (loading)
-    return (
-      <Card className="m-4">
-        <Spin tip="Đang tải lịch sử..." />
-      </Card>
-    );
-
   return (
     <Card
       title={
@@ -75,63 +76,79 @@ export default function StaffHistoryTimeline() {
       }
       className="shadow-md m-4"
     >
-      {activities.length === 0 ? (
-        <Empty description="Bạn chưa có hoạt động nào được ghi lại." />
-      ) : (
-        <Timeline mode="left" className="mt-6">
-          {activities.map((item) => {
-            const config = getStatusConfig(item.status);
-            return (
-              <Timeline.Item
-                key={item.id}
-                dot={config.icon}
-                color={config.color}
-                label={
-                  <Text type="secondary">
-                    {dayjs(item.createdAt).format("DD/MM HH:mm")}
-                  </Text>
-                }
-              >
-                <div className="flex flex-col bg-white p-3 rounded-lg border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <Text strong className="text-blue-600 mr-2">
-                        {item.customer.fullName}
+      {/* Sửa lỗi Spin bằng cách bọc nội dung vào bên trong */}
+      <Spin spinning={loading} tip="Đang tải lịch sử...">
+        <div style={{ minHeight: activities.length === 0 ? 200 : "auto" }}>
+          {!loading && activities.length === 0 ? (
+            <Empty description="Bạn chưa có hoạt động nào được ghi lại." />
+          ) : (
+            <Timeline mode="left" className="mt-6">
+              {activities.map((item) => {
+                const config = getStatusConfig(item.status);
+                return (
+                  <Timeline.Item
+                    key={item.id}
+                    dot={config.icon}
+                    color={config.color}
+                    label={
+                      <Text type="secondary" className="text-[12px]">
+                        {dayjs(item.createdAt).format("DD/MM HH:mm")}
                       </Text>
-                      <Tag color={config.color}>{config.label}</Tag>
-                    </div>
-                    <Badge
-                      count={item.customer.type}
-                      style={{ backgroundColor: "#52c41a" }}
-                    />
-                  </div>
+                    }
+                  >
+                    <div className="flex flex-col bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
+                      <div className="flex justify-between items-center mb-2">
+                        <Flex align="center" gap={8}>
+                          <Text strong className="text-slate-800 text-base">
+                            {item.customer.fullName}
+                          </Text>
+                          <Tag
+                            color={config.color}
+                            bordered={false}
+                            className="m-0 font-medium"
+                          >
+                            {config.label}
+                          </Tag>
+                        </Flex>
+                        <Badge
+                          count={item.customer.type}
+                          style={{ backgroundColor: "#52c41a" }}
+                        />
+                      </div>
 
-                  <div className="mt-2 text-sm text-gray-500">
-                    {item.customer.licensePlate && (
-                      <span className="mr-3">
-                        🚗 Biển số: <b>{item.customer.licensePlate}</b>
-                      </span>
-                    )}
-                    <span>📞 {item.customer.phone}</span>
-                  </div>
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-2">
+                        {item.customer.licensePlate && (
+                          <span className="flex items-center">
+                            🚗{" "}
+                            <b className="ml-1 text-slate-700">
+                              {item.customer.licensePlate}
+                            </b>
+                          </span>
+                        )}
+                        <span className="flex items-center">
+                          📞 <span className="ml-1">{item.customer.phone}</span>
+                        </span>
+                      </div>
 
-                  {item.reason && (
-                    <div className="mt-2 text-xs bg-orange-50 text-orange-700 p-2 rounded">
-                      <b>Lý do:</b> {item.reason.content}
-                    </div>
-                  )}
+                      {item.reason && (
+                        <div className="text-xs bg-orange-50 text-orange-700 p-2 rounded-lg border border-orange-100 mb-2">
+                          <b>Lý do:</b> {item.reason.content}
+                        </div>
+                      )}
 
-                  {item.note && (
-                    <div className="mt-2 p-2 bg-gray-50 rounded italic text-gray-600 border-l-2 border-gray-300">
-                      {item.note}
+                      {item.note && (
+                        <div className="p-3 bg-slate-50 rounded-lg italic text-gray-600 border-l-4 border-blue-400 text-sm">
+                          {item.note}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </Timeline.Item>
-            );
-          })}
-        </Timeline>
-      )}
+                  </Timeline.Item>
+                );
+              })}
+            </Timeline>
+          )}
+        </div>
+      </Spin>
     </Card>
   );
 }

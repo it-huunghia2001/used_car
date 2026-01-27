@@ -11,9 +11,8 @@ const APP_NAME = "used-car";
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const username = formData.get("username") as string;
-    const password = formData.get("password") as string;
+    const body = await req.json();
+    const { username, password } = body;
 
     if (!username || !password) {
       return NextResponse.json(
@@ -57,16 +56,15 @@ export async function POST(req: NextRequest) {
       .setExpirationTime("24h")
       .sign(JWT_SECRET);
 
-    const response = NextResponse.redirect(
-      new URL("/", req.url),
-      { status: 303 }, // 🔥 RẤT QUAN TRỌNG
+    // Thay vì redirect, ta trả về JSON
+    const response = NextResponse.json(
+      { message: "Đăng nhập thành công", status: 0 },
+      { status: 200 },
     );
-
-    response.headers.set("Cache-Control", "no-store");
 
     response.cookies.set("used-car", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true, // Bắt buộc true cho iPhone/Safari
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24,

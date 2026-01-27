@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -46,6 +47,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
   };
 
   const menuItems: any[] = [
+    // --- NHÓM 1: TRANG CHỦ & SHOWROOM ---
     {
       key: "/dashboard",
       icon: <DashboardOutlined />,
@@ -57,7 +59,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
       label: <Link href="/dashboard/showroom">Showroom</Link>,
     },
 
-    // --- MỤC MỚI: GIỚI THIỆU KHÁCH HÀNG (Dành cho tất cả mọi người) ---
+    // --- NHÓM 2: GIỚI THIỆU KHÁCH HÀNG (Dành cho tất cả) ---
     {
       key: "referral-menu",
       icon: <UserAddOutlined />,
@@ -69,188 +71,160 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
             <Link href="/dashboard/referrals/new">Gửi giới thiệu mới</Link>
           ),
         },
-        // Chỉ Manager/Admin mới thấy mục quản lý phân bổ
-        role === "ADMIN" || role === "MANAGER"
-          ? {
-              key: "/dashboard/customers",
-              label: <Link href="/dashboard/customers">Quản lý & Phân bổ</Link>,
-            }
-          : null,
         {
           key: "/dashboard/my-referrals",
           label: <Link href="/dashboard/my-referrals">Lịch sử của tôi</Link>,
         },
+      ],
+    },
+
+    // --- NHÓM 3: NGHIỆP VỤ BÁN HÀNG (SALES) ---
+    (role === "ADMIN" || role === "SALES_STAFF") && {
+      key: "sales-operations",
+      icon: <SolutionOutlined />,
+      label: "Nghiệp vụ Sale",
+      children: [
+        {
+          key: "/dashboard/sales-inventory",
+          label: (
+            <Link href="/dashboard/sales-inventory">Xử lý giới thiệu</Link>
+          ),
+        },
+        {
+          key: "/dashboard/history",
+          label: <Link href="/dashboard/history">Lịch sử </Link>,
+        },
+      ],
+    },
+
+    // --- NHÓM 4: NGHIỆP VỤ THU MUA (PURCHASE) ---
+    (role === "ADMIN" || role === "PURCHASE_STAFF") && {
+      key: "purchase-operations",
+      icon: <SolutionOutlined />,
+      label: "Nghiệp vụ thu mua",
+      children: [
+        {
+          key: "/dashboard/assigned-tasks",
+          label: <Link href="/dashboard/assigned-tasks">Xử lý giới thiệu</Link>,
+        },
+        {
+          key: "/dashboard/purchase/history",
+          label: <Link href="/dashboard/history">Lịch sử</Link>,
+        },
+      ],
+    },
+
+    // --- NHÓM 5: QUẢN LÝ KHTN (DÀNH CHO MANAGER) ---
+    (role === "ADMIN" || role === "MANAGER") && {
+      key: "manager-customer-menu",
+      icon: <SolutionOutlined />,
+      label: "Quản lý KHTN",
+      children: [
+        {
+          key: "/dashboard/customers",
+          label: <Link href="/dashboard/customers">Quản lý & Phân bổ</Link>,
+        },
+        {
+          key: "/dashboard/frozen-leads-1",
+          label: <Link href="/dashboard/frozen-leads-1">Danh sách KH</Link>,
+        },
+        {
+          key: "/dashboard/frozen-leads",
+          label: <Link href="/dashboard/frozen-leads">Rã băng KH</Link>,
+        },
+      ],
+    },
+
+    // --- NHÓM 6: QUẢN LÝ KHO XE (GOM CÁC MỤC LẺ) ---
+    {
+      key: "cars-master-menu",
+      icon: <CarOutlined />,
+      label: "Quản lý kho xe",
+      children: [
+        (role === "ADMIN" || role === "MANAGER") && {
+          key: "/dashboard/cars",
+          label: <Link href="/dashboard/cars">Danh sách xe</Link>,
+        },
+        {
+          key: "/dashboard/inventory-report",
+          label: (
+            <Link href="/dashboard/inventory-report">Báo cáo xe đã bán</Link>
+          ),
+        },
+        (role === "ADMIN" || role === "MANAGER") && {
+          key: "/dashboard/admin/approval-customer",
+          label: (
+            <Link href="/dashboard/admin/approval-customer">
+              Duyệt yêu cầu nv
+            </Link>
+          ),
+        },
+        (role === "ADMIN" || role === "MANAGER") && {
+          key: "/dashboard/cars/pending",
+          label: <Link href="/dashboard/cars/pending">Xe chờ định giá</Link>,
+        },
+        (role === "ADMIN" || role === "MANAGER") && {
+          key: "/dashboard/cars/refurbishing",
+          label: (
+            <Link href="/dashboard/cars/refurbishing">Xe đang tân trang</Link>
+          ),
+        },
       ].filter(Boolean),
     },
-    role === "ADMIN" || role === "SALES_STAFF"
-      ? {
-          key: "purchase-menu-sales",
-          icon: <SolutionOutlined />,
-          label: "Nghiệp vụ sale",
-          children: [
-            {
-              key: "/dashboard/sales-inventory", // Đường dẫn trang bạn vừa tạo
-              label: (
-                <Link href="/dashboard/sales-inventory">Xử lý giới thiệu</Link>
-              ),
-            },
 
-            {
-              key: "/dashboard/purchase/sales-history",
-              label: <Link href="/dashboard/history">Lịch sử thu mua</Link>,
-            },
-          ],
-        }
-      : null,
-
-    // --- PHẦN NGHIỆP VỤ THU MUA ---
-    role === "ADMIN" || role === "PURCHASE_STAFF"
-      ? {
-          key: "purchase-menu",
-          icon: <SolutionOutlined />,
-          label: "Nghiệp vụ thu mua",
-          children: [
-            {
-              key: "/dashboard/assigned-tasks", // Đường dẫn trang bạn vừa tạo
-              label: (
-                <Link href="/dashboard/assigned-tasks">Xử lý giới thiệu</Link>
-              ),
-            },
-            {
-              key: "/dashboard/purchase/history",
-              label: <Link href="/dashboard/history">Lịch sử thu mua</Link>,
-            },
-          ],
-        }
-      : null,
-
-    // --- PHẦN NGHIỆP VỤ THU MUA ---
-    role === "ADMIN" || role === "MANAGER"
-      ? {
-          key: "manager-customer-menu",
-          icon: <SolutionOutlined />,
-          label: "Quản lý KHTN",
-          children: [
-            {
-              key: "/dashboard/frozen-leads-1", // Đường dẫn trang bạn vừa tạo
-              label: <Link href="/dashboard/frozen-leads-1">Danh sách KH</Link>,
-            },
-            {
-              key: "/dashboard/frozen-leads",
-              label: <Link href="/dashboard/frozen-leads">Rã băng KH</Link>,
-            },
-          ],
-        }
-      : null,
-
-    {
-      key: "/dashboard/inventory-report",
-      icon: <CarOutlined />,
-      label: <Link href="/dashboard/inventory-report">Xe đã bán</Link>,
+    // --- NHÓM 7: DANH MỤC HỆ THỐNG (ADMIN SETTINGS) ---
+    (role === "ADMIN" || (role === "MANAGER" && isGobal)) && {
+      key: "admin-settings",
+      icon: <AppstoreAddOutlined />,
+      label: "Danh mục hệ thống",
+      children: [
+        {
+          key: "/dashboard/schedules",
+          label: <Link href="/dashboard/schedules">Lịch Trực</Link>,
+        },
+        {
+          key: "/dashboard/settings/car-setup",
+          label: <Link href="/dashboard/settings/car-setup">Setup mẫu xe</Link>,
+        },
+        {
+          key: "/dashboard/settings/reasons",
+          label: <Link href="/dashboard/settings/reasons">Setup lý do</Link>,
+        },
+        {
+          key: "/dashboard/settings/lead",
+          label: (
+            <Link href="/dashboard/settings/lead">Trạng thái khách hàng</Link>
+          ),
+        },
+        {
+          key: "/dashboard/settings/departments",
+          label: (
+            <Link href="/dashboard/settings/departments">
+              Phòng ban & Chức vụ
+            </Link>
+          ),
+        },
+        {
+          key: "/dashboard/settings/branches",
+          label: (
+            <Link href="/dashboard/settings/branches">Chi nhánh Toyota</Link>
+          ),
+        },
+      ],
     },
 
-    // --- PHẦN QUẢN LÝ XE ---
-    role === "ADMIN" || role === "MANAGER"
-      ? {
-          key: "cars-management",
-          icon: <CarOutlined />,
-          label: "Quản lý kho xe",
-          children: [
-            {
-              key: "/dashboard/admin/approval-customer",
-              label: (
-                <Link href="/dashboard/admin/approval-customer">
-                  Duyệt yêu cầu nv
-                </Link>
-              ),
-            },
-            {
-              key: "/dashboard/cars",
-              label: <Link href="/dashboard/cars">Danh sách xe</Link>,
-            },
-            {
-              key: "/dashboard/cars/pending",
-              label: (
-                <Link href="/dashboard/cars/pending">Xe chờ định giá</Link>
-              ),
-            },
-            {
-              key: "/dashboard/cars/refurbishing",
-              label: (
-                <Link href="/dashboard/cars/refurbishing">
-                  Xe đang tân trang
-                </Link>
-              ),
-            },
-          ],
-        }
-      : null,
+    // --- NHÓM 8: QUẢN LÝ NHÂN SỰ ---
+    (role === "ADMIN" || role === "MANAGER") && {
+      key: "/dashboard/users",
+      icon: <TeamOutlined />,
+      label: <Link href="/dashboard/users">Quản lý nhân viên</Link>,
+    },
 
-    // --- QUẢN LÝ DANH MỤC ---
-    role === "ADMIN" || (role === "MANAGER" && isGobal)
-      ? {
-          key: "admin-settings",
-          icon: <AppstoreAddOutlined />,
-          label: "Danh mục hệ thống",
-          children: [
-            {
-              key: "/dashboard/schedules",
-              label: <Link href="/dashboard/schedules">Lịch Trực</Link>,
-            },
-            {
-              key: "/dashboard/settings/car-setup",
-              label: (
-                <Link href="/dashboard/settings/car-setup">Setup mẫu xe</Link>
-              ),
-            },
-            {
-              key: "/dashboard/settings/reasons",
-              label: (
-                <Link href="/dashboard/settings/reasons">Setup lý do</Link>
-              ),
-            },
-            {
-              key: "/dashboard/settings/lead",
-              label: (
-                <Link href="/dashboard/settings/lead">
-                  Trạng thái khách hàng
-                </Link>
-              ),
-            },
-            {
-              key: "/dashboard/settings/departments",
-              label: (
-                <Link href="/dashboard/settings/departments">
-                  Phòng ban & Chức vụ
-                </Link>
-              ),
-            },
-            {
-              key: "/dashboard/settings/branches",
-              label: (
-                <Link href="/dashboard/settings/branches">
-                  Chi nhánh Toyota
-                </Link>
-              ),
-            },
-          ],
-        }
-      : null,
-
-    // --- QUẢN LÝ NHÂN SỰ ---
-    role === "ADMIN" || role === "MANAGER"
-      ? {
-          key: "/dashboard/users",
-          icon: <TeamOutlined />,
-          label: <Link href="/dashboard/users">Quản lý nhân viên</Link>,
-        }
-      : null,
-
-    // --- TÀI KHOẢN ---
+    // --- NHÓM 9: TÀI KHOẢN ---
     {
       key: "account",
       icon: <SettingOutlined />,
-      label: "Cài đặt",
+      label: "Tài khoản",
       children: [
         {
           key: "/dashboard/profile",
@@ -265,19 +239,27 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
       ],
     },
   ].filter(Boolean);
-
   // Nội dung Menu dùng chung cho cả Sider và Drawer
+
+  const ROLE_LABELS: Record<string, { label: string; color: string }> = {
+    ADMIN: { label: "Quản trị viên", color: "red" },
+    MANAGER: { label: "Quản lý chi nhánh", color: "blue" },
+    PURCHASE_STAFF: { label: "Nhân viên thu mua", color: "orange" },
+    SALES_STAFF: { label: "Nhân viên bán hàng", color: "green" },
+    REFERRER: { label: "Người giới thiệu", color: "gray" },
+  };
+
   const SidebarContent = (
     <>
       <div className="flex flex-col items-center py-6 border-b border-gray-700 mb-4 overflow-hidden">
-        <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold text-xl mb-2 shrink-0">
-          T
+        <div className="w-12 h-12 bg-red-600 rounded-lg overflow-hidden flex items-center justify-center text-white font-bold text-xl mb-2 shrink-0">
+          <img src="/storage/images/logo.jpg" alt="" />
         </div>
         {!collapsed && (
           <div className="text-white font-bold text-sm tracking-widest text-center px-2 animate-in fade-in duration-500">
             TOYOTA BÌNH DƯƠNG
             <div className="text-[10px] text-red-400 font-normal mt-1 lowercase">
-              {role.replace("_", " ")}
+              {ROLE_LABELS[role]?.label || "N/A"}
             </div>
           </div>
         )}
