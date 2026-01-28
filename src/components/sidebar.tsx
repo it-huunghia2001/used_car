@@ -130,8 +130,8 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
           label: <Link href="/dashboard/customers">Quản lý & Phân bổ</Link>,
         },
         {
-          key: "/dashboard/frozen-leads-1",
-          label: <Link href="/dashboard/frozen-leads-1">Danh sách KH</Link>,
+          key: "/dashboard/lead",
+          label: <Link href="/dashboard/lead">Danh sách KH</Link>,
         },
         {
           key: "/dashboard/frozen-leads",

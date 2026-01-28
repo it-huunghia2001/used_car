@@ -33,6 +33,7 @@ import {
   ProjectOutlined,
   ClockCircleOutlined,
   ShoppingCartOutlined,
+  ApartmentOutlined,
 } from "@ant-design/icons";
 import {
   BarChart,
@@ -43,9 +44,11 @@ import {
   Tooltip as ChartTooltip,
   ResponsiveContainer,
   Legend,
+  Cell,
 } from "recharts";
 import dayjs from "dayjs";
 import { getAdvancedReportAction } from "@/actions/report-actions";
+import { getRoleTag } from "../role";
 
 const { Title, Text } = Typography;
 
@@ -67,21 +70,26 @@ export default function ReportingDashboard({
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<any>(initialData);
   const [filters, setFilters] = useState({
-    date: dayjs() as dayjs.Dayjs | null,
-    branchId: undefined,
+    date: null as dayjs.Dayjs | null, // Mặc định null để lấy "Tất cả thời gian"
+    branchId: undefined as string | undefined,
   });
 
   const { role, isGlobal, stats } = report;
 
-  const handleFetch = async (newFilters: any) => {
+  // HÀM XỬ LÝ LỌC DỮ LIỆU CHUẨN
+  const handleFetch = async (updatedFilters: any) => {
     setLoading(true);
     try {
-      const month = newFilters.date ? newFilters.date.month() + 1 : undefined;
-      const year = newFilters.date ? newFilters.date.year() : undefined;
+      // Nếu có date thì lấy month/year, nếu không truyền undefined để Server lấy All-time
+      const month = updatedFilters.date
+        ? updatedFilters.date.month() + 1
+        : undefined;
+      const year = updatedFilters.date ? updatedFilters.date.year() : undefined;
+
       const res = await getAdvancedReportAction(
         month,
         year,
-        newFilters.branchId,
+        updatedFilters.branchId, // Gửi branchId lên server để lọc
       );
       setReport(res);
     } catch (error) {
@@ -101,7 +109,9 @@ export default function ReportingDashboard({
               size={64}
               icon={<UserOutlined />}
               className={
-                role === "PURCHASE_STAFF" ? "bg-purple-600" : "bg-red-600"
+                role === "PURCHASE_STAFF"
+                  ? "bg-purple-600 shadow-lg"
+                  : "bg-red-600 shadow-lg"
               }
             />
             <div>
@@ -109,7 +119,7 @@ export default function ReportingDashboard({
                 level={3}
                 className="!m-0 !font-black uppercase tracking-tight"
               >
-                Hi, {user.fullName || "Member"}!
+                Chào mừng, {user.fullName || "Thành viên"}!
               </Title>
               <Space split={<Divider type="vertical" />}>
                 <Text className="font-bold text-slate-400 text-[10px] uppercase tracking-widest">
@@ -120,7 +130,7 @@ export default function ReportingDashboard({
                   className="rounded-md border-none font-bold"
                 >
                   {filters.date
-                    ? filters.date.format("MM/YYYY")
+                    ? `Kỳ: ${filters.date.format("MM/YYYY")}`
                     : "TOÀN THỜI GIAN"}
                 </Tag>
               </Space>
@@ -131,9 +141,10 @@ export default function ReportingDashboard({
             wrap
             className="bg-slate-50 p-2 rounded-2xl border border-slate-100"
           >
+            {/* Bộ lọc Ngày Tháng */}
             <DatePicker
               picker="month"
-              placeholder="All-time"
+              placeholder="Tất cả thời gian"
               value={filters.date}
               onChange={(d) => {
                 const nf = { ...filters, date: d };
@@ -141,13 +152,16 @@ export default function ReportingDashboard({
                 handleFetch(nf);
               }}
               allowClear
-              className="rounded-xl font-bold bg-transparent border-none w-40"
+              className="rounded-xl font-bold bg-transparent border-none w-44"
             />
+
+            {/* Bộ lọc Chi nhánh (Chỉ Admin/Global Manager mới chọn được) */}
             {isGlobal && (
               <Select
-                placeholder="Chi nhánh"
-                className="w-48"
+                placeholder="Chọn chi nhánh"
+                className="w-56"
                 allowClear
+                value={filters.branchId}
                 onChange={(v) => {
                   const nf = { ...filters, branchId: v };
                   setFilters(nf);
@@ -159,6 +173,7 @@ export default function ReportingDashboard({
                 }))}
               />
             )}
+
             <Button
               icon={<DownloadOutlined />}
               type="primary"
@@ -175,12 +190,15 @@ export default function ReportingDashboard({
           <Col xs={24} sm={12} lg={6}>
             <Card className="rounded-[2rem] border-none shadow-sm bg-white border-l-8 border-blue-600">
               <Statistic
-                title="MY TASKS"
+                title="TASK CỦA TÔI"
                 value={stats.myPending}
                 suffix="VIỆC"
                 valueStyle={{ fontWeight: 900, color: "#2563eb" }}
                 prefix={<ProjectOutlined />}
               />
+              <Text className="text-[10px] text-slate-400 font-bold uppercase">
+                Đang chờ xử lý
+              </Text>
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -188,7 +206,7 @@ export default function ReportingDashboard({
               className={`rounded-[2rem] border-none shadow-sm bg-white border-l-8 ${role === "PURCHASE_STAFF" ? "border-purple-600" : "border-emerald-500"}`}
             >
               <Statistic
-                title={role === "PURCHASE_STAFF" ? "XE ĐÃ MUA" : "DOANH SỐ BÁN"}
+                title={role === "PURCHASE_STAFF" ? "XE ĐÃ MUA" : "XE ĐÃ BÁN"}
                 value={
                   role === "PURCHASE_STAFF"
                     ? stats.totalPurchased
@@ -207,15 +225,24 @@ export default function ReportingDashboard({
                   color: role === "PURCHASE_STAFF" ? "#9333ea" : "#10b981",
                 }}
               />
+              <Text className="text-[10px] text-slate-400 font-bold uppercase">
+                Hiệu suất kỳ này
+              </Text>
             </Card>
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <Card className="rounded-[2rem] border-none shadow-sm bg-white border-l-8 border-rose-500">
               <Statistic
-                title="LỖI KPI (LATE)"
+                title="VI PHẠM KPI"
                 value={stats.lateLeads}
                 prefix={<WarningOutlined />}
                 valueStyle={{ fontWeight: 900, color: "#f43f5e" }}
+              />
+              <Progress
+                percent={Math.min(stats.lateLeads * 10, 100)}
+                status="exception"
+                showInfo={false}
+                size="small"
               />
             </Card>
           </Col>
@@ -224,22 +251,31 @@ export default function ReportingDashboard({
               <Statistic
                 title={<span className="text-white/50">LỊCH HẸN TRỄ</span>}
                 value={stats.lateTasks}
-                valueStyle={{ fontWeight: 900, color: "#f43f5e" }}
+                valueStyle={{ color: "white", fontWeight: 900 }}
                 prefix={<ClockCircleOutlined className="text-amber-500" />}
+              />
+              <Badge
+                status="error"
+                text={
+                  <span className="text-amber-500 text-[10px] font-bold uppercase">
+                    Cần rà soát
+                  </span>
+                }
               />
             </Card>
           </Col>
         </Row>
 
-        {/* 3. VISUALIZATION SECTION (SO SÁNH BÁN & MUA) */}
+        {/* 3. VISUALIZATION SECTION */}
         {(isGlobal || role === "MANAGER") && (
           <Row gutter={[20, 20]}>
-            <Col xs={24} lg={16}>
+            {/* 3.1. BIỂU ĐỒ CHI NHÁNH */}
+            <Col xs={24} lg={12}>
               <Card
                 title={
                   <Space>
                     <AreaChartOutlined className="text-red-600" />
-                    <span>SO SÁNH HIỆU SUẤT CHI NHÁNH</span>
+                    <span>HIỆU SUẤT CHI NHÁNH (BÁN & MUA)</span>
                   </Space>
                 }
                 className="rounded-[2.5rem] shadow-sm border-none overflow-hidden h-full"
@@ -268,17 +304,12 @@ export default function ReportingDashboard({
                       />
                       <ChartTooltip
                         cursor={{ fill: "#f8fafc" }}
-                        contentStyle={{
-                          borderRadius: "16px",
-                          border: "none",
-                          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
-                        }}
+                        contentStyle={{ borderRadius: "16px", border: "none" }}
                       />
                       <Legend
                         iconType="circle"
                         wrapperStyle={{ paddingTop: "20px" }}
                       />
-                      {/* Cột Xe Bán - Màu Đỏ */}
                       <Bar
                         dataKey="soldCount"
                         name="Xe đã bán"
@@ -286,7 +317,6 @@ export default function ReportingDashboard({
                         radius={[6, 6, 0, 0]}
                         barSize={25}
                       />
-                      {/* Cột Xe Mua - Màu Tím */}
                       <Bar
                         dataKey="purchasedCount"
                         name="Xe thu mua"
@@ -299,56 +329,118 @@ export default function ReportingDashboard({
                 </div>
               </Card>
             </Col>
-            <Col xs={24} lg={8}>
+
+            {/* 3.2. BIỂU ĐỒ GIỚI THIỆU PHÒNG BAN */}
+            <Col xs={24} lg={12}>
               <Card
                 title={
                   <Space>
-                    <PieChartOutlined className="text-blue-600" />
-                    <span>PHÂN BỔ TỒN KHO</span>
+                    <ApartmentOutlined className="text-blue-600" />
+                    <span>GIỚI THIỆU THEO PHÒNG BAN</span>
                   </Space>
                 }
-                className="rounded-[2.5rem] shadow-sm border-none h-full"
+                className="rounded-[2.5rem] shadow-sm border-none overflow-hidden h-full"
               >
-                <div className="space-y-4">
-                  {stats.inventoryStatus?.map((item: any) => (
-                    <div
-                      key={item.status}
-                      className="p-4 bg-slate-50 rounded-2xl flex justify-between items-center border border-slate-100 hover:bg-white transition-all"
-                    >
-                      <Space direction="vertical" size={0}>
-                        <Text
-                          strong
-                          className="text-[10px] uppercase text-slate-400"
+                <div className="h-[400px] w-full mt-4">
+                  {stats.departmentStats?.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={stats.departmentStats}
+                        layout="vertical"
+                        margin={{ left: 30, right: 30 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          horizontal={false}
+                          stroke="#f1f5f9"
+                        />
+                        <XAxis type="number" hide />
+                        <YAxis
+                          dataKey="name"
+                          type="category"
+                          axisLine={false}
+                          tickLine={false}
+                          width={120}
+                          tick={{
+                            fill: "#64748b",
+                            fontSize: 10,
+                            fontWeight: "bold",
+                          }}
+                        />
+                        <ChartTooltip
+                          cursor={{ fill: "#f8fafc" }}
+                          contentStyle={{
+                            borderRadius: "12px",
+                            border: "none",
+                          }}
+                        />
+                        <Bar
+                          dataKey="count"
+                          name="Lượt giới thiệu"
+                          radius={[0, 6, 6, 0]}
+                          barSize={20}
                         >
-                          {item.status.replace(/_/g, " ")}
-                        </Text>
-                        <Text strong className="text-xl">
-                          {item._count} Xe
-                        </Text>
-                      </Space>
-                      <Progress
-                        type="circle"
-                        percent={Math.min(item._count * 4, 100)}
-                        size={45}
-                        strokeColor={
-                          item.status === "READY_FOR_SALE"
-                            ? "#10b981"
-                            : "#6366f1"
-                        }
-                      />
+                          {stats.departmentStats.map(
+                            (entry: any, index: number) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={index % 2 === 0 ? "#3b82f6" : "#60a5fa"}
+                              />
+                            ),
+                          )}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <Empty description="Chưa có dữ liệu giới thiệu" />
                     </div>
-                  ))}
-                  {(!stats.inventoryStatus ||
-                    stats.inventoryStatus.length === 0) && (
-                    <Empty
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description="Kho trống"
-                    />
                   )}
                 </div>
               </Card>
             </Col>
           </Row>
+        )}
+
+        {/* 3.3. PHÂN BỔ TỒN KHO (HIỂN THỊ DÀN HÀNG NGANG) */}
+        {(isGlobal || role === "MANAGER") && (
+          <Card
+            title={
+              <Space>
+                <PieChartOutlined className="text-blue-600" />
+                <span>TỒN KHO THỰC TẾ (REAL-TIME)</span>
+              </Space>
+            }
+            className="rounded-[2.5rem] shadow-sm border-none"
+          >
+            <Row gutter={[20, 20]}>
+              {stats.inventoryStatus?.map((item: any) => (
+                <Col xs={24} sm={12} lg={6} key={item.status}>
+                  <div className="p-4 bg-slate-50 rounded-2xl flex justify-between items-center border border-slate-100">
+                    <Space direction="vertical" size={0}>
+                      <Text
+                        strong
+                        className="text-[10px] uppercase text-slate-400"
+                      >
+                        {item.status.replace(/_/g, " ")}
+                      </Text>
+                      <Text strong className="text-xl">
+                        {item._count} Xe
+                      </Text>
+                    </Space>
+                    <Progress
+                      type="circle"
+                      percent={Math.min(item._count * 5, 100)}
+                      size={45}
+                      strokeColor={
+                        item.status === "READY_FOR_SALE" ? "#10b981" : "#6366f1"
+                      }
+                    />
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </Card>
         )}
 
         {/* 4. PERFORMANCE LEADERBOARD */}
@@ -359,16 +451,14 @@ export default function ReportingDashboard({
                 <TrophyOutlined className="text-amber-500" />
                 <span>BẢNG VÀNG HIỆU SUẤT NHÂN SỰ</span>
               </Space>
-              <Badge status="processing" text="Real-time" />
+              <Badge status="processing" text="Dữ liệu chốt" />
             </div>
           }
           className="rounded-[2.5rem] shadow-sm border-none overflow-hidden"
         >
           <Table
             dataSource={stats.staffPerformance}
-            rowKey={(record: any) =>
-              record.id || record.fullName || Math.random().toString()
-            }
+            rowKey={(record: any) => record.id}
             loading={loading}
             pagination={{ pageSize: 5 }}
             scroll={{ x: 1000 }}
@@ -380,8 +470,8 @@ export default function ReportingDashboard({
                     <Avatar
                       className={
                         r.role === "PURCHASE_STAFF"
-                          ? "bg-purple-500 font-bold shadow-sm"
-                          : "bg-red-500 font-bold shadow-sm"
+                          ? "bg-purple-500 font-bold"
+                          : "bg-red-500 font-bold"
                       }
                     >
                       {r.fullName?.[0].toUpperCase()}
@@ -390,9 +480,7 @@ export default function ReportingDashboard({
                       <Text strong className="block">
                         {r.fullName}
                       </Text>
-                      <Tag className="text-[9px] uppercase border-none bg-slate-100 m-0">
-                        {r.role.replace("_", " ")}
-                      </Tag>
+                      {getRoleTag(r.role)}
                     </div>
                   </Space>
                 ),
@@ -431,7 +519,7 @@ export default function ReportingDashboard({
                   return (
                     <div className="min-w-[150px]">
                       <div className="flex justify-between text-[11px] mb-1">
-                        <span>Lỗi trễ: {lates}</span>
+                        <span>Lỗi: {lates}</span>
                         <Text
                           strong
                           style={{ color: score < 70 ? "#f43f5e" : "#10b981" }}
@@ -463,7 +551,7 @@ export default function ReportingDashboard({
                         defaultValue={count >= 3 ? 5 : 3}
                         style={{ fontSize: 10 }}
                       />
-                      {count >= 3 && (
+                      {count >= 5 && (
                         <Tag
                           color="gold"
                           icon={<CheckCircleFilled />}

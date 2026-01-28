@@ -10,7 +10,6 @@ import {
 import { sendMail } from "@/lib/mail-service";
 import {
   LeadStatus,
-  // ReferralType,
   TaskStatus,
   UrgencyType,
 } from "@prisma/client";
@@ -613,4 +612,74 @@ export async function getFrozenLeadsAction() {
     console.error("Lỗi lấy danh sách đóng băng:", error);
     return [];
   }
+}
+
+export async function getLeadsAction(params: {
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { role, id: userId, branchId, isGlobalManager } = user;
+  const { search, status, page = 1, limit = 10 } = params;
+
+  let whereClause: any = {};
+
+  // --- 1. PHÂN QUYỀN TRUY CẬP (SCOPE) ---
+  if (role === "ADMIN" || isGlobalManager) {
+    whereClause = {};
+  } else if (role === "MANAGER") {
+    whereClause = { branchId: branchId };
+  } else {
+    whereClause = {
+      OR: [{ assignedToId: userId }, { referrerId: userId }],
+    };
+  }
+
+  // --- 2. LỌC THEO TRẠNG THÁI ---
+  if (status && status !== "ALL") {
+    whereClause.status = status;
+  }
+
+  // --- 3. TÌM KIẾM (Tên, SĐT, Biển số) ---
+  if (search) {
+    whereClause.AND = [
+      {
+        OR: [
+          { fullName: { contains: search } },
+          { phone: { contains: search } },
+          { licensePlate: { contains: search } },
+        ],
+      },
+    ];
+  }
+
+  // --- 4. TRUY VẤN TỔNG LỰC ---
+  const [data, total] = await Promise.all([
+    db.customer.findMany({
+      where: whereClause,
+      include: {
+        assignedTo: { select: { fullName: true, phone: true } }, // NV phụ trách
+        referrer: { select: { fullName: true, role: true } }, // Người giới thiệu
+        branch: { select: { name: true } }, // Chi nhánh
+        carModel: { select: { name: true } }, // Model quan tâm
+        leadCar: true, // Chi tiết xe định giá
+        activities: {
+          // Nhật ký gần nhất
+          orderBy: { createdAt: "desc" },
+          take: 3,
+          include: { user: { select: { fullName: true } } },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    db.customer.count({ where: whereClause }),
+  ]);
+
+  return { data, total };
 }

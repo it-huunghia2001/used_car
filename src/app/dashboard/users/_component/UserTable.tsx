@@ -4,7 +4,6 @@ import {
   Table,
   Button,
   Space,
-  Tag,
   Divider,
   Typography,
   Avatar,
@@ -17,8 +16,11 @@ import {
   HomeOutlined,
   UserOutlined,
 } from "@ant-design/icons";
+import { getRoleTag } from "@/components/role";
 
 const { Text } = Typography;
+
+// Hàm hỗ trợ dịch và hiển thị Tag vai trò
 
 export default function UserTable({ users, loading, onEdit, onDelete }: any) {
   const columns = [
@@ -61,11 +63,9 @@ export default function UserTable({ users, loading, onEdit, onDelete }: any) {
     {
       title: "VAI TRÒ",
       dataIndex: "role",
-      render: (role: string) => (
-        <Tag color="blue" className="border-none font-bold">
-          {role}
-        </Tag>
-      ),
+      key: "role",
+      width: 180,
+      render: (role: string) => getRoleTag(role),
     },
     {
       title: "THAO TÁC",

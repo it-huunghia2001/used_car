@@ -76,14 +76,9 @@ export default function ApprovalModal({
                   {
                     title: "VAI TRÒ",
                     dataIndex: "role",
-                    render: (role) => (
-                      <Tag
-                        color="blue"
-                        className="border-none font-bold uppercase text-[10px]"
-                      >
-                        {role}
-                      </Tag>
-                    ),
+                    key: "role",
+                    width: 180,
+                    render: (role: string) => getRoleTag(role),
                   },
                   {
                     title: "HÀNH ĐỘNG",
@@ -144,11 +139,9 @@ export default function ApprovalModal({
                   {
                     title: "VAI TRÒ",
                     dataIndex: "role",
-                    render: (role) => (
-                      <Tag className="text-[10px] uppercase font-bold">
-                        {role}
-                      </Tag>
-                    ),
+                    key: "role",
+                    width: 180,
+                    render: (role: string) => getRoleTag(role),
                   },
                   {
                     title: "TRẠNG THÁI",
@@ -188,3 +181,4 @@ export default function ApprovalModal({
 }
 
 import { CheckCircleOutlined } from "@ant-design/icons";
+import { getRoleTag } from "@/components/role";

@@ -43,7 +43,7 @@ export default function FormSellCar({
     if (!userId) return message.error("Lỗi phiên đăng nhập");
     setLoading(true);
     // Nếu là VALUATION thì giữ nguyên type, nếu SELL thì lấy giá trị từ Select SubType
-    const finalType = type === "VALUATION" ? "VALUATION" : values.subType;
+    const finalType = type === "VALUATION" ? "VALUATION" : values.type;
 
     const res = await createCustomerAction({
       ...values,
@@ -76,7 +76,7 @@ export default function FormSellCar({
         layout="vertical"
         onFinish={onFinish}
         size="large"
-        initialValues={{ subType: "SELL" }}
+        initialValues={{ type: "SELL" }}
       >
         <section className="mb-4">
           <Text
@@ -118,7 +118,7 @@ export default function FormSellCar({
             {type === "SELL" && (
               <Col span={24}>
                 <Form.Item
-                  name="subType"
+                  name="type"
                   label="Hình thức giao dịch"
                   rules={[{ required: true }]}
                 >

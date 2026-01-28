@@ -280,9 +280,9 @@ export default function AssignedTasksPage() {
             {record.customer.carModel?.name || "Chưa cập nhật model"}
           </div>
           <div className="text-gray-500">
-            Năm: {record.customer.leadCar.year || "---"} | Giá mong muốn:{" "}
-            {record.customer.leadCar.expectedPrice
-              ? `${record.customer.leadCar.expectedPrice}`
+            Năm: {record?.customer?.leadCar?.year || "---"} | Giá mong muốn:{" "}
+            {record.customer?.leadCar?.expectedPrice
+              ? `${record.customer?.leadCar?.expectedPrice}`
               : "---"}
           </div>
         </div>
