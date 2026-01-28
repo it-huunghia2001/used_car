@@ -226,7 +226,7 @@ export default function RegisterPage() {
               </a>
             </p>
             <p className="text-[10px] text-gray-400 italic">
-              © {new Date().getFullYear()} Công Ty TOYOTA BÌNH DƯƠNG.
+              © {new Date().getFullYear()} Công Ty CP TOYOTA BÌNH DƯƠNG.
             </p>
           </div>
         </div>
