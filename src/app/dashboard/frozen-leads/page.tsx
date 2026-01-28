@@ -105,7 +105,7 @@ export default function FrozenLeadsPage() {
       render: (r: any) => {
         const lastAct = r.activities?.[0];
         return (
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             {/* Ưu tiên hiển thị content từ bảng LeadReason */}
             <Text strong className="text-red-500">
               {lastAct?.reason?.content || "Chưa xác định"}

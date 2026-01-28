@@ -71,7 +71,7 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-950 px-4 relative">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-950 px-4 relative">
       <div
         ref={spotlightRef}
         className="pointer-events-none absolute inset-0 z-0 transition-all duration-200 h-full w-full"
@@ -81,7 +81,7 @@ export default function LoginPage() {
       />
       <Card className="w-full max-w-md shadow-2xl rounded-3xl border-0 absolute z-20 bg-[rgba(255,255,255,0.5)] ">
         <CardContent className="py-10 px-8 space-y-6 relative z-10">
-          <div className="absolute inset-0 bg-gradient-to-br  blur-lg"></div>
+          <div className="absolute inset-0 bg-linear-to-br  blur-lg"></div>
 
           <div className="z-10 relative  bg-transparent dark:bg-gray-800 rounded-3xl p-8 w-full h-full">
             <div>
@@ -105,7 +105,7 @@ export default function LoginPage() {
             </div>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">MSNV</Label>
                 <Input
                   id="username"
                   name="username"
@@ -115,7 +115,7 @@ export default function LoginPage() {
                     setUsername(e.target.value);
                     setErrors((prev) => ({ ...prev, email: "" }));
                   }}
-                  placeholder="you@example.com"
+                  placeholder="Nhập msnv của bạn"
                   className={errors.email ? "border-red-500" : ""}
                 />
                 {errors.email && (

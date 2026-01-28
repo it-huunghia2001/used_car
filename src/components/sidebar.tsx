@@ -50,9 +50,9 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
   const menuItems: any[] = [
     // --- NHÓM 1: TRANG CHỦ & SHOWROOM ---
     {
-      key: "/dashboard",
+      key: "/",
       icon: <DashboardOutlined />,
-      label: <Link href="/dashboard">Tổng quan</Link>,
+      label: <Link href="/">Tổng quan</Link>,
     },
     {
       key: "/dashboard/showroom",

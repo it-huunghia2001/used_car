@@ -142,7 +142,7 @@ export default function CustomerManagementPage() {
       title: "Khách hàng",
       key: "customerInfo",
       render: (record: CustomerData) => (
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Text strong className="text-blue-700 uppercase">
             {record.fullName}
           </Text>
@@ -172,7 +172,7 @@ export default function CustomerManagementPage() {
           VALUATION: "ĐỊNH GIÁ",
         };
         return (
-          <Space direction="vertical" size={4}>
+          <Space orientation="vertical" size={4}>
             <Tag
               color={typeColors[record.type]}
               className="font-bold border-none m-0"

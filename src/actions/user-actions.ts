@@ -4,8 +4,10 @@
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
-import { Role } from "@prisma/client";
+import { Role, UserStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/session-server";
+import { accountApprovedEmailTemplate } from "@/lib/mail-templates";
+import { sendMail } from "@/lib/mail-service";
 
 /**
  * 1. LẤY DANH SÁCH NGƯỜI DÙNG (Cập nhật hỗ trợ Filter & Pagination)
@@ -17,9 +19,19 @@ export async function getUsersAction(params: {
   branchId?: string | null;
   departmentId?: string | null;
   role?: string;
+  active?: boolean;
+  status?: UserStatus | "ALL"; // THÊM DÒNG NÀY ĐỂ HẾT LỖI TS
 }) {
   try {
-    const { page = 1, limit = 10, search, branchId, departmentId } = params;
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      branchId,
+      departmentId,
+      active,
+      status,
+    } = params;
     const skip = (page - 1) * limit;
 
     // Xây dựng điều kiện lọc động
@@ -45,6 +57,12 @@ export async function getUsersAction(params: {
       where.departmentId = departmentId;
     }
 
+    if (status && status !== "ALL") {
+      where.status = status;
+    } else if (active !== undefined) {
+      // Giữ lại logic active cũ nếu vẫn muốn dùng song song
+      where.active = active;
+    }
     // Chạy song song: Lấy dữ liệu và Đếm tổng số bản ghi
     const [users, total] = await Promise.all([
       db.user.findMany({
@@ -301,5 +319,54 @@ export async function getStaffByBranchAction() {
     return { success: true, data: staff };
   } catch (error: any) {
     return { success: false, error: error.message, data: [] };
+  }
+}
+
+export async function approveUserAction(
+  userId: string,
+  status: "APPROVED" | "REJECTED",
+) {
+  try {
+    // 1. Cập nhật trạng thái trong Database
+    const updatedUser = await db.user.update({
+      where: { id: userId },
+      data: {
+        status: status,
+        active: status === "APPROVED",
+      },
+      include: {
+        branch: true, // Lấy tên chi nhánh để gửi mail
+      },
+    });
+
+    // 2. Nếu là APPROVED, gửi mail chúc mừng cho nhân viên
+    if (status === "APPROVED") {
+      try {
+        const emailHtml = accountApprovedEmailTemplate({
+          fullName: updatedUser.fullName || "Thành viên mới",
+          username: updatedUser.username,
+          roleLabel: "Nhân viên hệ thống",
+          branchName: updatedUser.branch?.name || "Hệ thống chung",
+        });
+
+        await sendMail({
+          to: updatedUser.email,
+          subject: "🎉 TÀI KHOẢN TOYOTA BÌNH DƯƠNG CỦA BẠN ĐÃ ĐƯỢC PHÊ DUYỆT",
+          html: emailHtml,
+        });
+      } catch (mailError) {
+        console.error("Lỗi gửi mail phê duyệt:", mailError);
+        // Không throw lỗi ở đây để tránh rollback transaction database
+      }
+    }
+
+    revalidatePath("/dashboard/users");
+    return {
+      success: true,
+      message: status === "APPROVED" ? "Đã duyệt & gửi mail" : "Đã từ chối",
+    };
+  } catch (error: any) {
+    console.error("Lỗi Action approveUser:", error);
+    return { success: false, error: "Không thể xử lý yêu cầu này." };
   }
 }

@@ -20,33 +20,38 @@ import {
   Row,
   Col,
   Typography,
-  Avatar,
   Badge,
   Tooltip,
   Statistic,
+  Tabs,
+  Avatar,
 } from "antd";
 import {
   UserAddOutlined,
   EditOutlined,
   DeleteOutlined,
   TeamOutlined,
-  GlobalOutlined,
-  HomeOutlined,
-  PhoneOutlined,
   SearchOutlined,
   ReloadOutlined,
   MailOutlined,
   IdcardOutlined,
   CheckCircleOutlined,
-  StopOutlined,
+  ClockCircleOutlined,
+  CheckOutlined,
+  PhoneOutlined,
+  HomeOutlined,
+  UserOutlined,
+  CloseOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 
 import {
   getUsersAction,
   upsertUserAction,
   deleteUserAction,
+  approveUserAction,
   toggleUserStatusAction,
 } from "@/actions/user-actions";
 import {
@@ -82,52 +87,24 @@ export default function UserManagementPage() {
     limit: 10,
     branchId: undefined as string | undefined,
     departmentId: undefined as string | undefined,
+    status: "ALL" as any,
   });
 
   const debouncedSearch = useDebounce(searchText, 500);
   const roleValue = Form.useWatch("role", form);
 
-  // --- Thống kê nhanh ---
-  const stats = useMemo(
-    () => ({
-      active: users.filter((u) => u.active).length,
-      global: users.filter((u) => u.isGlobalManager).length,
-      total: total,
-    }),
-    [users, total],
-  );
-
-  // --- XỬ LÝ SUBMIT FORM (LƯU HOẶC CẬP NHẬT) ---
-  const onFinish = async (values: any) => {
-    try {
-      setLoading(true);
-      // Gọi action để lưu data
-      await upsertUserAction({ ...values, id: editingUser?.id });
-
-      message.success(
-        editingUser
-          ? "Cập nhật nhân sự thành công"
-          : "Khởi tạo nhân sự thành công",
-      );
-
-      setIsModalOpen(false);
-      form.resetFields();
-      loadData(); // Tải lại danh sách
-    } catch (err: any) {
-      message.error(err.message || "Có lỗi xảy ra khi lưu dữ liệu");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getUsersAction({ ...filters, search: debouncedSearch });
+      const res = await getUsersAction({
+        ...filters,
+        search: debouncedSearch,
+        status: filters.status === "ALL" ? undefined : filters.status,
+      });
       setUsers(res.data);
       setTotal(res.total);
     } catch (err: any) {
-      message.error(err.message);
+      message.error(err.message || "Không thể tải danh sách");
     } finally {
       setLoading(false);
     }
@@ -135,12 +112,16 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     const loadCategories = async () => {
-      const [d, b] = await Promise.all([
-        getDepartmentsAction(),
-        getBranchesAction(),
-      ]);
-      setDepartments(d);
-      setBranches(b);
+      try {
+        const [d, b] = await Promise.all([
+          getDepartmentsAction(),
+          getBranchesAction(),
+        ]);
+        setDepartments(d);
+        setBranches(b);
+      } catch (err) {
+        console.error(err);
+      }
     };
     loadCategories();
   }, []);
@@ -148,6 +129,41 @@ export default function UserManagementPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // --- Xử lý Duyệt nhanh ---
+  const handleProcessUser = async (
+    userId: string,
+    targetStatus: "APPROVED" | "REJECTED",
+  ) => {
+    try {
+      setLoading(true);
+      const res = await approveUserAction(userId, targetStatus);
+      if (res.success) {
+        message.success(
+          targetStatus === "APPROVED" ? "Đã phê duyệt" : "Đã từ chối",
+        );
+        loadData();
+      }
+    } catch (error) {
+      message.error("Có lỗi xảy ra");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onFinish = async (values: any) => {
+    try {
+      setLoading(true);
+      await upsertUserAction({ ...values, id: editingUser?.id });
+      message.success("Lưu thành công");
+      setIsModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      message.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDeptChange = (deptId: string) => {
     const selected = departments.find((d) => d.id === deptId);
@@ -157,56 +173,42 @@ export default function UserManagementPage() {
 
   const columns = [
     {
-      title: "THÔNG TIN NHÂN VIÊN",
+      title: "NHÂN VIÊN",
       key: "user",
       fixed: "left" as const,
-      width: 230,
+      width: 250,
       render: (record: any) => (
         <div className="flex items-center gap-3">
+          <Avatar
+            icon={<UserOutlined />}
+            className={
+              record.status === "APPROVED"
+                ? "bg-blue-100 text-blue-600"
+                : "bg-orange-100 text-orange-600"
+            }
+          />
           <div className="flex flex-col">
-            <Text strong className="text-[15px] leading-tight text-slate-800">
+            <Text strong className="text-slate-800">
               {record.fullName}
             </Text>
-            <Space className="text-[12px] mt-1" size={4}>
-              <Tag color="blue" bordered={false} className="m-0 px-1 py-0">
-                {record.username}
-              </Tag>
-              {record.isGlobalManager && (
-                <Tooltip title="Quản trị toàn cầu">
-                  <SafetyCertificateOutlined className="text-amber-500!" />
-                </Tooltip>
-              )}
-            </Space>
+            <Text className="text-[11px] text-slate-400 uppercase tracking-wider">
+              {record.username}
+            </Text>
           </div>
         </div>
       ),
     },
     {
-      title: "ĐỊA CHỈ LIÊN LẠC",
-      key: "contact",
-      width: 280,
-      render: (record: any) => (
-        <div className="flex flex-col gap-1">
-          <Text className="flex items-center gap-2 text-slate-500">
-            <MailOutlined className="text-[10px]" /> {record.email}
-          </Text>
-          <Text className="flex items-center gap-2 text-slate-500">
-            <PhoneOutlined className="text-[10px]" /> {record.phone || "---"}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: "PHÒNG BAN / CHI NHÁNH",
+      title: "ĐƠN VỊ",
       key: "unit",
       render: (record: any) => (
-        <div className="flex flex-col">
-          <Text strong className="text-slate-700">
-            {record.department?.name}
+        <div className="flex flex-col text-[13px]">
+          <Text className="text-slate-600">
+            {record.department?.name || "---"}
           </Text>
           <Space
-            split={<Divider type="vertical" />}
             className="text-[12px] text-slate-400"
+            split={<Divider type="vertical" />}
           >
             <span>{record.position?.name}</span>
             <span className="flex items-center gap-1">
@@ -217,59 +219,71 @@ export default function UserManagementPage() {
       ),
     },
     {
-      title: "PHÂN QUYỀN",
-      dataIndex: "role",
-      width: 150,
-      render: (role: string) => {
+      title: "TRẠNG THÁI",
+      dataIndex: "status",
+      width: 140,
+      render: (status: string) => {
         const config: any = {
-          ADMIN: { color: "magenta", label: "Quản trị" },
-          MANAGER: { color: "geekblue", label: "Quản lý" },
-          PURCHASE_STAFF: { color: "cyan", label: "Thu mua" },
-          SALES_STAFF: { color: "green", label: "Kinh doanh" },
-          REFERRER: { color: "purple", label: "Giới thiệu" },
+          PENDING: {
+            color: "orange",
+            label: "Chờ duyệt",
+            icon: <ClockCircleOutlined />,
+          },
+          APPROVED: {
+            color: "green",
+            label: "Đã duyệt",
+            icon: <CheckCircleOutlined />,
+          },
+          REJECTED: { color: "red", label: "Từ chối", icon: <CloseOutlined /> },
+          BANNED: {
+            color: "default",
+            label: "Bị khóa",
+            icon: <StopOutlined />,
+          },
         };
-        const item = config[role] || { color: "default", label: role };
+        const s = config[status] || { color: "default", label: status };
         return (
           <Tag
-            color={item.color}
-            variant="filled"
-            className="font-medium uppercase rounded-full px-3"
+            color={s.color}
+            icon={s.icon}
+            className="rounded-lg border-none px-3 py-0.5 font-bold uppercase text-[10px]"
           >
-            {item.label}
+            {s.label}
           </Tag>
         );
       },
     },
     {
-      title: "TRẠNG THÁI",
-      dataIndex: "active",
-      align: "center" as const,
-      width: 100,
-      render: (active: boolean, record: any) => (
-        <div onClick={(e) => e.stopPropagation()}>
-          <Switch
-            checkedChildren={<CheckCircleOutlined />}
-            unCheckedChildren={<StopOutlined />}
-            checked={active}
-            className={active ? "bg-green-500" : "bg-gray-300"}
-            onChange={() =>
-              toggleUserStatusAction(record.id, active).then(loadData)
-            }
-          />
-        </div>
-      ),
-    },
-    {
-      title: "",
+      title: "XỬ LÝ",
       key: "actions",
       fixed: "right" as const,
-      width: 80,
+      width: 180,
       render: (record: any) => (
         <Space>
-          <Tooltip title="Chỉnh sửa">
+          {record.status === "PENDING" && (
+            <>
+              <Popconfirm
+                title="Phê duyệt?"
+                onConfirm={() => handleProcessUser(record.id, "APPROVED")}
+              >
+                <Button
+                  type="primary"
+                  size="small"
+                  className="bg-green-600 border-none shadow-sm"
+                  icon={<CheckOutlined />}
+                />
+              </Popconfirm>
+              <Popconfirm
+                title="Từ chối?"
+                onConfirm={() => handleProcessUser(record.id, "REJECTED")}
+              >
+                <Button size="small" danger icon={<CloseOutlined />} />
+              </Popconfirm>
+            </>
+          )}
+          <Tooltip title="Chỉnh sửa chi tiết">
             <Button
               type="text"
-              shape="circle"
               icon={<EditOutlined className="text-blue-600" />}
               onClick={() => {
                 setEditingUser(record);
@@ -279,22 +293,17 @@ export default function UserManagementPage() {
                 setPositions(dept?.positions || []);
                 form.setFieldsValue({
                   ...record,
-                  active: record.active ?? true, // Fallback về true nếu null
+                  active: record.active ?? true,
                 });
                 setIsModalOpen(true);
               }}
             />
           </Tooltip>
           <Popconfirm
-            title="Xác nhận xóa tài khoản?"
+            title="Xóa vĩnh viễn?"
             onConfirm={() => deleteUserAction(record.id).then(loadData)}
           >
-            <Button
-              type="text"
-              shape="circle"
-              danger
-              icon={<DeleteOutlined />}
-            />
+            <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
@@ -302,134 +311,143 @@ export default function UserManagementPage() {
   ];
 
   return (
-    <div className="p-8 bg-[#f8fafc] min-h-screen">
+    <div className="p-8 bg-[#f8fafc] min-h-screen text-slate-900">
       <div className="max-w-[1500px] mx-auto">
-        {/* --- TOP HEADER & STATS --- */}
-        <Row gutter={[24, 24]} className="mb-8 items-center">
-          <Col xs={24} md={12}>
-            <Space orientation="vertical" size={0}>
-              <Title level={2} className="m-0 tracking-tight text-slate-900">
-                Quản trị Nhân sự
-              </Title>
-              <Paragraph className="text-slate-500 m-0">
-                Hệ thống quản lý định danh và phân quyền nội bộ Toyota
-              </Paragraph>
-            </Space>
-          </Col>
-          <Col xs={24} md={12} className="text-right">
-            <Space size="middle">
-              <Button
-                icon={<ReloadOutlined />}
-                className="rounded-lg h-10 px-5 border-slate-200 hover:text-blue-600"
-                onClick={loadData}
-              >
-                Làm mới
-              </Button>
-              <Button
-                type="primary"
-                size="large"
-                danger
-                icon={<UserAddOutlined />}
-                onClick={() => {
-                  setEditingUser(null);
-                  form.resetFields();
-                  setIsModalOpen(true);
-                }}
-                className="h-10 px-6 rounded-lg shadow-lg shadow-red-200"
-              >
-                Thêm Nhân sự mới
-              </Button>
-            </Space>
-          </Col>
-        </Row>
+        <div className="flex justify-between items-center mb-8">
+          <Title level={2} className="!m-0 !font-black uppercase">
+            Quản trị nhân sự
+          </Title>
+          <Button
+            type="primary"
+            danger
+            icon={<UserAddOutlined />}
+            size="large"
+            className="rounded-xl h-12 font-bold"
+            onClick={() => {
+              setEditingUser(null);
+              form.resetFields();
+              setIsModalOpen(true);
+            }}
+          >
+            THÊM NHÂN SỰ
+          </Button>
+        </div>
 
-        <Row gutter={24} className="mb-8">
+        <Row gutter={[24, 24]} className="mb-8">
           <Col xs={24} sm={8}>
-            <Card className="rounded-2xl shadow-sm">
+            <Card className="rounded-2xl border-none shadow-sm bg-orange-500 text-white">
               <Statistic
-                title="Tổng nhân viên"
+                title={
+                  <span className="text-slate-400  uppercase text-xs font-bold">
+                    Chờ duyệt
+                  </span>
+                }
+                value={users.filter((u) => u.status === "PENDING").length}
+                valueStyle={{ color: "#2563eb", fontWeight: 900 }}
+                prefix={<ClockCircleOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card className="rounded-2xl shadow-sm border-l-4 border-blue-600">
+              <Statistic
+                title={
+                  <span className="text-slate-400 uppercase text-xs font-bold">
+                    Tổng nhân sự
+                  </span>
+                }
                 value={total}
-                prefix={<TeamOutlined className="text-blue-500 mr-2" />}
+                valueStyle={{ color: "#2563eb", fontWeight: 900 }}
+                prefix={<TeamOutlined />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Card className="rounded-2xl shadow-sm">
+            <Card className="rounded-2xl shadow-sm border-l-4 border-green-500">
               <Statistic
-                title="Đang hoạt động"
-                value={stats.active}
-                valueStyle={{ color: "#10b981" }}
-                prefix={<CheckCircleOutlined className="mr-2" />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Card className="rounded-2xl shadow-sm">
-              <Statistic
-                title="Quản trị viên"
-                value={stats.global}
-                style={{ color: "#f59e0b" }}
-                prefix={<SafetyCertificateOutlined className="mr-2" />}
+                title={
+                  <span className="text-slate-400 uppercase text-xs font-bold">
+                    Admin
+                  </span>
+                }
+                value={users.filter((u) => u.role === "ADMIN").length}
+                valueStyle={{ color: "#10b981", fontWeight: 900 }}
+                prefix={<SafetyCertificateOutlined />}
               />
             </Card>
           </Col>
         </Row>
 
-        {/* --- DATA TABLE CARD --- */}
         <Card
           bordered={false}
-          className="shadow-sm rounded-3xl overflow-hidden border border-slate-100"
+          className="shadow-xl rounded-3xl overflow-hidden border border-slate-100"
         >
-          <div className="p-6 bg-white flex flex-wrap items-center justify-between gap-4 border-b border-slate-50">
-            <div className="grid md:grid-cols-3 gap-3">
-              <Input
-                placeholder="Tìm nhân viên..."
-                prefix={<SearchOutlined className="text-slate-400" />}
-                className=" h-10 rounded-xl bg-slate-50 border-none focus:bg-white transition-all"
-                allowClear
-                onChange={(e) => setSearchText(e.target.value)}
-              />
-              <Select
-                placeholder="Chi nhánh"
-                className="w-[200px]! h-10"
-                allowClear
-                onChange={(val) =>
-                  setFilters((f) => ({ ...f, branchId: val, page: 1 }))
-                }
-                options={branches.map((b) => ({ label: b.name, value: b.id }))}
-              />
-              <Select
-                placeholder="Phòng ban"
-                className=" h-10"
-                allowClear
-                onChange={(val) =>
-                  setFilters((f) => ({ ...f, departmentId: val, page: 1 }))
-                }
-                options={departments.map((d) => ({
-                  label: d.name,
-                  value: d.id,
-                }))}
-              />
-            </div>
-            <Text className="text-slate-400 text-[13px]">
-              Hiển thị{" "}
-              <span className="text-slate-900 font-bold">{users.length}</span> /{" "}
-              {total} kết quả
-            </Text>
+          <Tabs
+            activeKey={filters.status}
+            onChange={(key) =>
+              setFilters((f) => ({ ...f, status: key, page: 1 }))
+            }
+            className="px-6 pt-2"
+            items={[
+              {
+                key: "ALL",
+                label: (
+                  <span className="px-4 font-bold uppercase text-[12px]">
+                    Tất cả
+                  </span>
+                ),
+              },
+              {
+                key: "PENDING",
+                label: (
+                  <Badge
+                    count={users.filter((u) => u.status === "PENDING").length}
+                    offset={[12, 0]}
+                  >
+                    <span className="px-4 font-bold uppercase text-[12px]">
+                      Yêu cầu mới
+                    </span>
+                  </Badge>
+                ),
+              },
+              {
+                key: "APPROVED",
+                label: (
+                  <span className="px-4 font-bold uppercase text-[12px]">
+                    Đã duyệt
+                  </span>
+                ),
+              },
+            ]}
+          />
+          <div className="p-6 bg-white flex gap-3 border-b border-slate-50">
+            <Input
+              placeholder="Tìm mã NV, tên..."
+              prefix={<SearchOutlined className="text-slate-400" />}
+              className="max-w-sm h-10 rounded-xl"
+              allowClear
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+            <Select
+              placeholder="Chi nhánh"
+              className="w-48 h-10"
+              allowClear
+              onChange={(v) =>
+                setFilters((f) => ({ ...f, branchId: v, page: 1 }))
+              }
+              options={branches.map((b) => ({ label: b.name, value: b.id }))}
+            />
           </div>
-
           <Table
             columns={columns}
             dataSource={users}
             rowKey="id"
             loading={loading}
-            className="user-table"
             scroll={{ x: 1200 }}
             pagination={{
               current: filters.page,
               pageSize: filters.limit,
               total: total,
-              showSizeChanger: true,
               className: "p-6",
             }}
             onChange={(p) =>
@@ -441,283 +459,242 @@ export default function UserManagementPage() {
             }
           />
         </Card>
+      </div>
 
-        {/* --- STYLED MODAL --- */}
-        <Modal
-          title={
-            <div className="flex items-center gap-3 p-4 border-b border-slate-50">
-              <div
-                className={`p-2 rounded-xl ${
-                  editingUser
-                    ? "bg-blue-50 text-blue-600"
-                    : "bg-red-50 text-red-600"
-                }`}
-              >
-                {editingUser ? <SettingOutlined /> : <UserAddOutlined />}
-              </div>
-              <div>
-                <Title level={4} className="m-0">
-                  {editingUser ? "Cập nhật tài khoản" : "Khởi tạo nhân sự"}
-                </Title>
-                <Text type="secondary" className="text-[12px]">
-                  Điền đầy đủ thông tin định danh hệ thống
-                </Text>
-              </div>
-            </div>
-          }
-          open={isModalOpen}
-          onOk={() => form.submit()}
-          onCancel={() => setIsModalOpen(false)}
-          width={900}
-          centered
-          closeIcon={null}
-          footer={[
-            <Button
-              key="back"
-              onClick={() => setIsModalOpen(false)}
-              className="rounded-lg h-10 px-6"
-            >
-              Hủy
-            </Button>,
-            <Button
-              key="submit"
-              type="primary"
-              danger={!editingUser}
-              onClick={() => form.submit()}
-              className="rounded-lg h-10 px-8 shadow-md"
-            >
-              {editingUser ? "Lưu thay đổi" : "Xác nhận tạo"}
-            </Button>,
-          ]}
-        >
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={onFinish}
-            className="p-6"
+      {/* --- MODAL CHỈNH SỬA CHI TIẾT (GIỮ NGUYÊN LOGIC CŨ CỦA BẠN) --- */}
+      <Modal
+        title={editingUser ? "CẬP NHẬT TÀI KHOẢN" : "KHỞI TẠO NHÂN SỰ"}
+        open={isModalOpen}
+        onOk={() => form.submit()}
+        onCancel={() => setIsModalOpen(false)}
+        width={900}
+        centered
+        closeIcon={null}
+        footer={[
+          <Button
+            key="back"
+            onClick={() => setIsModalOpen(false)}
+            className="rounded-lg h-10 px-6"
           >
-            <Row gutter={24}>
-              <Col span={8}>
-                <Form.Item
-                  name="username"
-                  label="Mã định danh (Username)"
-                  rules={[{ required: true }]}
-                >
-                  <Input
-                    disabled={!!editingUser}
-                    prefix={<IdcardOutlined />}
-                    className="h-10 rounded-lg"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={16}>
-                <Form.Item
-                  name="fullName"
-                  label="Họ và tên đầy đủ"
-                  rules={[{ required: true }]}
-                >
-                  <Input
-                    placeholder="Nguyễn Văn A"
-                    className="h-10 rounded-lg"
-                  />
-                </Form.Item>
-              </Col>
+            Hủy
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            danger={!editingUser}
+            onClick={() => form.submit()}
+            className="rounded-lg h-10 px-8 shadow-md"
+          >
+            {editingUser ? "Lưu thay đổi" : "Xác nhận tạo"}
+          </Button>,
+        ]}
+      >
+        <Form form={form} layout="vertical" onFinish={onFinish} className="p-6">
+          <Row gutter={24}>
+            <Col span={8}>
+              <Form.Item
+                name="username"
+                label="Mã định danh (Username)"
+                rules={[{ required: true }]}
+              >
+                <Input
+                  disabled={!!editingUser}
+                  prefix={<IdcardOutlined />}
+                  className="h-10 rounded-lg"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={16}>
+              <Form.Item
+                name="fullName"
+                label="Họ và tên đầy đủ"
+                rules={[{ required: true }]}
+              >
+                <Input placeholder="Nguyễn Văn A" className="h-10 rounded-lg" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="email"
+                label="Email công ty"
+                rules={[{ required: true, type: "email" }]}
+              >
+                <Input
+                  placeholder="name@toyota.com.vn"
+                  className="h-10 rounded-lg"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="phone" label="Số điện thoại cá nhân">
+                <Input placeholder="09xx..." className="h-10 rounded-lg" />
+              </Form.Item>
+            </Col>
 
-              <Col span={12}>
-                <Form.Item
-                  name="email"
-                  label="Email công ty"
-                  rules={[{ required: true, type: "email" }]}
-                >
-                  <Input
-                    placeholder="name@toyota.com.vn"
-                    className="h-10 rounded-lg"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="phone" label="Số điện thoại cá nhân">
-                  <Input placeholder="09xx..." className="h-10 rounded-lg" />
-                </Form.Item>
-              </Col>
+            <Col span={8}>
+              <Form.Item name="departmentId" label="Phòng ban">
+                <Select
+                  placeholder="Chọn đơn vị"
+                  className="h-10"
+                  onChange={handleDeptChange}
+                  options={departments.map((d) => ({
+                    label: d.name,
+                    value: d.id,
+                  }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="positionId" label="Chức vụ">
+                <Select
+                  placeholder="Chọn chức danh"
+                  className="h-10"
+                  options={positions.map((p) => ({
+                    label: p.name,
+                    value: p.id,
+                  }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="branchId" label="Chi nhánh làm việc">
+                <Select
+                  allowClear
+                  placeholder="Trụ sở chính"
+                  className="h-10"
+                  options={branches.map((b) => ({
+                    label: b.name,
+                    value: b.id,
+                  }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="isGlobalManager"
+                label="Quản trị tổng"
+                valuePropName="checked"
+              >
+                <Switch className="mt-2" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="active"
+                label="Hoạt động"
+                valuePropName="checked"
+              >
+                <Switch
+                  checkedChildren="ON"
+                  unCheckedChildren="OFF"
+                  className="mt-2"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={24} className="mt-4">
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                <Row gutter={24}>
+                  <Col span={6}>
+                    <Form.Item
+                      name="role"
+                      label="Phân quyền hệ thống"
+                      rules={[{ required: true }]}
+                    >
+                      <Select className="h-10">
+                        <Select.Option value="ADMIN">Admin</Select.Option>
+                        <Select.Option value="MANAGER">Quản lý</Select.Option>
+                        <Select.Option value="PURCHASE_STAFF">
+                          Thu mua
+                        </Select.Option>
+                        <Select.Option value="SALES_STAFF">
+                          Kinh doanh
+                        </Select.Option>
+                        <Select.Option value="REFERRER">
+                          Giới thiệu
+                        </Select.Option>
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                  <Col span={6}>
+                    <Form.Item name="status" label="Quy trình Duyệt">
+                      <Select
+                        className="h-10"
+                        options={[
+                          { label: "Chờ duyệt", value: "PENDING" },
+                          { label: "Đã duyệt", value: "APPROVED" },
+                          { label: "Từ chối", value: "REJECTED" },
+                          { label: "Khóa (Ban)", value: "BANNED" },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Col>
 
-              <Col span={8}>
-                <Form.Item
-                  name="departmentId"
-                  label="Phòng ban"
-                  // rules={[{ required: true }]}
-                >
-                  <Select
-                    placeholder="Chọn đơn vị"
-                    className="h-10"
-                    onChange={handleDeptChange}
-                  >
-                    {departments.map((d) => (
-                      <Select.Option key={d.id} value={d.id}>
-                        {d.name}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item
-                  name="positionId"
-                  label="Chức vụ"
-                  // rules={[{ required: true }]}
-                >
-                  <Select placeholder="Chọn chức danh" className="h-10">
-                    {positions.map((p) => (
-                      <Select.Option key={p.id} value={p.id}>
-                        {p.name}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="branchId" label="Chi nhánh làm việc">
-                  <Select
-                    allowClear
-                    placeholder="Trụ sở chính"
-                    className="h-10"
-                  >
-                    {branches.map((b) => (
-                      <Select.Option key={b.id} value={b.id}>
-                        {b.name}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
+                  <Col span={8}>
+                    <Form.Item name="password" label="Đổi mật khẩu">
+                      <Input.Password
+                        className="h-10 rounded-lg"
+                        placeholder="••••••••"
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </div>
+            </Col>
 
+            {["MANAGER", "PURCHASE_STAFF", "SALES_STAFF"].includes(
+              roleValue,
+            ) && (
               <Col span={24} className="mt-4">
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                  <Row gutter={24}>
-                    <Col span={6}>
-                      <Form.Item
-                        name="role"
-                        label="Phân quyền hệ thống"
-                        rules={[{ required: true }]}
-                      >
-                        <Select className="h-10">
-                          <Select.Option value="ADMIN">
-                            Quản trị hệ thống
-                          </Select.Option>
-                          <Select.Option value="MANAGER">Quản lý</Select.Option>
-                          <Select.Option value="PURCHASE_STAFF">
-                            Nhân viên thu mua
-                          </Select.Option>
-                          <Select.Option value="SALES_STAFF">
-                            Nhân viên bán hàng
-                          </Select.Option>
-                          <Select.Option value="REFERRER">
-                            Người giới thiệu
-                          </Select.Option>
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                    <Col span={6}>
-                      <Form.Item
-                        name="isGlobalManager"
-                        label="Quản trị toàn cầu"
-                        valuePropName="checked"
-                      >
-                        <Switch className="mt-2" />
-                      </Form.Item>
-                    </Col>
-                    <Col span={6}>
-                      <Form.Item
-                        name="active"
-                        label="Trạng thái hoạt động"
-                        valuePropName="checked"
-                        initialValue={true} // Mặc định là bật khi tạo mới
-                      >
-                        <Switch
-                          checkedChildren="Đang hoạt động"
-                          unCheckedChildren="Khóa"
-                          className="mt-2"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={6}>
-                      <Form.Item name="password" label="Mật khẩu truy cập">
-                        <Input.Password
-                          className="h-10 rounded-lg"
-                          placeholder="••••••••"
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
+                <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex gap-6 items-center">
+                  <div className="bg-blue-600 p-3 rounded-xl text-white shadow-md">
+                    <PhoneOutlined className="text-xl" />
+                  </div>
+                  <div className="flex-1">
+                    <Text strong className="text-blue-800 block mb-3">
+                      Cấu hình Tổng đài viên (VoIP)
+                    </Text>
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name="extension"
+                          label="Số nội bộ (Ext)"
+                          className="m-0"
+                        >
+                          <Input
+                            placeholder="101"
+                            className="h-10 rounded-lg"
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name="extensionPassword"
+                          label="Mật khẩu SIP"
+                          className="m-0"
+                        >
+                          <Input.Password className="h-10 rounded-lg" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </div>
                 </div>
               </Col>
-
-              {["MANAGER", "PURCHASE_STAFF", "SALES_STAFF"].includes(
-                roleValue,
-              ) && (
-                <Col span={24} className="mt-4">
-                  <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex gap-6 items-center">
-                    <div className="bg-blue-600 p-3 rounded-xl text-white shadow-md shadow-blue-200">
-                      <PhoneOutlined className="text-xl" />
-                    </div>
-                    <div className="flex-1">
-                      <Text strong className="text-blue-800 block mb-3">
-                        Cấu hình Tổng đài viên (VoIP)
-                      </Text>
-                      <Row gutter={16}>
-                        <Col span={12}>
-                          <Form.Item
-                            name="extension"
-                            label="Số nội bộ (Ext)"
-                            className="m-0"
-                          >
-                            <Input
-                              placeholder="101"
-                              className="h-10 rounded-lg"
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item
-                            name="extensionPassword"
-                            label="Mật khẩu SIP"
-                            className="m-0"
-                          >
-                            <Input.Password className="h-10 rounded-lg" />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                    </div>
-                  </div>
-                </Col>
-              )}
-            </Row>
-          </Form>
-        </Modal>
-
-        {/* --- CSS CUSTOM --- */}
-        <style jsx global>{`
-          .user-table .ant-table-thead > tr > th {
-            background: #fafafa;
-            color: #64748b;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #f1f5f9;
-          }
-          .user-table .ant-table-tbody > tr > td {
-            border-bottom: 1px solid #f8fafc;
-            padding: 16px 16px !important;
-          }
-          .user-table .ant-table-row:hover > td {
-            background-color: #f1f5f9 !important;
-          }
-          .ant-card {
-            transition: transform 0.2s ease-in-out;
-          }
-        `}</style>
-      </div>
+            )}
+          </Row>
+        </Form>
+      </Modal>
+      <style jsx global>{`
+        .ant-table-thead > tr > th {
+          background: #f8fafc !important;
+          font-weight: 700 !important;
+          font-size: 11px !important;
+          text-transform: uppercase !important;
+          color: #64748b !important;
+        }
+        .ant-card {
+          border-radius: 20px !important;
+        }
+      `}</style>
     </div>
   );
 }

@@ -62,14 +62,15 @@ model CarModel {
 // 3. TÀI KHOẢN NGƯỜI DÙNG
 // ==========================================
 model User {
-  id       String  @id @default(cuid())
-  username String  @unique
+  id       String     @id @default(cuid())
+  username String     @unique
   fullName String?
-  email    String  @unique
+  email    String     @unique
   password String
   phone    String?
-  role     Role    @default(REFERRER)
-  active   Boolean @default(true)
+  role     Role       @default(REFERRER)
+  active   Boolean    @default(true)
+  status   UserStatus @default(PENDING)
 
   branchId     String?
   branch       Branch?     @relation(fields: [branchId], references: [id])
@@ -87,6 +88,7 @@ model User {
   negotiatedCars Car[] @relation("PriceNegotiator")
   referrals      Car[] @relation("Referrer")
   managedCars    Car[] @relation("CarManager")
+  soldCars       Car[] @relation("CarSeller") // THÊM DÒNG NÀY ĐỂ LIÊN KẾT VỚI XE ĐÃ BÁN
 
   // --- QUAN HỆ KHÁCH HÀNG ---
   createdReferrals Customer[]      @relation("CreatedReferrals")
@@ -94,11 +96,12 @@ model User {
   inspectedLeads   Customer[]      @relation("Inspector")
   leadActivities   LeadActivity[]
   salesSchedules   SalesSchedule[]
+  tasks            Task[]          @relation("UserTasks")
 
   lastAssignedAt DateTime? @default(now())
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  tasks          Task[]    @relation("UserTasks") // Thêm tên relation vào đây
+  cars           Car[]
 
   @@index([branchId])
 }
@@ -286,6 +289,15 @@ model Car {
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
+  // --- QUAN HỆ BÁN HÀNG (QUAN TRỌNG NHẤT) ---
+  soldAt   DateTime? // Ngày giờ chính thức xuất kho bán
+  soldById String? // ID nhân viên chốt sale
+  soldBy   User?     @relation("CarSeller", fields: [soldById], references: [id])
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  @@index([soldById]) // Thêm index để báo cáo chạy nhanh hơn
   @@index([vin])
   @@index([stockCode])
 }
@@ -375,6 +387,13 @@ enum TaskStatus {
   COMPLETED
   CANCELLED
   EXPIRED // Quá hạn mà chưa làm
+}
+
+enum UserStatus {
+  PENDING // Đang chờ duyệt
+  APPROVED // Đã duyệt (Đang hoạt động)
+  REJECTED // Đã từ chối
+  BANNED // Đã khóa
 }
 
 enum Role {

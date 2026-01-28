@@ -1136,11 +1136,15 @@ export async function approveDealAction(
             data: { status: LeadStatus.DEAL_DONE },
           });
 
-          // 2. Chốt xe
+          // 2. Chốt xe & Gán người bán
           if (stockCode) {
             const car = await tx.car.update({
               where: { stockCode },
-              data: { status: "SOLD", purchasedAt: new Date() },
+              data: {
+                status: "SOLD",
+                soldAt: new Date(), // Ngày chốt bán thực tế
+                soldById: activity.createdById, // QUAN TRỌNG: Gán nhân viên bán xe ở đây
+              },
             });
 
             // 3. Tạo lịch sử sở hữu xe
@@ -1151,29 +1155,27 @@ export async function approveDealAction(
                 type: "SALE",
                 price: activity.customer?.leadCar?.finalPrice || 0,
                 date: new Date(),
-                note: `Quản lý ${auth.fullName} phê duyệt chốt bán. Ghi chú: ${adminNote}`,
+                note: `Quản lý ${auth.fullName} phê duyệt chốt bán cho Sales: ${activity.createdById}. Ghi chú: ${adminNote}`,
               },
             });
 
-            // =========================================================
-            // 4. TỰ ĐỘNG TẠO TASK NHẮC BẢO DƯỠNG (KPI SAU 1 THÁNG)
-            // =========================================================
+            // 4. TỰ ĐỘNG TẠO TASK NHẮC BẢO DƯỠNG
             const now = new Date();
             const maintenanceDate = new Date();
-            maintenanceDate.setMonth(now.getMonth() + 1); // Hẹn 1 tháng sau
+            maintenanceDate.setMonth(now.getMonth() + 1);
 
             const deadlineDate = new Date(maintenanceDate);
-            deadlineDate.setDate(deadlineDate.getDate() + 3); // Cho phép làm trễ tối đa 3 ngày
+            deadlineDate.setDate(deadlineDate.getDate() + 3);
 
             await tx.task.create({
               data: {
                 title: "NHẮC BẢO DƯỠNG ĐỊNH KỲ (1 THÁNG)",
-                content: `Nhiệm vụ: Liên hệ khách hàng ${activity.customer?.fullName} để nhắc lịch bảo dưỡng định kỳ cho xe ${car.modelName} (${car.stockCode}). Đây là quy định bắt buộc tính KPI.`,
-                scheduledAt: maintenanceDate, // Ngày bắt đầu nhắc
-                deadlineAt: deadlineDate, // Hạn chót phải hoàn thành
+                content: `Nhiệm vụ: Liên hệ khách hàng ${activity.customer?.fullName} để nhắc lịch bảo dưỡng cho xe ${car.modelName}.`,
+                scheduledAt: maintenanceDate,
+                deadlineAt: deadlineDate,
                 status: "PENDING",
                 customerId: customerId,
-                assigneeId: activity.createdById, // Giao cho chính nhân viên đã gửi yêu cầu chốt đơn
+                assigneeId: activity.createdById,
               },
             });
           }
