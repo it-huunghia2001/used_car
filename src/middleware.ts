@@ -14,6 +14,7 @@ export async function middleware(req: NextRequest) {
   // ✅ Public routes
   if (
     pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
@@ -57,5 +58,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next|api|login|favicon|robots|manifest|storage).*)"],
+  matcher: ["/((?!_next|api|register|favicon|robots|manifest|storage).*)"],
 };
