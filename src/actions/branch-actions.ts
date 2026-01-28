@@ -70,3 +70,22 @@ export async function deleteBranchAction(id: string) {
     throw new Error("Không thể xóa chi nhánh đang có xe hoặc nhân sự.");
   }
 }
+
+// ✅ API MỚI: Chỉ dùng cho trang Đăng ký (Public)
+export async function getBranchesForRegisterAction() {
+  try {
+    // Không check auth ở đây vì người dùng chưa có tài khoản
+    return await db.branch.findMany({
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        // Không trả về address nếu không cần thiết để tăng bảo mật
+      },
+      orderBy: { name: "asc" },
+    });
+  } catch (error) {
+    console.error("Public Fetch Branches Error:", error);
+    return [];
+  }
+}

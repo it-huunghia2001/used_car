@@ -14,12 +14,12 @@ export async function middleware(req: NextRequest) {
   // ✅ Public routes
   if (
     pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/robots") ||
     pathname.startsWith("/manifest") ||
+    pathname.startsWith("/register") ||
     pathname.startsWith("/storage")
   ) {
     return NextResponse.next();
@@ -58,5 +58,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next|api|register|favicon|robots|manifest|storage).*)"],
+  matcher: [
+    "/((?!_next|api|login|register|favicon|robots|manifest|storage).*)",
+  ],
 };

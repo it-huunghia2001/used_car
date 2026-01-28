@@ -14,6 +14,7 @@ import {
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { getBranchesForRegisterAction } from "@/actions/branch-actions";
 
 const { Title, Text } = Typography;
 
@@ -35,8 +36,7 @@ export default function RegisterPage() {
 
     // Load chi nhánh
     const fetchBranches = async () => {
-      const { getBranchesAction } = await import("@/actions/branch-actions");
-      const res = await getBranchesAction();
+      const res = await getBranchesForRegisterAction();
       setBranches(res);
     };
     fetchBranches();
