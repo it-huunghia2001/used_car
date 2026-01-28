@@ -251,7 +251,7 @@ export default function ReportingDashboard({
               <Statistic
                 title={<span className="text-white/50">LỊCH HẸN TRỄ</span>}
                 value={stats.lateTasks}
-                valueStyle={{ color: "white", fontWeight: 900 }}
+                valueStyle={{ fontWeight: 900, color: "#f43f5e" }}
                 prefix={<ClockCircleOutlined className="text-amber-500" />}
               />
               <Badge

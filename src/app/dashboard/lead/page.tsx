@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -210,7 +211,7 @@ export default function LeadsPage() {
               <HistoryOutlined /> NHẬT KÝ CHĂM SÓC GẦN NHẤT
             </Space>
           </Divider>
-          <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2">
+          <div className="max-h-50 overflow-y-auto space-y-2 pr-2">
             {record.activities?.length > 0 ? (
               record.activities.map((act: any) => (
                 <div
@@ -228,7 +229,7 @@ export default function LeadsPage() {
                       {act.status}
                     </Tag>
                   </div>
-                  <Paragraph className="!mb-1 italic">{act.note}</Paragraph>
+                  <Paragraph className="mb-1! italic">{act.note}</Paragraph>
                   <Text type="secondary" className="text-[11px]">
                     Người thực hiện: {act.user?.fullName}
                   </Text>
@@ -328,14 +329,14 @@ export default function LeadsPage() {
 
   return (
     <div className="p-8 bg-[#f4f7fe] min-h-screen">
-      <div className="max-w-[1600px] mx-auto space-y-6">
+      <div className="max-w-400 mx-auto space-y-6">
         {/* TIÊU ĐỀ & SEARCH BOX */}
-        <Card className="rounded-[1.5rem] border-none shadow-sm overflow-hidden">
+        <Card className="rounded-3xl border-none shadow-sm overflow-hidden">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} lg={8}>
               <Title
                 level={3}
-                className="!m-0 uppercase font-black tracking-tight"
+                className="m-0! uppercase font-black tracking-tight"
               >
                 Hệ thống quản lý Leads
               </Title>
@@ -384,7 +385,7 @@ export default function LeadsPage() {
         </Card>
 
         {/* BẢNG DỮ LIỆU */}
-        <Card className="rounded-[1.5rem] border-none shadow-sm overflow-hidden">
+        <Card className="rounded-3xl border-none shadow-sm overflow-hidden">
           <Table
             columns={columns}
             dataSource={data}
