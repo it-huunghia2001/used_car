@@ -178,7 +178,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
     },
 
     // --- NHÓM 7: DANH MỤC HỆ THỐNG (ADMIN SETTINGS) ---
-    (role === "ADMIN" || (role === "MANAGER" && isGobal)) && {
+    (role === "ADMIN" || role === "MANAGER") && {
       key: "admin-settings",
       icon: <AppstoreAddOutlined />,
       label: "Danh mục hệ thống",
@@ -187,34 +187,46 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
           key: "/dashboard/schedules",
           label: <Link href="/dashboard/schedules">Lịch Trực</Link>,
         },
-        {
-          key: "/dashboard/settings/car-setup",
-          label: <Link href="/dashboard/settings/car-setup">Setup mẫu xe</Link>,
-        },
-        {
-          key: "/dashboard/settings/reasons",
-          label: <Link href="/dashboard/settings/reasons">Setup lý do</Link>,
-        },
-        {
-          key: "/dashboard/settings/lead",
-          label: (
-            <Link href="/dashboard/settings/lead">Trạng thái khách hàng</Link>
-          ),
-        },
-        {
-          key: "/dashboard/settings/departments",
-          label: (
-            <Link href="/dashboard/settings/departments">
-              Phòng ban & Chức vụ
-            </Link>
-          ),
-        },
-        {
-          key: "/dashboard/settings/branches",
-          label: (
-            <Link href="/dashboard/settings/branches">Chi nhánh Toyota</Link>
-          ),
-        },
+        role === "ADMIN" || (role === "MANAGER" && isGobal)
+          ? [
+              {
+                key: "/dashboard/settings/car-setup",
+                label: (
+                  <Link href="/dashboard/settings/car-setup">Setup mẫu xe</Link>
+                ),
+              },
+              {
+                key: "/dashboard/settings/reasons",
+                label: (
+                  <Link href="/dashboard/settings/reasons">Setup lý do</Link>
+                ),
+              },
+              {
+                key: "/dashboard/settings/lead",
+                label: (
+                  <Link href="/dashboard/settings/lead">
+                    Trạng thái khách hàng
+                  </Link>
+                ),
+              },
+              {
+                key: "/dashboard/settings/departments",
+                label: (
+                  <Link href="/dashboard/settings/departments">
+                    Phòng ban & Chức vụ
+                  </Link>
+                ),
+              },
+              {
+                key: "/dashboard/settings/branches",
+                label: (
+                  <Link href="/dashboard/settings/branches">
+                    Chi nhánh Toyota
+                  </Link>
+                ),
+              },
+            ]
+          : null,
       ],
     },
 

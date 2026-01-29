@@ -8,11 +8,7 @@ import {
   staffAssignmentEmailTemplate,
 } from "@/lib/mail-templates";
 import { sendMail } from "@/lib/mail-service";
-import {
-  LeadStatus,
-  TaskStatus,
-  UrgencyType,
-} from "@prisma/client";
+import { LeadStatus, TaskStatus, UrgencyType } from "@prisma/client";
 import { getCurrentUser } from "@/lib/session-server";
 import dayjs from "@/lib/dayjs";
 
@@ -466,26 +462,52 @@ export async function assignCustomerAction(
  * 5. LẤY DANH SÁCH (Bổ sung các trường thời gian mới)
  */
 export async function getCustomersAction() {
-  return await db.customer.findMany({
-    include: {
-      carModel: { select: { name: true } },
-      referrer: {
-        select: {
-          fullName: true,
-          username: true,
-          branch: { select: { name: true } },
-        },
-      },
-      assignedTo: { select: { fullName: true, id: true } },
-      activities: {
-        orderBy: { createdAt: "desc" },
-        include: { user: { select: { fullName: true } } },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-}
+  try {
+    // 1. Lấy thông tin người dùng hiện tại
+    const currentUser = await getCurrentUser();
+    if (!currentUser) throw new Error("Unauthorized");
 
+    // 2. Xác định phạm vi quyền hạn
+    const isGlobalPower =
+      currentUser.role === "ADMIN" || currentUser.isGlobalManager;
+
+    // 3. Xây dựng điều kiện lọc (where)
+    const where: any = {};
+
+    // Nếu không có quyền Global, chỉ lấy khách hàng thuộc chi nhánh của người quản lý
+    if (!isGlobalPower) {
+      where.branchId = currentUser.branchId;
+    }
+
+    const customers = await db.customer.findMany({
+      where, // Áp dụng bộ lọc chi nhánh
+      include: {
+        carModel: { select: { name: true } },
+        referrer: {
+          select: {
+            fullName: true,
+            username: true,
+            branch: { select: { name: true } },
+          },
+        },
+        assignedTo: { select: { fullName: true, id: true } },
+        activities: {
+          orderBy: { createdAt: "desc" },
+          include: { user: { select: { fullName: true } } },
+        },
+        // Đảm bảo lấy thông tin chi nhánh của khách hàng
+        branch: { select: { name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Trả về dữ liệu sạch
+    return JSON.parse(JSON.stringify(customers));
+  } catch (error: any) {
+    console.error("Lỗi getCustomersAction:", error);
+    return [];
+  }
+}
 export async function getMyReferralsAction() {
   const auth = await getCurrentUser();
   if (!auth) throw new Error("Unauthorized");

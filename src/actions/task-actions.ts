@@ -458,28 +458,49 @@ export async function processLeadStatusUpdate(
   return { success: true };
 }
 
-// 4. Lấy danh sách chờ duyệt (Giữ nguyên)
 export async function getPendingApprovalsAction() {
   try {
+    // 1. Lấy thông tin người dùng hiện tại
+    const currentUser = await getCurrentUser();
+    if (!currentUser) throw new Error("Unauthorized");
+
+    // 2. Xác định phạm vi quyền hạn
+    const isGlobalPower =
+      currentUser.role === "ADMIN" || currentUser.isGlobalManager;
+
+    // 3. Xây dựng điều kiện lọc
+    const where: any = {
+      status: { in: ["PENDING_DEAL_APPROVAL", "PENDING_LOSE_APPROVAL"] },
+    };
+
+    // Nếu không có quyền Global, chỉ lấy yêu cầu từ nhân viên trong cùng chi nhánh
+    if (!isGlobalPower) {
+      where.user = {
+        branchId: currentUser.branchId,
+      };
+    }
+
     const approvals = await db.leadActivity.findMany({
-      where: {
-        status: { in: ["PENDING_DEAL_APPROVAL", "PENDING_LOSE_APPROVAL"] },
-      },
+      where,
       include: {
         customer: {
           include: {
-            leadCar: true, // LẤY THÔNG TIN XE LIÊN KẾT TẠI ĐÂY
-            carModel: true, // Lấy tên Model để hiển thị cho đẹp
+            leadCar: true,
+            carModel: true,
           },
         },
-        user: { select: { fullName: true } },
-        reason: true, // Lấy nội dung lý do (cho yêu cầu LOSE)
+        user: {
+          select: {
+            fullName: true,
+            branchId: true, // Lấy để kiểm tra nếu cần
+          },
+        },
+        reason: true,
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // QUAN TRỌNG: Chuyển đổi Decimal/Date sang chuỗi JSON thuần
-    // để tránh lỗi "Only plain objects can be passed to Client Components"
+    // 4. Chuyển đổi Plain Object an toàn
     return JSON.parse(JSON.stringify(approvals));
   } catch (error) {
     console.error("Lỗi getPendingApprovalsAction:", error);

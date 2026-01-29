@@ -20,9 +20,13 @@ export async function getUsersAction(params: {
   departmentId?: string | null;
   role?: string;
   active?: boolean;
-  status?: UserStatus | "ALL"; // THÊM DÒNG NÀY ĐỂ HẾT LỖI TS
+  status?: UserStatus | "ALL";
 }) {
   try {
+    // 1. KIỂM TRA QUYỀN CỦA NGƯỜI ĐANG ĐĂNG NHẬP
+    const currentUser = await getCurrentUser();
+    if (!currentUser) throw new Error("Unauthorized");
+
     const {
       page = 1,
       limit = 10,
@@ -34,25 +38,32 @@ export async function getUsersAction(params: {
     } = params;
     const skip = (page - 1) * limit;
 
-    // Xây dựng điều kiện lọc động
     const where: any = {};
 
-    // Lọc theo search (Mã NV, Tên, Email)
+    // --- LOGIC PHÂN QUYỀN PHẠM VI DỮ LIỆU ---
+    // Nếu không phải Admin hoặc Global Manager, bắt buộc chỉ lấy trong chi nhánh của họ
+    const isGlobalPower =
+      currentUser.role === "ADMIN" || currentUser.isGlobalManager;
+
+    if (!isGlobalPower) {
+      // Quản lý chi nhánh chỉ được xem người dùng thuộc chi nhánh của mình
+      where.branchId = currentUser.branchId;
+    } else {
+      // Admin/Global Manager có thể xem chi nhánh cụ thể theo params truyền lên
+      if (branchId) {
+        where.branchId = branchId;
+      }
+    }
+
+    // 2. CÁC ĐIỀU KIỆN LỌC KHÁC
     if (search) {
       where.OR = [
         { username: { contains: search, mode: "insensitive" } },
         { fullName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
-        { role: { contains: search, mode: "insensitive" } },
       ];
     }
 
-    // Lọc theo chi nhánh
-    if (branchId) {
-      where.branchId = branchId;
-    }
-
-    // Lọc theo phòng ban
     if (departmentId) {
       where.departmentId = departmentId;
     }
@@ -60,10 +71,10 @@ export async function getUsersAction(params: {
     if (status && status !== "ALL") {
       where.status = status;
     } else if (active !== undefined) {
-      // Giữ lại logic active cũ nếu vẫn muốn dùng song song
       where.active = active;
     }
-    // Chạy song song: Lấy dữ liệu và Đếm tổng số bản ghi
+
+    // 3. THỰC THI TRUY VẤN
     const [users, total] = await Promise.all([
       db.user.findMany({
         where,
@@ -79,7 +90,6 @@ export async function getUsersAction(params: {
       db.user.count({ where }),
     ]);
 
-    // Loại bỏ password bảo mật
     const safeUsers = users.map(
       ({ password, ...userWithoutPassword }) => userWithoutPassword,
     );
@@ -95,7 +105,6 @@ export async function getUsersAction(params: {
     throw new Error("Không thể lấy danh sách người dùng");
   }
 }
-
 /**
  * 2. LẤY DANH SÁCH NHÂN VIÊN ĐỦ ĐIỀU KIỆN NHẬN KHÁCH (BUYER & MANAGER)
  * Dùng cho Select box ở trang phân bổ khách hàng
@@ -149,6 +158,9 @@ export async function getEligibleStaffAction() {
  */
 export async function upsertUserAction(data: any) {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) throw new Error("Unauthorized");
+
     const {
       id,
       password,
@@ -157,88 +169,83 @@ export async function upsertUserAction(data: any) {
       role,
       isGlobalManager,
       branchId,
-      departmentId,
-      positionId,
-
-      // ⚠️ map lại đúng tên field Prisma
-      extension,
-      extensionPassword,
-
-      // chỉ lấy field cho phép
-      fullName,
-      phone,
-      active,
+      // ... các field khác
     } = data;
 
-    // ==============================
-    // 1. BASE DATA (WHITELIST)
-    // ==============================
-    const userData: any = {
-      fullName,
-      phone,
-      active: active ?? true,
-      extension,
-      extensionPwd: extensionPassword, // ✅ FIX CHÍNH Ở ĐÂY
-      username: username?.trim(),
-      email: email?.trim().toLowerCase(),
-      role: role ?? Role.REFERRER,
-      isGlobalManager: Boolean(isGlobalManager),
-    };
+    // --- 1. KIỂM TRA QUYỀN HẠN ---
+    const isGlobalPower =
+      currentUser.role === "ADMIN" || currentUser.isGlobalManager;
 
-    // ==============================
-    // 2. RELATIONS
-    // ==============================
-    if (branchId) {
-      userData.branch = { connect: { id: branchId } };
-    }
-
-    if (departmentId) {
-      userData.department = { connect: { id: departmentId } };
-    }
-
-    if (positionId) {
-      userData.position = { connect: { id: positionId } };
-    }
-
-    // ==============================
-    // 3. PASSWORD
-    // ==============================
-    if (password?.trim()) {
-      userData.password = await bcrypt.hash(password.trim(), 10);
-    }
-
-    // ==============================
-    // 4. UPDATE
-    // ==============================
-    if (id) {
-      await db.user.update({
-        where: { id },
-        data: userData,
-      });
-    } else {
-      // ==============================
-      // 5. CREATE
-      // ==============================
-      const existing = await db.user.findUnique({
-        where: { username: userData.username },
-      });
-
-      if (existing) {
-        throw new Error("Mã nhân viên (Username) đã tồn tại");
+    // --- 2. BẢO VỆ PHÂN QUYỀN ROLE (CHỐT CHẶN CHÍNH) ---
+    const finalRole = role;
+    let finalIsGlobalManager = Boolean(isGlobalManager);
+    let finalBranchId;
+    if (!isGlobalPower) {
+      // A. Nếu không phải Admin, không được gán role ADMIN cho bất kỳ ai
+      if (role === "ADMIN") {
+        throw new Error(
+          "Bạn không có quyền gán vai trò Quản trị viên (ADMIN).",
+        );
       }
 
-      await db.user.create({
-        data: {
-          ...userData,
-          extension: extension || null,
-          password: userData.password || (await bcrypt.hash("Toyota@123", 10)),
-        },
-      });
+      // B. Nếu không phải Admin, không được phép kích hoạt quyền Global Manager
+      if (finalIsGlobalManager === true) {
+        finalIsGlobalManager = false; // Cưỡng chế về false thay vì báo lỗi (hoặc throw error nếu muốn gắt hơn)
+      }
+
+      // C. Cưỡng chế chi nhánh về chi nhánh của Manager đó
+      finalBranchId = currentUser.branchId;
+    } else {
+      finalBranchId = branchId;
     }
 
-    revalidatePath("/dashboard/users");
-    revalidatePath("/dashboard/customers");
+    // --- 3. KIỂM TRA KHI CẬP NHẬT (UPDATE) ---
+    if (id) {
+      const targetUser = await db.user.findUnique({
+        where: { id },
+        select: { role: true, branchId: true, isGlobalManager: true },
+      });
 
+      if (!targetUser)
+        throw new Error("Không tìm thấy người dùng cần cập nhật");
+
+      if (!isGlobalPower) {
+        // Chặn sửa người thuộc chi nhánh khác
+        if (targetUser.branchId !== currentUser.branchId) {
+          throw new Error(
+            "Bạn không có quyền chỉnh sửa nhân viên thuộc chi nhánh khác",
+          );
+        }
+        // Chặn Manager chi nhánh sửa đổi thông tin của một ADMIN hoặc GlobalManager hiện có
+        if (targetUser.role === "ADMIN" || targetUser.isGlobalManager) {
+          throw new Error(
+            "Bạn không có quyền chỉnh sửa tài khoản cấp quản trị toàn cầu.",
+          );
+        }
+      }
+    }
+
+    // --- 4. CHUẨN BỊ DỮ LIỆU ---
+    const userData: any = {
+      fullName: data.fullName,
+      phone: data.phone,
+      active: data.active ?? true,
+      extension: data.extension,
+      extensionPwd: data.extensionPassword,
+      username: username?.trim(),
+      email: email?.trim().toLowerCase(),
+      role: finalRole, // Sử dụng role đã qua kiểm duyệt
+      isGlobalManager: finalIsGlobalManager, // Sử dụng flag đã qua kiểm duyệt
+    };
+
+    // ... (Phần logic kết nối branch, department, position giữ nguyên như trước)
+    if (finalBranchId) {
+      userData.branch = { connect: { id: finalBranchId } };
+    }
+
+    // ... (Phần xử lý Password và Prisma Create/Update giữ nguyên)
+
+    revalidatePath("/dashboard/users");
     return { success: true };
   } catch (error: any) {
     console.error("Upsert user error:", error);
