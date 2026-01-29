@@ -595,7 +595,7 @@ export async function requestSaleApproval(
  * - Tạo bản ghi Activity để Admin có dữ liệu phê duyệt
  */
 export async function requestLoseApproval(
-  taskId: string,
+  taskId: string | undefined, // Chuyển thành optional
   customerId: string,
   reasonId: string,
   note: string,
@@ -604,7 +604,6 @@ export async function requestLoseApproval(
   const auth = await getCurrentUser();
   if (!auth) throw new Error("Bạn cần đăng nhập để thực hiện thao tác này");
 
-  // --- KIỂM TR LÝ DO ---
   if (!reasonId) return { success: false, error: "Vui lòng chọn lý do." };
 
   const existingReason = await db.leadReason.findUnique({
@@ -614,41 +613,45 @@ export async function requestLoseApproval(
 
   try {
     const result = await db.$transaction(async (tx) => {
-      // 1. Lấy thông tin Task để tính toán KPI trước khi đóng
-      const currentTask = await tx.task.findUnique({
-        where: { id: taskId },
-        select: { deadlineAt: true },
-      });
-
-      if (!currentTask) throw new Error("Không tìm thấy nhiệm vụ yêu cầu.");
-
+      let isLate = false;
+      let lateMinutes = 0;
       const now = new Date();
-      const deadline = new Date(currentTask.deadlineAt);
 
-      // Tính toán độ trễ
-      const isLate = now > deadline;
-      const lateMinutes = isLate
-        ? Math.floor((now.getTime() - deadline.getTime()) / (1000 * 60))
-        : 0;
+      // 1. CHỈ XỬ LÝ TASK NẾU CÓ TASK ID
+      // Kiểm tra thêm điều kiện taskId không trùng với customerId (tránh truyền nhầm ID)
+      if (taskId && taskId !== customerId) {
+        const currentTask = await tx.task.findUnique({
+          where: { id: taskId },
+          select: { deadlineAt: true, status: true },
+        });
 
-      // 2. Cập nhật trạng thái khách hàng
+        if (currentTask && currentTask.status === "PENDING") {
+          const deadline = new Date(currentTask.deadlineAt);
+          isLate = now > deadline;
+          lateMinutes = isLate
+            ? Math.floor((now.getTime() - deadline.getTime()) / (1000 * 60))
+            : 0;
+
+          // Đóng Task cũ
+          await tx.task.update({
+            where: { id: taskId },
+            data: {
+              status: TaskStatus.CANCELLED,
+              completedAt: now,
+              isLate: isLate,
+              lateMinutes: lateMinutes,
+            },
+          });
+        }
+      }
+
+      // 2. Cập nhật trạng thái khách hàng (Luôn thực hiện)
       const customer = await tx.customer.update({
         where: { id: customerId },
         data: { status: LeadStatus.PENDING_LOSE_APPROVAL },
       });
 
-      // 3. Đóng Task và CẬP NHẬT KPI
-      await tx.task.update({
-        where: { id: taskId },
-        data: {
-          status: TaskStatus.CANCELLED,
-          completedAt: now,
-          isLate: isLate,
-          lateMinutes: lateMinutes,
-        },
-      });
-
-      // 4. Tạo lịch sử hoạt động
+      // 3. Tạo lịch sử hoạt động (Activity)
       const activity = await tx.leadActivity.create({
         data: {
           customerId: customerId,
@@ -656,7 +659,6 @@ export async function requestLoseApproval(
           reasonId: reasonId,
           note: `[YÊU CẦU DUYỆT ĐÓNG - MỤC TIÊU: ${targetStatus}]: ${note}`,
           createdById: auth.id,
-          // Lưu vết KPI vào activity để quản lý dễ theo dõi khi duyệt
           isLate: isLate,
           lateMinutes: lateMinutes,
         },
