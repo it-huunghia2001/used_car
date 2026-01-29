@@ -615,21 +615,37 @@ export async function createSelfAssignedLeadAction(formData: any) {
 export async function getFrozenLeadsAction() {
   const auth = await getCurrentUser();
   if (!auth) throw new Error("Unauthorized");
+
   try {
+    // 1. Xác định phạm vi quyền hạn
+    const isGlobalPower = auth.role === "ADMIN" || auth.isGlobalManager;
+
+    // 2. Xây dựng điều kiện lọc
+    const where: any = { status: "FROZEN" };
+
+    // Nếu không phải quyền Global, chỉ lấy khách thuộc chi nhánh của mình
+    if (!isGlobalPower) {
+      where.branchId = auth.branchId;
+    }
+
     const leads = await db.customer.findMany({
-      where: { status: "FROZEN" },
+      where, // Áp dụng bộ lọc
       include: {
         assignedTo: { select: { id: true, fullName: true } },
+        // Lấy thông tin chi nhánh để hiển thị trên UI cho Admin
+        branch: { select: { name: true } },
         // Lấy activity cuối cùng để biết lý do tại sao hồ sơ này bị đóng băng
         activities: {
           orderBy: { createdAt: "desc" },
           take: 1,
-          include: { reason: true }, // Join để lấy content lý do
+          include: { reason: true },
         },
       },
       orderBy: { updatedAt: "desc" },
     });
-    return leads;
+
+    // 3. Serialize dữ liệu an toàn
+    return JSON.parse(JSON.stringify(leads));
   } catch (error) {
     console.error("Lỗi lấy danh sách đóng băng:", error);
     return [];

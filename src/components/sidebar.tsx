@@ -324,7 +324,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         breakpoint="lg"
         collapsedWidth={80}
         theme="dark"
-        className="hidden lg:block  h-screen sticky top-0 left-0 shadow-2xl z-40"
+        className="hidden lg:block  h-[calc(100vh-200px)] sticky top-0 left-0 shadow-2xl z-40"
         style={{ background: "#001529" }}
       >
         {SidebarContent}
