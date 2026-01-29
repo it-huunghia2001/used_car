@@ -145,12 +145,18 @@ export default function FormSellCar({
             <Col xs={24} md={12}>
               <Form.Item
                 name="carModelId"
-                label="Dòng xe"
-                rules={[{ required: true }]}
+                label="Dòng xe khách tìm"
+                rules={[{ required: true, message: "Vui lòng chọn dòng xe!" }]}
               >
                 <Select
                   showSearch
-                  placeholder="Chọn model"
+                  placeholder="Gõ để tìm dòng xe (VD: Vios, Accent...)"
+                  optionFilterProp="label" // QUAN TRỌNG: Cho phép search theo label (m.name)
+                  filterOption={(input, option) =>
+                    String(option?.label ?? "")
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  } // Thêm hàm này để search tiếng Việt không phân biệt hoa thường
                   options={carModels.map((m: any) => ({
                     label: m.name,
                     value: m.id,
