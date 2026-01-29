@@ -249,15 +249,15 @@ export default function ReportingDashboard({
           <Col xs={24} sm={12} lg={6}>
             <Card className="rounded-[2rem] border-none shadow-sm bg-slate-900 text-white border-l-8 border-amber-500">
               <Statistic
-                title={<span className="text-white/50">LỊCH HẸN TRỄ</span>}
+                title="LỊCH HẸN TRỄ"
                 value={stats.lateTasks}
                 valueStyle={{ fontWeight: 900, color: "#f43f5e" }}
-                prefix={<ClockCircleOutlined className="text-amber-500" />}
+                prefix={<ClockCircleOutlined className="text-[f43f5e]" />}
               />
               <Badge
                 status="error"
                 text={
-                  <span className="text-amber-500 text-[10px] font-bold uppercase">
+                  <span className="text-[#f43f5e] text-[10px] font-bold uppercase">
                     Cần rà soát
                   </span>
                 }
@@ -408,7 +408,7 @@ export default function ReportingDashboard({
             title={
               <Space>
                 <PieChartOutlined className="text-blue-600" />
-                <span>TỒN KHO THỰC TẾ (REAL-TIME)</span>
+                <span>TỒN KHO THỰC TẾ</span>
               </Space>
             }
             className="rounded-[2.5rem] shadow-sm border-none"
@@ -540,18 +540,18 @@ export default function ReportingDashboard({
               {
                 title: "RANK",
                 render: (r) => {
-                  const count =
-                    r.role === "PURCHASE_STAFF"
-                      ? r._count?.purchases || 0
-                      : r._count?.soldCars || 0;
+                  const lates =
+                    (r._count?.leadActivities || 0) + (r._count?.tasks || 0);
+                  const score = Math.max(100 - lates * 15, 0);
+
                   return (
                     <div className="flex items-center gap-2">
                       <Rate
                         disabled
-                        defaultValue={count >= 3 ? 5 : 3}
+                        defaultValue={Number(score) / 2 / 10}
                         style={{ fontSize: 10 }}
                       />
-                      {count >= 5 && (
+                      {score >= 100 && (
                         <Tag
                           color="gold"
                           icon={<CheckCircleFilled />}

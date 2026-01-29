@@ -9,8 +9,6 @@ const APP_NAME = "used-car";
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  console.log("🔥 Middleware:", pathname);
-
   // ✅ Public routes
   if (
     pathname.startsWith("/login") ||
@@ -27,9 +25,6 @@ export async function middleware(req: NextRequest) {
 
   const token = req.cookies.get("used-car")?.value;
   const justLoggedIn = req.cookies.get("just-logged-in")?.value;
-
-  console.log("🍪 token:", token);
-  console.log("🟢 justLoggedIn:", justLoggedIn);
 
   // 🚀 SAFARI FIX: request đầu sau login
   if (!token && justLoggedIn) {

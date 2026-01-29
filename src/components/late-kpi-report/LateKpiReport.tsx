@@ -242,7 +242,6 @@ export default function LateKpiReport({
                   onChange={(val) => setFilter({ ...filter, userId: val })}
                 />
               </div>
-
               <div className="px-2">
                 <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">
                   Thời gian

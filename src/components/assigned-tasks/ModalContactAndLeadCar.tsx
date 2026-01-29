@@ -99,7 +99,9 @@ export default function ModalContactAndLeadCar({
                 Khách hàng
               </div>
               <Text strong className="text-indigo-900">
-                {selectedLead?.customer?.fullName || "Chưa có tên"}
+                {selectedLead?.customer?.fullName ||
+                  selectedLead?.fullName ||
+                  "Chưa có tên"}
               </Text>
             </div>
           </Space>
@@ -108,7 +110,7 @@ export default function ModalContactAndLeadCar({
               Số điện thoại
             </div>
             <Text className="text-slate-600">
-              {selectedLead?.customer?.phone || "---"}
+              {selectedLead?.customer?.phone || selectedLead?.phone || "---"}
             </Text>
           </div>
         </div>

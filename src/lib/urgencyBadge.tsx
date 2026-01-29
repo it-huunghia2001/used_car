@@ -44,6 +44,7 @@ export const UrgencyBadge = ({ type }: { type: UrgencyType | null }) => {
         rounded-full border text-[10px] font-black uppercase tracking-wider
         shadow-sm transition-all hover:scale-105
         animate-bounce
+        w-fit
         ${style.className}
       `}
       style={{

@@ -365,6 +365,7 @@ model Task {
   deadlineAt  DateTime // Thời gian Admin quy định phải hoàn thành (Deadline)
   completedAt DateTime? // Thời gian thực tế bấm nút "Hoàn thành"
 
+  type        TaskType   @default(SALES) // Thêm dòng này
   status      TaskStatus @default(PENDING)
   isLate      Boolean    @default(false)
   lateMinutes Int        @default(0)
@@ -382,6 +383,14 @@ model Task {
 // ==========================================
 // 8. DANH MỤC CỐ ĐỊNH (ENUMS)
 // ==========================================
+
+enum TaskType {
+  SALES // Tư vấn bán hàng
+  PURCHASE // Thu mua xe
+  MAINTENANCE // Nhắc bảo dưỡng định kỳ
+  RECALL // Triệu hồi/Chiến dịch chăm sóc
+}
+
 enum TaskStatus {
   PENDING
   COMPLETED

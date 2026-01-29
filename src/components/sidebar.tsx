@@ -284,7 +284,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
     <>
       {/* Nút Hamburger cho Mobile - Chỉ hiện ở màn hình < 992px */}
       <Button
-        className="lg:hidden! fixed top-4 left-4 z-50 bg-[#001529] border-gray-600 text-white"
+        className="lg:hidden! fixed! top-4 left-4 z-50 bg-[#001529] border-gray-600 text-white"
         icon={<MenuOutlined />}
         onClick={() => setVisible(true)}
       />
@@ -295,10 +295,12 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         placement="left"
         onClose={() => setVisible(false)}
         open={visible}
-        style={{ padding: 0, width: "100wv", background: "#001529" }}
-        closable={true}
+        style={{ padding: 0, width: "100%", background: "#001529" }}
+        closable={false}
       >
-        <div className="h-full bg-[#001529]">{SidebarContent}</div>
+        <div className="h-[calc(100vh-300px)]  bg-[#001529] w-full">
+          {SidebarContent}
+        </div>
       </Drawer>
 
       {/* Sider cho Desktop - Ẩn khi ở màn hình nhỏ */}
