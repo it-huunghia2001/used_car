@@ -11,6 +11,7 @@ export default async function DashboardPage() {
   // Chạy song song để tối ưu tốc độ tải trang
   const [reportData, branches] = await Promise.all([
     getAdvancedReportAction(), // Lấy dữ liệu báo cáo mặc định (tháng hiện tại)
+
     db.branch.findMany({
       select: { id: true, name: true }, // Chỉ lấy các trường cần thiết cho Select
     }),

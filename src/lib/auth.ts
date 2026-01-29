@@ -35,7 +35,6 @@ export async function getUser() {
 export async function getUserFromToken(token: string) {
   try {
     const payload = jwt.verify(token, JWT_SECRET) as TokenPayload;
-    console.log(payload);
 
     if (!payload?.id) return null;
 

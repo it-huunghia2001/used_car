@@ -8,31 +8,42 @@ import {
   Tag,
   Button,
   Card,
-  message,
+  App,
   Typography,
   Space,
+  Avatar,
+  Badge,
   Tooltip,
+  Empty,
+  message,
 } from "antd";
 import {
-  CheckCircleOutlined,
-  EyeOutlined,
-  UserOutlined,
   FileSearchOutlined,
   StopOutlined,
   CarOutlined,
+  UserOutlined,
+  ClockCircleOutlined,
+  ArrowRightOutlined,
+  ShoppingCartOutlined,
+  ReloadOutlined,
+  RightOutlined,
 } from "@ant-design/icons";
+
+// Actions
 import {
   getPendingApprovalsAction,
   approveCarPurchase,
   approveLoseRequestAction,
-  approveDealAction, // Bạn cần import hàm này cho luồng Bán xe
+  approveDealAction,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
+import { getCustomerHistoryAction } from "@/actions/lead-actions";
+
+// Components
 import ModalApprovalDetail from "@/components/approval-customer/ApprovalDetailModal";
 import ModalApproveLose from "@/components/assigned-tasks/ModalApproveLose";
 import ModalApprovalSalesDetail from "@/components/approval-customer/ModalApprovalSalesDetail";
-import dayjs from "@/lib/dayjs";
-import { getCustomerHistoryAction } from "@/actions/lead-actions";
+import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
 
@@ -41,71 +52,15 @@ export default function ApprovalsPage() {
   const [data, setData] = useState<any[]>([]);
   const [carModels, setCarModels] = useState<any[]>([]);
 
+  // State quản lý Modals
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isLoseModalOpen, setIsLoseModalOpen] = useState(false);
   const [isSalesDealModalOpen, setIsSalesDealModalOpen] = useState(false);
 
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
-  const [customerHistory, setCustomerHistory] = useState<any[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
 
-  // --- LOGIC MỞ MODAL (Đã sửa lỗi trùng lặp) ---
-  const openApprovalModal = (record: any) => {
-    setSelectedActivity(record);
-    loadCustomerHistory(record.customerId);
-
-    if (record.status === "PENDING_DEAL_APPROVAL") {
-      // Nếu khách có type là BUY hoặc hồ sơ có liên quan đến việc bán xe trong kho
-      if (record.customer?.type === "BUY") {
-        setIsSalesDealModalOpen(true);
-      } else {
-        setIsPurchaseModalOpen(true);
-      }
-    } else {
-      setIsLoseModalOpen(true);
-    }
-  };
-
-  const handleAdminDecisionLose = async (
-    activityId: string,
-    decision: "APPROVE" | "REJECT",
-    targetStatus?: string,
-  ) => {
-    setLoading(true);
-    try {
-      // Gọi API Server Action (Hàm này chúng ta đã viết ở bước trước)
-      const res = await approveLoseRequestAction(
-        activityId,
-        decision,
-        targetStatus,
-      );
-
-      if (res.success) {
-        message.success(
-          decision === "APPROVE"
-            ? `Đã phê duyệt dừng hồ sơ (Trạng thái: ${targetStatus})`
-            : "Đã từ chối yêu cầu dừng chăm sóc.",
-        );
-        handleCloseModals(); // Đóng Modal và xóa dữ liệu tạm
-        loadData(); // Tải lại danh sách phê duyệt để cập nhật UI
-      } else {
-        message.error(res.error || "Có lỗi xảy ra khi phê duyệt");
-      }
-    } catch (error: any) {
-      console.error("Lỗi handleAdminDecisionLose:", error);
-      message.error("Lỗi hệ thống: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCustomerHistory = async (customerId: string) => {
-    setHistoryLoading(true);
-    const res = await getCustomerHistoryAction(customerId);
-    if (res.success) setCustomerHistory(res.data || []);
-    setHistoryLoading(false);
-  };
-
+  // --- LOGIC TẢI DỮ LIỆU ---
   const loadData = async () => {
     setLoading(true);
     try {
@@ -116,7 +71,7 @@ export default function ApprovalsPage() {
       setData(resApprovals as any);
       setCarModels(resModels);
     } catch (error) {
-      message.error("Lỗi tải dữ liệu phê duyệt");
+      messageApi.error("Lỗi tải dữ liệu phê duyệt");
     } finally {
       setLoading(false);
     }
@@ -133,36 +88,49 @@ export default function ApprovalsPage() {
     setSelectedActivity(null);
   };
 
-  // --- LUỒNG PHÊ DUYỆT BÁN XE ---
+  // --- ĐIỀU KIỆN MỞ MODAL THEO NGHIỆP VỤ ---
+  const openApprovalModal = (record: any) => {
+    setSelectedActivity(record);
+
+    // 1. Nếu là yêu cầu chốt Deal (Mua hoặc Bán)
+    if (record.status === "PENDING_DEAL_APPROVAL") {
+      // Dựa vào type của khách hàng để mở modal tương ứng
+      if (record.customer?.type === "BUY") {
+        setIsSalesDealModalOpen(true); // Modal chốt BÁN xe trong kho
+      } else {
+        setIsPurchaseModalOpen(true); // Modal chốt THU MUA xe khách
+      }
+    }
+    // 2. Nếu là các yêu cầu đóng hồ sơ (Lose, Frozen...)
+    else if (record.status === "PENDING_LOSE_APPROVAL") {
+      setIsLoseModalOpen(true);
+    }
+  };
+
+  // --- XỬ LÝ ACTIONS PHÊ DUYỆT ---
   const handleApproveSales = async (updatedData: any) => {
     setLoading(true);
     try {
-      // Gọi action chuyên dụng để chốt Deal bán hàng
       const res = await approveDealAction(
         selectedActivity.id,
         updatedData.isReject ? "REJECT" : "APPROVE",
         updatedData.adminNote,
+        updatedData.contractNo,
       );
-
       if (res.success) {
-        message.success(
+        messageApi.success(
           updatedData.isReject
-            ? "Đã từ chối chốt đơn."
-            : "Đã phê duyệt chốt đơn thành công!",
+            ? "Đã từ chối chốt đơn"
+            : "Phê duyệt bán thành công!",
         );
         handleCloseModals();
         loadData();
-      } else {
-        message.error((res as any).error);
-      }
-    } catch (e: any) {
-      message.error("Lỗi hệ thống: " + e.message);
+      } else messageApi.error((res as any).error);
     } finally {
       setLoading(false);
     }
   };
 
-  // --- LUỒNG THU MUA ---
   const handleApprovePurchase = async (updatedData: any) => {
     setLoading(true);
     try {
@@ -173,83 +141,208 @@ export default function ApprovalsPage() {
         updatedData,
       );
       if (res.success) {
-        message.success(
+        messageApi.success(
           updatedData.isReject
-            ? "Đã từ chối nhập kho."
-            : "Đã phê duyệt nhập kho xe!",
+            ? "Đã từ chối nhập kho"
+            : "Xe đã nhập kho thành công!",
         );
         handleCloseModals();
         loadData();
-      } else message.error(res.error);
-    } catch (e: any) {
-      message.error(e.message);
+      } else messageApi.error(res.error);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="p-6 bg-[#f0f2f5] min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-6">
-          <Title
-            level={3}
-            className="m-0! flex items-center gap-3 text-slate-700"
-          >
-            <FileSearchOutlined className="text-blue-600" /> TRUNG TÂM PHÊ DUYỆT
-          </Title>
-        </header>
+  const handleAdminDecisionLose = async (
+    id: string,
+    decision: "APPROVE" | "REJECT",
+    target?: string,
+  ) => {
+    setLoading(true);
+    try {
+      const res = await approveLoseRequestAction(id, decision, target);
 
-        <Card className="shadow-md rounded-2xl border-none">
+      if (res.success) {
+        // ✅ THÀNH CÔNG: Thông báo, đóng modal và tải lại dữ liệu
+        messageApi.success("Thao tác thành công");
+        handleCloseModals();
+        await loadData(); // Chờ load data xong mới tắt loading
+      } else {
+        // ❌ THẤT BẠI: Chỉ thông báo lỗi, KHÔNG đóng modal
+        // Lúc này các lỗi như "Hồ sơ đang chờ duyệt" sẽ hiển thị rõ ràng
+        messageApi.error(res.error || "Có lỗi xảy ra");
+      }
+    } catch (error: any) {
+      messageApi.error("Lỗi hệ thống: " + error.message);
+    } finally {
+      // ✅ CHỈ TẮT LOADING: Không thực hiện logic đóng/mở ở đây
+      setLoading(false);
+    }
+  };
+
+  // --- RENDER TAG TRẠNG THÁI (Dùng cho cả Desktop & Mobile) ---
+  const renderTypeTag = (record: any) => {
+    const isDeal = record.status === "PENDING_DEAL_APPROVAL";
+    const isSales = record.customer?.type === "BUY";
+
+    if (isDeal) {
+      return (
+        <Tag
+          color={isSales ? "cyan" : "green"}
+          className="rounded-lg px-2 py-0.5 font-bold border-none uppercase text-[10px]"
+        >
+          {isSales ? (
+            <ShoppingCartOutlined className="mr-1" />
+          ) : (
+            <CarOutlined className="mr-1" />
+          )}
+          {isSales ? "Yêu cầu Bán" : "Yêu cầu Thu"}
+        </Tag>
+      );
+    }
+    return (
+      <Tag
+        color="volcano"
+        className="rounded-lg px-2 py-0.5 font-bold border-none uppercase text-[10px]"
+      >
+        <StopOutlined className="mr-1" /> Dừng hồ sơ
+      </Tag>
+    );
+  };
+
+  return (
+    <div className="p-3 md:p-8 bg-[#f8fafc] min-h-screen">
+      {contextHolder}
+      <div className="max-w-6xl mx-auto">
+        {/* HEADER SECTION */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 md:mb-8 bg-white p-4 md:p-6 rounded-2xl md:rounded-[2.5rem] shadow-sm border border-slate-100 transition-all hover:shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-50 p-3 rounded-xl hidden md:block">
+              <FileSearchOutlined className="text-xl text-blue-600" />
+            </div>
+            <div>
+              <Title
+                level={4}
+                className="m-0! font-black uppercase tracking-tight text-base md:text-xl"
+              >
+                Trung tâm Phê duyệt
+              </Title>
+              <Text className="text-[10px] md:text-xs uppercase font-bold tracking-widest text-slate-400">
+                Đang chờ:{" "}
+                <span className="text-blue-600">{data.length} yêu cầu</span>
+              </Text>
+            </div>
+          </div>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={loadData}
+            loading={loading}
+            className="rounded-xl font-bold h-10 md:h-11 px-4 mt-3 md:mt-0 w-full md:w-auto shadow-sm"
+          >
+            LÀM MỚI
+          </Button>
+        </div>
+
+        {/* 1. MOBILE VIEW: LIST CARD (Hiển thị trên Mobile) */}
+        <div className="block md:hidden space-y-3">
+          {data.length === 0 && !loading && (
+            <Card className="rounded-2xl text-center p-10">
+              <Empty description="Tất cả đã được xử lý" />
+            </Card>
+          )}
+          {data.map((r) => (
+            <Card
+              key={r.id}
+              className="rounded-2xl border-none shadow-sm active:scale-[0.98] transition-all bg-white"
+              onClick={() => openApprovalModal(r)}
+            >
+              <div className="flex justify-between items-start mb-2">
+                {renderTypeTag(r)}
+                <Text className="text-[10px] text-slate-400 font-mono">
+                  {dayjs(r.createdAt).format("HH:mm DD/MM")}
+                </Text>
+              </div>
+              <div className="flex items-center gap-3 mb-2">
+                <Avatar
+                  className="bg-blue-100 text-blue-600"
+                  icon={<UserOutlined />}
+                />
+                <div className="flex flex-col overflow-hidden">
+                  <Text strong className="text-sm truncate">
+                    {r.customer?.fullName}
+                  </Text>
+                  <Text type="secondary" className="text-[11px]">
+                    Bởi: {r.user?.fullName}
+                  </Text>
+                </div>
+                <RightOutlined className="ml-auto text-slate-300 text-xs" />
+              </div>
+              <div className="bg-slate-50 p-2 rounded-lg italic text-[11px] text-slate-500 line-clamp-2 border border-slate-100">
+                {r.note}
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* 2. DESKTOP VIEW: TABLE (Hiển thị trên PC) */}
+        <Card className="hidden md:block shadow-xl rounded-[2.5rem] border-none overflow-hidden bg-white/90 backdrop-blur-md">
           <Table
             dataSource={data}
             rowKey="id"
             loading={loading}
+            pagination={{ pageSize: 10 }}
+            className="custom-approval-table"
             columns={[
               {
                 title: "KHÁCH HÀNG",
+                width: 250,
                 render: (r) => (
-                  <div className="flex flex-col">
-                    <Text strong>{r.customer?.fullName}</Text>
-                    <Text className="text-[11px] text-slate-400">
-                      {r.customer?.phone}
-                    </Text>
-                  </div>
+                  <Space size={12}>
+                    <Avatar
+                      className="bg-slate-100 text-slate-600"
+                      icon={<UserOutlined />}
+                    />
+                    <div className="flex flex-col">
+                      <Text strong className="text-base leading-tight">
+                        {r.customer?.fullName}
+                      </Text>
+                      <Space
+                        size={4}
+                        className="text-[11px] text-slate-400 font-mono"
+                      >
+                        <ClockCircleOutlined />{" "}
+                        {dayjs(r.createdAt).format("HH:mm - DD/MM/YYYY")}
+                      </Space>
+                    </div>
+                  </Space>
                 ),
               },
               {
                 title: "LOẠI YÊU CẦU",
-                dataIndex: "status",
-                render: (s, record) => {
-                  if (s === "PENDING_DEAL_APPROVAL") {
-                    const isSales = record.customer?.type === "BUY";
-                    return (
-                      <Tag
-                        icon={<CarOutlined />}
-                        color={isSales ? "cyan" : "green"}
-                        className="rounded-full px-3"
-                      >
-                        {isSales ? "CHỐT BÁN" : "CHỐT THU"}
-                      </Tag>
-                    );
-                  }
-                  return (
-                    <Tag
-                      icon={<StopOutlined />}
-                      color="volcano"
-                      className="rounded-full px-3"
-                    >
-                      DỪNG CHĂM SÓC
-                    </Tag>
-                  );
-                },
+                render: (s, record) => renderTypeTag(record),
               },
               {
-                title: "NHÂN VIÊN",
+                title: "NHÂN VIÊN ĐỀ XUẤT",
                 render: (r) => (
-                  <Text className="text-slate-600 font-medium">
+                  <div className="flex items-center gap-2 font-semibold text-slate-600">
+                    <Badge status="processing" color="blue" />{" "}
                     {r.user?.fullName}
-                  </Text>
+                  </div>
+                ),
+              },
+              {
+                title: "GHI CHÚ",
+                ellipsis: true,
+                render: (r) => (
+                  <Tooltip title={r.note}>
+                    <Text
+                      type="secondary"
+                      className="text-xs italic truncate max-w-xs block text-slate-500"
+                    >
+                      {r.note}
+                    </Text>
+                  </Tooltip>
                 ),
               },
               {
@@ -258,11 +351,11 @@ export default function ApprovalsPage() {
                 render: (r) => (
                   <Button
                     type="primary"
-                    shape="round"
-                    icon={<EyeOutlined />}
+                    className="rounded-xl font-bold bg-blue-600 hover:scale-105 transition-all shadow-md h-10"
+                    icon={<ArrowRightOutlined />}
                     onClick={() => openApprovalModal(r)}
                   >
-                    Xem & Xử lý
+                    XỬ LÝ
                   </Button>
                 ),
               },
@@ -271,7 +364,7 @@ export default function ApprovalsPage() {
         </Card>
       </div>
 
-      {/* MODAL DUYỆT THU MUA */}
+      {/* --- CÁC MODALS PHÊ DUYỆT --- */}
       {isPurchaseModalOpen && (
         <ModalApprovalDetail
           isOpen={isPurchaseModalOpen}
@@ -286,7 +379,6 @@ export default function ApprovalsPage() {
         />
       )}
 
-      {/* MODAL DUYỆT BÁN XE */}
       {isSalesDealModalOpen && (
         <ModalApprovalSalesDetail
           isOpen={isSalesDealModalOpen}
@@ -300,7 +392,6 @@ export default function ApprovalsPage() {
         />
       )}
 
-      {/* MODAL DUYỆT DỪNG CHĂM SÓC */}
       {isLoseModalOpen && (
         <ModalApproveLose
           isOpen={isLoseModalOpen}
@@ -310,6 +401,21 @@ export default function ApprovalsPage() {
           onConfirm={handleAdminDecisionLose}
         />
       )}
+
+      <style jsx global>{`
+        .custom-approval-table .ant-table-thead > tr > th {
+          background: #f8fafc !important;
+          font-size: 11px !important;
+          text-transform: uppercase !important;
+          color: #94a3b8 !important;
+          letter-spacing: 1px;
+          font-weight: 800 !important;
+          border-bottom: 1px solid #f1f5f9 !important;
+        }
+        .custom-approval-table .ant-table-row:hover {
+          background-color: #f1f5f9 !important;
+        }
+      `}</style>
     </div>
   );
 }

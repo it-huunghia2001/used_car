@@ -65,10 +65,12 @@ import ModalLoseLead from "@/components/assigned-tasks/ModalLoseLead";
 import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndLeadCar";
 import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
 import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
+import { getLeadStatusHelper } from "@/lib/status-helper";
 
 const { Title, Text, Paragraph } = Typography;
 
 export default function AssignedTasksPage() {
+  const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
 
   // Data States
@@ -177,18 +179,28 @@ export default function AssignedTasksPage() {
   const onFailFinish = async (values: any) => {
     setLoading(true);
     try {
+      // Lưu ý: Đảm bảo thứ tự tham số truyền vào đúng với hàm requestLoseApproval ở Server
       const res = await requestLoseApproval(
-        selectedLead.id,
-        selectedLead.customerId || selectedLead.id,
-        values.reasonId,
-        values.status,
-        values.note,
+        selectedLead.id, // customerId
+        values.reasonId, // reasonId
+        values.note, // note
+        values.status, // targetStatus (LOSE, FROZEN...)
       );
+
       if (res.success) {
-        messageApi.success("Đã gửi yêu cầu phê duyệt thất bại");
-        setIsFailModalOpen(false);
+        // ✅ TRƯỜNG HỢP THÀNH CÔNG
+        messageApi.success("Đã gửi yêu cầu phê duyệt thành công");
+        setIsFailModalOpen(false); // Chỉ đóng modal khi thành công
+        form.resetFields(); // Reset form để lần sau mở lại không bị dính dữ liệu cũ
         loadData();
+      } else {
+        // ❌ TRƯỜNG HỢP THẤT BẠI (Lỗi chặn trùng, lỗi logic...)
+        // messageApi.error sẽ hiển thị thông báo: "Hồ sơ này đang có một yêu cầu phê duyệt khác..."
+        messageApi.error(res.error || "Không thể gửi yêu cầu phê duyệt");
       }
+    } catch (error: any) {
+      // Lỗi kết nối hoặc lỗi server crash
+      messageApi.error("Lỗi hệ thống: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -479,14 +491,19 @@ export default function AssignedTasksPage() {
                         {
                           title: "TRẠNG THÁI",
                           dataIndex: "status",
-                          render: (status) => (
-                            <Tag
-                              color="blue"
-                              className="rounded-full border-none font-black text-[10px] uppercase px-3 py-0.5"
-                            >
-                              {status}
-                            </Tag>
-                          ),
+                          render: (status) => {
+                            const { label, color, icon } =
+                              getLeadStatusHelper(status);
+                            return (
+                              <Tag
+                                icon={icon}
+                                color={color}
+                                className="rounded-full border-none font-black text-[10px] uppercase px-3 py-0.5"
+                              >
+                                {label}
+                              </Tag>
+                            );
+                          },
                         },
                         {
                           title: "DÒNG XE",

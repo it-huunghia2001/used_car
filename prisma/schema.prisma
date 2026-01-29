@@ -229,10 +229,11 @@ model Car {
   modelName String
   vin       String
 
-  engineNumber String?
-  licensePlate String?
-  year         Int
-  odo          Int
+  engineNumber   String?
+  licensePlate   String?
+  contractNumber String?
+  year           Int
+  odo            Int
 
   transmission  Transmission @default(AUTOMATIC)
   fuelType      FuelType     @default(GASOLINE)

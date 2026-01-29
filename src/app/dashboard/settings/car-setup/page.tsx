@@ -323,8 +323,8 @@ export default function CarSetupPage() {
 
             <div className="mt-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
               <Text type="secondary" className="text-xs">
-                💡 **Mẹo:** Nên nhập đầy đủ tên dòng xe để nhân viên kinh doanh
-                dễ dàng phân loại khách hàng khi tiếp nhận lead.
+                💡 **Mẹo:** Nên nhập đầy đủ tên dòng xe để nhân viên bán dễ dàng
+                phân loại khách hàng khi tiếp nhận lead.
               </Text>
             </div>
           </div>

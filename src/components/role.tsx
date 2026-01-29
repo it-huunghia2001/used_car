@@ -22,7 +22,7 @@ export const getRoleTag = (role: string) => {
       icon: <ShoppingCartOutlined />,
     },
     SALES_STAFF: {
-      label: "Nhân viên Kinh doanh",
+      label: "Nhân viên bán",
       color: "green",
       icon: <TeamOutlined />,
     },

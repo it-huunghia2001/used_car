@@ -89,77 +89,54 @@ export async function getAdvancedReportAction(
     ? { branchId: effectiveBranchId }
     : {};
 
-  const staffFilter: any = isHighLevel
-    ? selectedBranchId
-      ? { branchId: selectedBranchId }
-      : {}
-    : role === "MANAGER"
-      ? { branchId: userBranchId }
-      : { id: userId };
-
   // --- 3. TRUY VẤN SONG SONG ---
   const [
     totalSales,
     totalPurchased,
     lateLeads,
     lateTasks,
-    allBranches,
+    branchesForChart, // Đã đổi tên để lấy danh sách chi nhánh phù hợp
     salesByBranch,
     purchasesByBranch,
     staffPerformance,
     inventoryStatus,
     myPending,
-    // TRUY VẤN MỚI: Báo cáo phòng ban
     allDepartments,
   ] = await Promise.all([
     db.car.count({ where: { status: "SOLD", ...salesRange, ...branchFilter } }),
     db.car.count({
       where: { purchasedAt: { not: null }, ...purchaseRange, ...branchFilter },
     }),
+
     db.leadActivity.count({
-      where: {
-        ...timeQuery,
-        isLate: true,
-        user: isHighLevel
-          ? selectedBranchId
-            ? { branchId: selectedBranchId }
-            : {}
-          : role === "MANAGER"
-            ? { branchId: userBranchId as string }
-            : { id: userId },
-      },
+      where: { ...timeQuery, isLate: true, user: branchFilter },
     }),
     db.task.count({
-      where: {
-        ...timeQuery,
-        isLate: true,
-        assignee: isHighLevel
-          ? selectedBranchId
-            ? { branchId: selectedBranchId }
-            : {}
-          : role === "MANAGER"
-            ? { branchId: userBranchId as string }
-            : { id: userId },
-      },
+      where: { ...timeQuery, isLate: true, assignee: branchFilter },
     }),
-    isHighLevel ? db.branch.findMany({ select: { id: true, name: true } }) : [],
-    isHighLevel
-      ? db.car.groupBy({
-          by: ["branchId"],
-          where: { status: "SOLD", ...salesRange },
-          _count: { id: true },
-        })
-      : [],
-    isHighLevel
-      ? db.car.groupBy({
-          by: ["branchId"],
-          where: { purchasedAt: { not: null }, ...purchaseRange },
-          _count: { id: true },
-        })
-      : [],
+
+    // ✅ SỬA TẠI ĐÂY: Manager vẫn cần lấy thông tin chi nhánh của mình để vẽ biểu đồ
+    db.branch.findMany({
+      where: effectiveBranchId ? { id: effectiveBranchId } : {},
+      select: { id: true, name: true },
+    }),
+
+    // ✅ SỬA TẠI ĐÂY: GroupBy phải chạy cho cả Manager để lấy số liệu chi nhánh đó
+    db.car.groupBy({
+      by: ["branchId"],
+      where: { status: "SOLD", ...salesRange, ...branchFilter },
+      _count: { id: true },
+    }),
+
+    db.car.groupBy({
+      by: ["branchId"],
+      where: { purchasedAt: { not: null }, ...purchaseRange, ...branchFilter },
+      _count: { id: true },
+    }),
+
     db.user.findMany({
       where: {
-        ...staffFilter,
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
         role: { in: ["SALES_STAFF", "PURCHASE_STAFF", "MANAGER"] },
         active: true,
       },
@@ -181,26 +158,22 @@ export async function getAdvancedReportAction(
         },
       },
       orderBy: { soldCars: { _count: "desc" } },
+      take: 20,
     }),
+
     db.car.groupBy({ by: ["status"], where: branchFilter, _count: true }),
     db.task.count({ where: { assigneeId: userId, status: "PENDING" } }),
 
-    // Logic lấy dữ liệu phòng ban (Chỉ dành cho ADMIN hoặc MANAGER)
     isHighLevel || role === "MANAGER"
       ? db.department.findMany({
           select: {
             name: true,
             users: {
-              // Nếu là Manager thì chỉ đếm nhân viên thuộc chi nhánh của mình
               where: {
                 ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
               },
               select: {
-                _count: {
-                  select: {
-                    createdReferrals: { where: timeQuery },
-                  },
-                },
+                _count: { select: { createdReferrals: { where: timeQuery } } },
               },
             },
           },
@@ -208,18 +181,21 @@ export async function getAdvancedReportAction(
       : [],
   ]);
 
-  // --- 4. XỬ LÝ GỘP DỮ LIỆU ---
+  // --- 4. XỬ LÝ GỘP DỮ LIỆU BIỂU ĐỒ ---
 
-  // Gộp dữ liệu biểu đồ chi nhánh (Admin/Global)
-  const branchStats = allBranches.map((b: any) => {
+  // ✅ FIX: Ghép dữ liệu cho biểu đồ "Hiệu suất chi nhánh"
+  const branchStats = branchesForChart.map((b: any) => {
     const sales =
       salesByBranch.find((s: any) => s.branchId === b.id)?._count.id || 0;
     const buys =
       purchasesByBranch.find((p: any) => p.branchId === b.id)?._count.id || 0;
-    return { name: b.name, soldCount: sales, purchasedCount: buys };
+    return {
+      name: b.name,
+      soldCount: sales,
+      purchasedCount: buys,
+    };
   });
 
-  // Gộp dữ liệu biểu đồ phòng ban (Admin xem tổng, Manager xem chi nhánh mình)
   const departmentStats = allDepartments
     .map((d: any) => ({
       name: d.name,
@@ -228,7 +204,7 @@ export async function getAdvancedReportAction(
         0,
       ),
     }))
-    .filter((d: any) => d.count > 0); // Chỉ hiện phòng ban có dữ liệu
+    .filter((d: any) => d.count > 0);
 
   return {
     role,
@@ -238,8 +214,8 @@ export async function getAdvancedReportAction(
       totalPurchased,
       lateLeads,
       lateTasks,
-      branchStats,
-      departmentStats, // Dữ liệu mới cho biểu đồ phòng ban
+      branchStats, // Bây giờ sẽ luôn có dữ liệu cho cả Manager
+      departmentStats,
       staffPerformance,
       inventoryStatus,
       myPending,

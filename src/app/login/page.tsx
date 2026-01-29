@@ -175,8 +175,8 @@ export default function LoginPage() {
               </a>
             </p>
             <p className="text-center text-xs text-gray-500 italic mt-3">
-              © {new Date().getFullYear()} Công Ty TOYOTA BÌNH DƯƠNG. All rights
-              reserved.
+              © {new Date().getFullYear()} Công Ty CP TOYOTA BÌNH DƯƠNG. All
+              rights reserved.
             </p>
           </div>
         </CardContent>

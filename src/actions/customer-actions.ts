@@ -173,6 +173,7 @@ export async function createCustomerAction(rawData: any) {
             assignedAt: assignedStaffId ? now : null,
             urgencyLevel: "HOT",
             note: data.note ? `${data.note}${stockNote}` : stockNote,
+            branchId: referrer?.branchId,
 
             // TỰ ĐỘNG TẠO LEADCAR TỪ XE TRONG KHO (Nếu có)
             // TẠO LEADCAR: Áp dữ liệu từ kho xe vào đây
@@ -666,7 +667,7 @@ export async function getLeadsAction(params: {
 
   let whereClause: any = {};
 
-  // --- 1. PHÂN QUYỀN TRUY CẬP (SCOPE) ---
+  // --- 1. PHÂN QUYỀN TRUY CẬP ---
   if (role === "ADMIN" || isGlobalManager) {
     whereClause = {};
   } else if (role === "MANAGER") {
@@ -677,12 +678,11 @@ export async function getLeadsAction(params: {
     };
   }
 
-  // --- 2. LỌC THEO TRẠNG THÁI ---
+  // --- 2. LỌC & TÌM KIẾM ---
   if (status && status !== "ALL") {
     whereClause.status = status;
   }
 
-  // --- 3. TÌM KIẾM (Tên, SĐT, Biển số) ---
   if (search) {
     whereClause.AND = [
       {
@@ -695,18 +695,17 @@ export async function getLeadsAction(params: {
     ];
   }
 
-  // --- 4. TRUY VẤN TỔNG LỰC ---
+  // --- 3. TRUY VẤN TỔNG LỰC ---
   const [data, total] = await Promise.all([
     db.customer.findMany({
       where: whereClause,
       include: {
-        assignedTo: { select: { fullName: true, phone: true } }, // NV phụ trách
-        referrer: { select: { fullName: true, role: true } }, // Người giới thiệu
-        branch: { select: { name: true } }, // Chi nhánh
-        carModel: { select: { name: true } }, // Model quan tâm
-        leadCar: true, // Chi tiết xe định giá
+        assignedTo: { select: { fullName: true, phone: true } },
+        referrer: { select: { fullName: true, role: true } },
+        branch: { select: { name: true } },
+        carModel: { select: { name: true } },
+        leadCar: true,
         activities: {
-          // Nhật ký gần nhất
           orderBy: { createdAt: "desc" },
           take: 3,
           include: { user: { select: { fullName: true } } },
@@ -719,5 +718,32 @@ export async function getLeadsAction(params: {
     db.customer.count({ where: whereClause }),
   ]);
 
-  return { data, total };
+  // --- 4. FIX LỖI DECIMAL (QUAN TRỌNG) ---
+  // Sử dụng JSON.parse(JSON.stringify()) là cách nhanh nhất để biến Decimal thành String/Number
+  // Hoặc map thủ công để tối ưu hiệu suất
+  const serializedData = data.map((customer) => {
+    if (customer.leadCar) {
+      return {
+        ...customer,
+        leadCar: {
+          ...customer.leadCar,
+          tSurePrice: customer.leadCar.tSurePrice
+            ? Number(customer.leadCar.tSurePrice)
+            : null,
+          expectedPrice: customer.leadCar.expectedPrice
+            ? Number(customer.leadCar.expectedPrice)
+            : null,
+          finalPrice: customer.leadCar.finalPrice
+            ? Number(customer.leadCar.finalPrice)
+            : null,
+        },
+      };
+    }
+    return customer;
+  });
+
+  // Một cách "lười" nhưng hiệu quả 100% cho mọi loại dữ liệu phức tạp:
+  // const serializedData = JSON.parse(JSON.stringify(data));
+
+  return { data: serializedData, total };
 }

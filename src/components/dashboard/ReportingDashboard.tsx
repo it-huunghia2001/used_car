@@ -20,6 +20,7 @@ import {
   Rate,
   Tag,
   Divider,
+  message,
 } from "antd";
 import {
   WarningOutlined,
@@ -49,6 +50,7 @@ import {
 import dayjs from "dayjs";
 import { getAdvancedReportAction } from "@/actions/report-actions";
 import { getRoleTag } from "../role";
+import * as XLSX from "xlsx"; // Import thư viện Excel
 
 const { Title, Text } = Typography;
 
@@ -99,6 +101,48 @@ export default function ReportingDashboard({
     }
   };
 
+  const handleExportExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // 1. Sheet Hiệu suất nhân sự
+      const staffData = stats.staffPerformance.map((r: any) => ({
+        "Tên nhân viên": r.fullName,
+        "Chức vụ": r.role,
+        "Chi nhánh": r.branch?.name || "Hệ thống",
+        "Số lượng Bán": r._count?.soldCars || 0,
+        "Số lượng Mua": r._count?.purchases || 0,
+        "Lỗi KPI (Trễ)":
+          (r._count?.leadActivities || 0) + (r._count?.tasks || 0),
+      }));
+      const wsStaff = XLSX.utils.json_to_sheet(staffData);
+      XLSX.utils.book_append_sheet(wb, wsStaff, "Hieu_Suat_Nhan_Su");
+
+      // 2. Sheet Tồn kho thực tế
+      const inventoryData = stats.inventoryStatus.map((i: any) => ({
+        "Trạng thái": i.status,
+        "Số lượng": i._count,
+      }));
+      const wsInv = XLSX.utils.json_to_sheet(inventoryData);
+      XLSX.utils.book_append_sheet(wb, wsInv, "Ton_Kho");
+
+      // 3. Sheet Hiệu suất chi nhánh (Nếu có)
+      if (stats.branchStats?.length > 0) {
+        const wsBranch = XLSX.utils.json_to_sheet(stats.branchStats);
+        XLSX.utils.book_append_sheet(wb, wsBranch, "Hieu_Suat_Chi_Nhanh");
+      }
+
+      // Xuất file
+      const fileName = `Bao_Cao_Van_Hanh_${filters.date ? filters.date.format("MM_YYYY") : "Toan_Thoi_Gian"}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      message.success("Đã xuất file báo cáo thành công!");
+    } catch (error) {
+      console.error("Export error:", error);
+      message.error("Lỗi khi xuất file Excel");
+    }
+  };
+
   return (
     <div className="p-8 bg-[#f4f7fe] min-h-screen text-slate-900">
       <div className="max-w-[1600px] mx-auto space-y-6">
@@ -121,7 +165,7 @@ export default function ReportingDashboard({
               >
                 Chào mừng, {user.fullName || "Thành viên"}!
               </Title>
-              <Space split={<Divider type="vertical" />}>
+              <Space separator={<Divider orientation="vertical" />}>
                 <Text className="font-bold text-slate-400 text-[10px] uppercase tracking-widest">
                   {role}
                 </Text>
@@ -178,6 +222,7 @@ export default function ReportingDashboard({
               icon={<DownloadOutlined />}
               type="primary"
               danger
+              onClick={handleExportExcel}
               className="rounded-xl font-bold h-10 px-6"
             >
               REPORT
@@ -193,7 +238,7 @@ export default function ReportingDashboard({
                 title="TASK CỦA TÔI"
                 value={stats.myPending}
                 suffix="VIỆC"
-                valueStyle={{ fontWeight: 900, color: "#2563eb" }}
+                style={{ fontWeight: 900, color: "#2563eb" }}
                 prefix={<ProjectOutlined />}
               />
               <Text className="text-[10px] text-slate-400 font-bold uppercase">
@@ -206,12 +251,8 @@ export default function ReportingDashboard({
               className={`rounded-[2rem] border-none shadow-sm bg-white border-l-8 ${role === "PURCHASE_STAFF" ? "border-purple-600" : "border-emerald-500"}`}
             >
               <Statistic
-                title={role === "PURCHASE_STAFF" ? "XE ĐÃ MUA" : "XE ĐÃ BÁN"}
-                value={
-                  role === "PURCHASE_STAFF"
-                    ? stats.totalPurchased
-                    : stats.totalSales
-                }
+                title={"XE ĐÃ MUA / XE ĐÃ BÁN"}
+                value={stats.totalPurchased + " / " + stats.totalSales}
                 prefix={
                   role === "PURCHASE_STAFF" ? (
                     <ShoppingCartOutlined />
@@ -219,8 +260,7 @@ export default function ReportingDashboard({
                     <CarOutlined />
                   )
                 }
-                suffix="XE"
-                valueStyle={{
+                style={{
                   fontWeight: 900,
                   color: role === "PURCHASE_STAFF" ? "#9333ea" : "#10b981",
                 }}
@@ -236,7 +276,7 @@ export default function ReportingDashboard({
                 title="VI PHẠM KPI"
                 value={stats.lateLeads}
                 prefix={<WarningOutlined />}
-                valueStyle={{ fontWeight: 900, color: "#f43f5e" }}
+                style={{ fontWeight: 900, color: "#f43f5e" }}
               />
               <Progress
                 percent={Math.min(stats.lateLeads * 10, 100)}
@@ -251,8 +291,8 @@ export default function ReportingDashboard({
               <Statistic
                 title="LỊCH HẸN TRỄ"
                 value={stats.lateTasks}
-                valueStyle={{ fontWeight: 900, color: "#f43f5e" }}
-                prefix={<ClockCircleOutlined className="text-[f43f5e]" />}
+                style={{ fontWeight: 900, color: "#f43f5e !important" }}
+                prefix={<ClockCircleOutlined className="text-[#f43f5e]" />}
               />
               <Badge
                 status="error"
@@ -281,7 +321,7 @@ export default function ReportingDashboard({
                 className="rounded-[2.5rem] shadow-sm border-none overflow-hidden h-full"
               >
                 <div className="h-[400px] w-full mt-4">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={400}>
                     <BarChart
                       data={stats.branchStats}
                       margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
@@ -343,7 +383,7 @@ export default function ReportingDashboard({
               >
                 <div className="h-[400px] w-full mt-4">
                   {stats.departmentStats?.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={400}>
                       <BarChart
                         data={stats.departmentStats}
                         layout="vertical"
@@ -417,7 +457,7 @@ export default function ReportingDashboard({
               {stats.inventoryStatus?.map((item: any) => (
                 <Col xs={24} sm={12} lg={6} key={item.status}>
                   <div className="p-4 bg-slate-50 rounded-2xl flex justify-between items-center border border-slate-100">
-                    <Space direction="vertical" size={0}>
+                    <Space orientation="vertical" size={0}>
                       <Text
                         strong
                         className="text-[10px] uppercase text-slate-400"

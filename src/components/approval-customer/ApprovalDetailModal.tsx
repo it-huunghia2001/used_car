@@ -149,6 +149,7 @@ export default function ModalApprovalDetail({
       centered
       maskClosable={false}
       closable={!isLoading}
+      destroyOnHidden
       footer={[
         <Button key="close" onClick={onClose} disabled={isLoading}>
           Hủy

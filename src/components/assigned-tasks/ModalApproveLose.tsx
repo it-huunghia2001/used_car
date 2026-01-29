@@ -26,6 +26,7 @@ import {
   FileTextOutlined,
 } from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
+import { getLeadStatusHelper } from "@/lib/status-helper";
 
 const { Text } = Typography;
 
@@ -69,6 +70,7 @@ export default function ModalApproveLose({
     salesNote = rawNote;
   }
 
+  const { label, color, icon } = getLeadStatusHelper(targetStatus);
   // Nội dung Tab 1: Chi tiết phê duyệt
   const renderApprovalDetail = (
     <>
@@ -114,8 +116,12 @@ export default function ModalApproveLose({
           </div>
         </Descriptions.Item>
         <Descriptions.Item label="Đề xuất sang">
-          <Tag color="volcano" className="font-bold uppercase rounded-full">
-            {targetStatus}
+          <Tag
+            icon={icon}
+            color={color}
+            className="rounded-full px-3 font-medium uppercase text-[10px] flex! gap-2 py-2 w-fit"
+          >
+            {label}
           </Tag>
         </Descriptions.Item>
         <Descriptions.Item label="Lý do hệ thống">
@@ -217,7 +223,7 @@ export default function ModalApproveLose({
       ]}
       width={650}
       centered
-      destroyOnClose
+      destroyOnHidden
     >
       <Tabs
         defaultActiveKey="1"

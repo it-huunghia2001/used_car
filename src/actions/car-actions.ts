@@ -9,13 +9,12 @@ import { revalidatePath } from "next/cache";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import { getCurrentUser } from "@/lib/session-server";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 dayjs.tz.setDefault("Asia/Ho_Chi_Minh");
-
-const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
 
 // --- HELPER FUNCTION: Biến đổi dữ liệu Prisma sang Plain Object ---
 function serializeCar(car: any) {
@@ -62,31 +61,52 @@ export async function updateCarAction(id: string, data: any) {
   }
 }
 
-// --- LOGIC KHO XE (INVENTORY) ---
 export async function getInventory() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("used-car")?.value;
-  if (!token) return [];
-
   try {
-    const decoded: any = jwt.verify(token, JWT_SECRET);
+    const user = await getCurrentUser();
+    if (!user) return [];
 
-    const whereCondition = decoded.isGlobalManager
-      ? {}
-      : { branchId: decoded.branchId };
+    const { role, isGlobalManager, branchId } = user;
+    const isHighLevel = role === "ADMIN" || isGlobalManager;
+
+    const whereCondition: any = {};
+    if (!isHighLevel) {
+      whereCondition.branchId = branchId;
+    }
 
     const cars = await db.car.findMany({
       where: whereCondition,
       include: {
-        branch: true,
+        branch: { select: { name: true } },
+        purchaser: { select: { fullName: true } },
+        soldBy: { select: { fullName: true } },
+        // Lấy lịch sử để dự phòng nếu bảng Car chưa cập nhật số hợp đồng
+        ownerHistory: {
+          orderBy: { date: "desc" },
+          take: 1,
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    // TRƯỚC KHI RETURN: Phải chạy qua hàm serialize
-    return cars.map(serializeCar);
+    // Xử lý dữ liệu để trả về cho Frontend
+    const processedCars = cars.map((car: any) => {
+      // Ưu tiên lấy contractNumber ở bảng Car, nếu ko có thì lấy ở History
+      const displayContract =
+        car.contractNumber || car.ownerHistory[0]?.contractNo || "---";
+
+      return {
+        ...car,
+        displayContract,
+        // Ép kiểu Decimal sang Number để ko bị lỗi Plain Object
+        sellingPrice: car.sellingPrice ? Number(car.sellingPrice) : 0,
+        costPrice: car.costPrice ? Number(car.costPrice) : 0,
+      };
+    });
+
+    return JSON.parse(JSON.stringify(processedCars));
   } catch (error) {
-    console.error("Inventory Error:", error);
+    console.error("Inventory Fetch Error:", error);
     return [];
   }
 }

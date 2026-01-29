@@ -115,7 +115,7 @@ export default function SalesTasksPage() {
       setMaintenanceTasks(maintenance);
       setCustomers(myCustomers);
     } catch (err) {
-      message.error("Lỗi tải dữ liệu");
+      messageApi.error("Lỗi tải dữ liệu");
     } finally {
       setLoading(false);
     }
@@ -188,11 +188,11 @@ export default function SalesTasksPage() {
   };
 
   const handleCompleteMaintenance = async (taskId: string) => {
-    const hide = message.loading("Đang xử lý...", 0);
+    const hide = messageApi.loading("Đang xử lý...", 0);
     try {
       const res = await completeMaintenanceTaskAction(taskId);
       if (res.success) {
-        message.success("Đã xong!");
+        messageApi.success("Đã xong!");
         loadData();
       }
     } finally {
@@ -675,7 +675,7 @@ export default function SalesTasksPage() {
               selectedLead.id,
             );
             if (res.success) {
-              message.success("Đã gửi phê duyệt!");
+              messageApi.success("Đã gửi phê duyệt!");
               setIsSalesModalOpen(false);
               loadData();
             }
