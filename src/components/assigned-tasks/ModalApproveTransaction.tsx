@@ -167,7 +167,7 @@ export default function ModalApproveTransaction({
           carType: "SUV",
           seats: 5,
           driveTrain: "FWD",
-          origin: "Trong nước",
+          origin: "VN",
         }}
         className="mt-4"
       >
@@ -316,7 +316,16 @@ export default function ModalApproveTransaction({
                 </Col>
                 <Col xs={12} md={6}>
                   <Form.Item name="origin" label="Xuất xứ">
-                    <Input placeholder="VD: Thái Lan" />
+                    <Select>
+                      <Select.Option value="VN">
+                        Lắp ráp trong nước
+                      </Select.Option>
+                      <Select.Option value="TH">Nhập Thái Lan</Select.Option>
+                      <Select.Option value="ID">Nhập Indonesia</Select.Option>
+                      <Select.Option value="OTHER">
+                        Nhập khẩu khác
+                      </Select.Option>
+                    </Select>
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>

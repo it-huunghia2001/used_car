@@ -167,7 +167,12 @@ export const VehicleFormFields = ({ carModels }: any) => {
         </Col>
         <Col xs={12} md={6}>
           <Form.Item name="origin" label="Xuất xứ">
-            <Input placeholder="VD: Thái Lan" />
+            <Select>
+              <Select.Option value="VN">Lắp ráp trong nước</Select.Option>
+              <Select.Option value="TH">Nhập Thái Lan</Select.Option>
+              <Select.Option value="ID">Nhập Indonesia</Select.Option>
+              <Select.Option value="OTHER">Nhập khẩu khác</Select.Option>
+            </Select>
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
