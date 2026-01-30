@@ -20,6 +20,7 @@ import {
   Input,
   Row,
   Col,
+  Form,
 } from "antd";
 import {
   SyncOutlined,
@@ -64,6 +65,7 @@ import { log } from "console";
 const { Title, Text } = Typography;
 
 export default function SalesTasksPage() {
+  const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -170,17 +172,28 @@ export default function SalesTasksPage() {
   const onFailFinish = async (values: any) => {
     setLoading(true);
     try {
+      // Lưu ý: Đảm bảo thứ tự tham số truyền vào đúng với hàm requestLoseApproval ở Server
       const res = await requestLoseApproval(
-        selectedLead.customerId || selectedLead.id,
-        values.reasonId,
-        values.note,
-        values.status,
+        selectedLead.id, // customerId
+        values.reasonId, // reasonId
+        values.note, // note
+        values.status, // targetStatus (LOSE, FROZEN...)
       );
+
       if (res.success) {
-        messageApi.success("Yêu cầu đã được gửi.");
-        setIsFailModalOpen(false);
+        // ✅ TRƯỜNG HỢP THÀNH CÔNG
+        messageApi.success("Đã gửi yêu cầu phê duyệt thành công");
+        setIsFailModalOpen(false); // Chỉ đóng modal khi thành công
+        form.resetFields(); // Reset form để lần sau mở lại không bị dính dữ liệu cũ
         loadData();
+      } else {
+        // ❌ TRƯỜNG HỢP THẤT BẠI (Lỗi chặn trùng, lỗi logic...)
+        // messageApi.error sẽ hiển thị thông báo: "Hồ sơ này đang có một yêu cầu phê duyệt khác..."
+        messageApi.error(res.error || "Không thể gửi yêu cầu phê duyệt");
       }
+    } catch (error: any) {
+      // Lỗi kết nối hoặc lỗi server crash
+      messageApi.error("Lỗi hệ thống: " + error.message);
     } finally {
       setLoading(false);
     }
