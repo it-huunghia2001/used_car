@@ -150,7 +150,9 @@ export default function AssignedTasksPage() {
 
   const handleMakeCall = (customerPhone: string) => {
     if (!customerPhone) return;
-    const extension = currentUser?.extension || "";
+
+    // Nếu có extension thì nối, không thì gọi trực tiếp số khách
+    const extension = currentUser?.extension ? currentUser.extension : "";
     window.location.href = `tel:${extension}${customerPhone}`;
   };
 
@@ -159,10 +161,12 @@ export default function AssignedTasksPage() {
     setLoading(true);
     try {
       const result = await updateCustomerStatusAction(
-        selectedLead?.customerId || selectedLead?.id,
+        selectedLead?.customerId ||
+          selectedLead?.id ||
+          selectedLead?.customer.id,
         "CONTACTED",
         values.note,
-        selectedLead?.id,
+        selectedLead?.id || selectedLead?.customer.id,
         values.nextContactAt ? dayjs(values.nextContactAt).toISOString() : null,
         { nextNote: values.nextContactNote },
       );
@@ -180,7 +184,7 @@ export default function AssignedTasksPage() {
     setLoading(true);
     try {
       const res = await requestLoseApproval(
-        selectedLead.id,
+        selectedLead.customer.id,
         values.reasonId,
         values.note,
         values.status,
@@ -517,7 +521,16 @@ export default function AssignedTasksPage() {
           setLoading(true);
           try {
             // Logic quan trọng: Kiểm tra ID dựa trên nguồn mở modal
-            const targetId = selectedLead.customerId || selectedLead.id;
+
+            const targetId = selectedLead.customer.id || selectedLead.id;
+
+            if (!targetId) {
+              messageApi.error(
+                "Không xác định được ID khách hàng. Vui lòng thử lại!",
+              );
+              return;
+            }
+
             const res = await requestPurchaseApproval(targetId, values);
             if (res.success) {
               messageApi.success("Đã gửi yêu cầu phê duyệt thành công!");

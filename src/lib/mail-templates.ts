@@ -343,3 +343,480 @@ export const newUserRegistrationEmailTemplate = (data: {
   </div>
   `;
 };
+
+export const dealApprovalRequestEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  carName: string;
+  licensePlate: string;
+  dealPrice: number;
+  contractNo: string;
+  type: "PURCHASE" | "SALE";
+  branchName: string;
+}) => {
+  const now = new Date().toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+
+  const isPurchase = data.type === "PURCHASE";
+  const themeColor = isPurchase ? "#f59e0b" : "#10b981"; // Vàng cho Thu mua, Xanh lá cho Bán
+  const typeLabel = isPurchase
+    ? "ĐỀ NGHỊ DUYỆT THU MUA"
+    : "ĐỀ NGHỊ DUYỆT BÁN XE";
+
+  return `
+  <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    
+    <div style="background-color: ${themeColor}; padding: 30px 20px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0; font-size: 14px;">Yêu cầu phê duyệt giao dịch tài chính</p>
+    </div>
+
+    <div style="padding: 40px 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <span style="background-color: #f8fafc; color: ${themeColor}; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid ${themeColor}44;">
+          ${typeLabel}
+        </span>
+        <h2 style="color: #1f1f1f; margin: 15px 0 5px 0; font-size: 22px;">Xác Nhận Chốt Giao Dịch</h2>
+        <p style="color: #8c8c8c; font-size: 14px; margin: 0;">Thời gian gửi: ${now}</p>
+      </div>
+
+      <p style="color: #595959; font-size: 16px;">Chào Quản lý,</p>
+      <p style="color: #595959; font-size: 16px;">Nhân viên <strong>${data.staffName}</strong> vừa gửi yêu cầu phê duyệt chốt giao dịch với chi tiết như sau:</p>
+
+      <div style="margin: 25px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px; border-left: 5px solid ${themeColor};">
+        <div style="font-size: 13px; color: #8c8c8c; margin-bottom: 5px; text-transform: uppercase; font-weight: bold;">Giá trị chốt giao dịch:</div>
+        <div style="font-size: 32px; color: ${themeColor}; font-weight: 800; margin-bottom: 15px;">
+          ${new Intl.NumberFormat("vi-VN").format(data.dealPrice)} <span style="font-size: 18px;">VNĐ</span>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c; width: 40%;">Khách hàng:</td>
+            <td style="padding: 8px 0; color: #1f1f1f; font-weight: 600;">${data.customerName.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c;">Sản phẩm:</td>
+            <td style="padding: 8px 0; color: #1f1f1f;">${data.carName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c;">Biển số:</td>
+            <td style="padding: 8px 0; color: #1f1f1f; font-weight: 600;">${data.licensePlate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c;">Số hợp đồng:</td>
+            <td style="padding: 8px 0; color: #1f1f1f; font-family: monospace; font-weight: bold;">${data.contractNo}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c;">Chi nhánh:</td>
+            <td style="padding: 8px 0; color: #1f1f1f;">${data.branchName}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; margin-top: 40px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/admin/approval-customer" 
+           style="background-color: #1f1f1f; color: #ffffff; padding: 15px 35px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
+           TRUY CẬP TRANG PHÊ DUYỆT
+        </a>
+        <p style="margin-top: 15px; font-size: 12px; color: #bfbfbf;">Vui lòng kiểm tra kỹ hồ sơ và hình ảnh đính kèm trước khi phê duyệt.</p>
+      </div>
+    </div>
+
+    <div style="background-color: #f5f5f5; padding: 25px; text-align: center; border-top: 1px solid #e8e8e8;">
+      <p style="margin: 0; font-size: 13px; color: #8c8c8c;">Hệ thống CRM Toyota Bình Dương - Used Car Division</p>
+    </div>
+  </div>
+  `;
+};
+
+export const loseApprovalRequestEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  customerPhone: string;
+  reason: string;
+  note: string;
+  targetStatus: string;
+  branchName: string;
+}) => {
+  const now = new Date().toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+
+  return `
+  <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    
+    <div style="background-color: #64748b; padding: 30px 20px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0; font-size: 14px;">Yêu cầu phê duyệt dừng hồ sơ khách hàng</p>
+    </div>
+
+    <div style="padding: 40px 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <span style="background-color: #f1f5f9; color: #475569; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #e2e8f0;">
+          DUYỆT HỦY / DỪNG HỒ SƠ
+        </span>
+        <h2 style="color: #1f1f1f; margin: 15px 0 5px 0; font-size: 22px;">Đề Nghị Đóng Hồ Sơ</h2>
+        <p style="color: #8c8c8c; font-size: 14px; margin: 0;">Thời gian yêu cầu: ${now}</p>
+      </div>
+
+      <p style="color: #595959; font-size: 16px;">Chào Quản lý,</p>
+      <p style="color: #595959; font-size: 16px;">Nhân viên <strong>${data.staffName}</strong> đã gửi yêu cầu kết thúc hồ sơ khách hàng với mục tiêu chuyển sang trạng thái <strong>${data.targetStatus}</strong>.</p>
+
+      <div style="margin: 25px 0; padding: 20px; background-color: #f8fafc; border-radius: 8px; border-left: 5px solid #64748b;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c; width: 35%;">Khách hàng:</td>
+            <td style="padding: 8px 0; color: #1f1f1f; font-weight: 600;">${data.customerName.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c;">Số điện thoại:</td>
+            <td style="padding: 8px 0; color: #1f1f1f;">${data.customerPhone}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c;">Lý do chính:</td>
+            <td style="padding: 8px 0; color: #cf1322; font-weight: bold;">${data.reason}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c; vertical-align: top;">Giải trình sale:</td>
+            <td style="padding: 8px 0; color: #595959; font-style: italic; line-height: 1.5;">"${data.note}"</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c;">Chi nhánh:</td>
+            <td style="padding: 8px 0; color: #1f1f1f;">${data.branchName}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; margin-top: 40px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/admin/approval-customer" 
+           style="background-color: #1f1f1f; color: #ffffff; padding: 15px 35px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
+           XEM CHI TIẾT & PHÊ DUYỆT
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f5f5f5; padding: 25px; text-align: center; border-top: 1px solid #e8e8e8;">
+      <p style="margin: 0; font-size: 13px; color: #8c8c8c;">Hệ thống CRM Toyota Bình Dương</p>
+    </div>
+  </div>
+  `;
+};
+
+export const dealResultEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  decision: "APPROVE" | "REJECT";
+  adminNote: string;
+  contractNo?: string;
+  carName: string;
+}) => {
+  const isApprove = data.decision === "APPROVE";
+  const themeColor = isApprove ? "#10b981" : "#ef4444";
+  const resultText = isApprove ? "ĐÃ ĐƯỢC PHÊ DUYỆT" : "KHÔNG ĐƯỢC PHÊ DUYỆT";
+  const icon = isApprove ? "✅" : "❌";
+
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+    <div style="background-color: ${themeColor}; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Thông báo kết quả phê duyệt chốt đơn</p>
+    </div>
+
+    <div style="padding: 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <div style="font-size: 48px; margin-bottom: 10px;">${icon}</div>
+        <h2 style="color: #1e293b; margin: 0; font-size: 20px;">Yêu Cầu Của Bạn ${resultText}</h2>
+      </div>
+
+      <p style="color: #475569; font-size: 16px;">Chào <strong>${data.staffName}</strong>,</p>
+      <p style="color: #475569; font-size: 16px;">Quản lý đã xem xét yêu cầu chốt giao dịch cho khách hàng <strong>${data.customerName.toUpperCase()}</strong>. Dưới đây là phản hồi chi tiết:</p>
+
+      <div style="margin: 20px 0; padding: 20px; background-color: #f8fafc; border-radius: 8px; border-top: 4px solid ${themeColor};">
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8; width: 35%;">Xe giao dịch:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.carName}</td>
+          </tr>
+          ${
+            isApprove && data.contractNo
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Số hợp đồng:</td>
+            <td style="font-weight: bold; color: #10b981; font-family: monospace;">${data.contractNo}</td>
+          </tr>
+          `
+              : ""
+          }
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8; vertical-align: top;">Ghi chú từ Admin:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-style: italic;">"${data.adminNote || "Không có ghi chú thêm"}"</td>
+          </tr>
+        </table>
+      </div>
+
+      ${
+        !isApprove
+          ? `
+      <div style="background-color: #fff1f0; border: 1px solid #ffa39e; padding: 15px; border-radius: 6px; margin-top: 20px;">
+        <p style="color: #cf1322; margin: 0; font-size: 14px;">
+          <strong>Hành động:</strong> Vui lòng kiểm tra lại thông tin hồ sơ, cập nhật theo yêu cầu của Admin và gửi lại phê duyệt nếu cần thiết.
+        </p>
+      </div>
+      `
+          : `
+      <p style="color: #10b981; font-weight: bold; text-align: center; margin-top: 20px;">
+        Chúc mừng bạn đã hoàn tất giao dịch thành công!
+      </p>
+      `
+      }
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/assigned-tasks" 
+           style="background-color: #1e293b; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+           TRUY CẬP HỆ THỐNG
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+      © Hệ thống Toyota Bình Dương - Used Car Division
+    </div>
+  </div>
+  `;
+};
+
+export const purchaseResultEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  decision: "APPROVE" | "REJECT";
+  reason?: string;
+  stockCode?: string;
+  carName: string;
+  price: number;
+}) => {
+  const isApprove = data.decision === "APPROVE";
+  const themeColor = isApprove ? "#f59e0b" : "#ef4444"; // Vàng cho Thu mua, Đỏ cho Từ chối
+  const resultText = isApprove ? "ĐÃ ĐƯỢC DUYỆT NHẬP KHO" : "CẦN CHỈNH SỬA LẠI";
+  const icon = isApprove ? "📥" : "⚠️";
+
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+    <div style="background-color: ${themeColor}; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Kết quả phê duyệt hồ sơ thu mua</p>
+    </div>
+
+    <div style="padding: 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <div style="font-size: 48px; margin-bottom: 10px;">${icon}</div>
+        <h2 style="color: #1e293b; margin: 0; font-size: 20px;">Hồ Sơ ${resultText}</h2>
+      </div>
+
+      <p style="color: #475569; font-size: 16px;">Chào <strong>${data.staffName}</strong>,</p>
+      <p style="color: #475569; font-size: 16px;">Quản trị viên đã xem xét yêu cầu thu mua xe từ khách hàng <strong>${data.customerName.toUpperCase()}</strong>.</p>
+
+      <div style="margin: 20px 0; padding: 20px; background-color: #f8fafc; border-radius: 8px; border-top: 4px solid ${themeColor};">
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8; width: 35%;">Mẫu xe:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.carName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Giá thu mua:</td>
+            <td style="font-weight: bold; color: #1e293b;">${new Intl.NumberFormat("vi-VN").format(data.price)} VNĐ</td>
+          </tr>
+          ${
+            isApprove
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Mã kho (Stock):</td>
+            <td style="font-weight: bold; color: #f59e0b; font-family: monospace; font-size: 16px;">${data.stockCode}</td>
+          </tr>
+          `
+              : ""
+          }
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8; vertical-align: top;">Ghi chú Admin:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-style: italic;">"${data.reason || "Không có ghi chú thêm"}"</td>
+          </tr>
+        </table>
+      </div>
+
+      ${
+        !isApprove
+          ? `
+      <div style="background-color: #fff1f0; border: 1px solid #ffa39e; padding: 15px; border-radius: 6px;">
+        <p style="color: #cf1322; margin: 0; font-size: 14px;">
+          <strong>Yêu cầu:</strong> Vui lòng kiểm tra lại Task "Sửa hồ sơ" trên hệ thống, hoàn thiện thông tin theo yêu cầu của Admin và gửi duyệt lại.
+        </p>
+      </div>
+      `
+          : `
+      <p style="text-align: center; color: #475569; font-size: 14px;">Xe đã chính thức được ghi nhận vào kho với trạng thái <strong>ĐANG TÂN TRANG</strong>.</p>
+      `
+      }
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/assigned-tasks" 
+           style="background-color: #1e293b; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+           XEM NHIỆM VỤ CỦA TÔI
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+      Hệ thống CRM Toyota Bình Dương - Quản lý xe qua sử dụng
+    </div>
+  </div>
+  `;
+};
+
+export const loseResultEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  decision: "APPROVE" | "REJECT";
+  adminNote?: string;
+  targetStatus?: string;
+}) => {
+  const isApprove = data.decision === "APPROVE";
+  const themeColor = isApprove ? "#475569" : "#f59e0b"; // Slate cho Đồng ý, Amber cho Từ chối
+  const resultText = isApprove
+    ? "ĐÃ ĐƯỢC CHẤP THUẬN DỪNG"
+    : "KHÔNG ĐƯỢC DUYỆT DỪNG";
+  const icon = isApprove ? "📁" : "🔄";
+
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+    <div style="background-color: ${themeColor}; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Thông báo kết quả duyệt dừng hồ sơ</p>
+    </div>
+
+    <div style="padding: 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <div style="font-size: 48px; margin-bottom: 10px;">${icon}</div>
+        <h2 style="color: #1e293b; margin: 0; font-size: 20px;">Hồ Sơ ${resultText}</h2>
+      </div>
+
+      <p style="color: #475569; font-size: 16px;">Chào <strong>${data.staffName}</strong>,</p>
+      <p style="color: #475569; font-size: 16px;">Quản lý đã phản hồi yêu cầu dừng chăm sóc khách hàng <strong>${data.customerName.toUpperCase()}</strong> của bạn.</p>
+
+      <div style="margin: 20px 0; padding: 20px; background-color: #f8fafc; border-radius: 8px; border-top: 4px solid ${themeColor};">
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8; width: 35%;">Khách hàng:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.customerName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Trạng thái hiện tại:</td>
+            <td style="font-weight: bold; color: ${themeColor};">${isApprove ? data.targetStatus : "TIẾP TỤC CHĂM SÓC"}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8; vertical-align: top;">Phản hồi từ Admin:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-style: italic;">"${data.adminNote || (isApprove ? "Đồng ý đóng hồ sơ theo đề xuất." : "Cần khai thác thêm nhu cầu khách hàng.")}"</td>
+          </tr>
+        </table>
+      </div>
+
+      ${
+        !isApprove
+          ? `
+      <div style="background-color: #fffbe6; border: 1px solid #ffe58f; padding: 15px; border-radius: 6px; margin-top: 20px;">
+        <p style="color: #d46b08; margin: 0; font-size: 14px;">
+          <strong>Hành động:</strong> Một nhiệm vụ mới đã được tạo. Vui lòng kiểm tra lại danh sách "Nhiệm vụ của tôi" và tiếp tục tương tác với khách hàng này.
+        </p>
+      </div>
+      `
+          : `
+      <p style="text-align: center; color: #64748b; font-size: 14px;">Hồ sơ đã được lưu trữ vào danh sách khách hàng ${data.targetStatus === "FROZEN" ? "tạm đóng" : "thất bại"}.</p>
+      `
+      }
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
+           style="background-color: #1e293b; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+           TRUY CẬP NHIỆM VỤ
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+      © Hệ thống CRM Toyota Bình Dương
+    </div>
+  </div>
+  `;
+};
+
+export const unfreezeAssignmentEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  customerPhone: string;
+  unfreezeNote: string;
+  typeLabel: string;
+  branchName: string;
+}) => {
+  const now = new Date().toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #bae7ff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+    <div style="background-color: #0050b3; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: #bae7ff; margin: 5px 0 0 0; font-size: 14px;">Thông báo rã băng hồ sơ khách hàng</p>
+    </div>
+
+    <div style="padding: 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <span style="background-color: #e6f7ff; color: #1890ff; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #91d5ff;">
+          NHIỆM VỤ RÃ BĂNG
+        </span>
+        <h2 style="color: #1e293b; margin: 15px 0 5px 0;">Hồ Sơ Đã Được Kích Hoạt Lại</h2>
+        <p style="color: #64748b; font-size: 13px; margin: 0;">Ngày thực hiện: ${now}</p>
+      </div>
+
+      <p style="color: #475569; font-size: 16px;">Chào <strong>${data.staffName}</strong>,</p>
+      <p style="color: #475569; font-size: 16px;">Quản lý đã thực hiện rã băng cho khách hàng <strong>${data.customerName.toUpperCase()}</strong> và phân bổ cho bạn trực tiếp xử lý.</p>
+
+      <div style="margin: 20px 0; padding: 20px; background-color: #f0f9ff; border-radius: 8px; border-left: 4px solid #1890ff;">
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; width: 35%;">Khách hàng:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.customerName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Số điện thoại:</td>
+            <td><a href="tel:${data.customerPhone}" style="color: #1890ff; font-weight: bold; text-decoration: none;">${data.customerPhone}</a></td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Nghiệp vụ:</td>
+            <td><span style="font-weight: bold;">${data.typeLabel}</span></td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0 0 0; color: #64748b; vertical-align: top;">Chỉ đạo Admin:</td>
+            <td style="padding: 10px 0 0 0; color: #1e293b; font-style: italic;">"${data.unfreezeNote}"</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background-color: #fff7e6; border: 1px solid #ffd591; padding: 15px; border-radius: 6px; margin-top: 20px;">
+        <p style="color: #d46b08; margin: 0; font-size: 13px;">
+          <strong>Lưu ý:</strong> Bạn có 120 phút để thực hiện cuộc gọi đầu tiên kể từ khi rã băng. Vui lòng cập nhật kết quả lên hệ thống để tránh bị tính LATE KPI.
+        </p>
+      </div>
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
+           style="background-color: #1e293b; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+           BẮT ĐẦU XỬ LÝ NGAY
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8;">
+      CRM Toyota Bình Dương - Used Car Division
+    </div>
+  </div>
+  `;
+};

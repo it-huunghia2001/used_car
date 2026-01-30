@@ -56,7 +56,7 @@ export default function ModalApproveTransaction({
         carModelId: values.carModelId,
         modelName: carModels.find((m) => m.id === values.carModelId)?.name,
         licensePlate: values.licensePlate,
-        year: values.year,
+        year: values.year ? Number(values.year) : null,
         vin: values.vin,
         engineNumber: values.engineNumber,
         odo: values.odo,
@@ -94,9 +94,8 @@ export default function ModalApproveTransaction({
   // Thêm useEffect vào trong ModalApproveTransaction
   useEffect(() => {
     if (isOpen && selectedLead?.customer) {
-      const customer = selectedLead.customer;
+      const customer = selectedLead.customer || selectedLead; // Linh hoạt cho cả 2 nguồn
       const leadCar = customer.leadCar;
-      console.log(leadCar);
 
       // Map dữ liệu từ leadCar vào các field của Form
       form.setFieldsValue({

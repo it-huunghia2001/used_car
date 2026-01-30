@@ -168,10 +168,13 @@ export default function SalesTasksPage() {
     setLoading(true);
     try {
       const result = await updateCustomerStatusAction(
-        selectedLead?.customerId || selectedLead?.id,
+        selectedLead?.customerId ||
+          selectedLead?.id ||
+          selectedLead?.customer?.customerId ||
+          selectedLead?.customer?.id,
         "CONTACTED",
         values.note,
-        selectedLead?.id,
+        selectedLead?.id || selectedLead?.customer?.id,
         values.nextContactAt ? dayjs(values.nextContactAt).toISOString() : null,
         { nextNote: values.nextContactNote },
       );
@@ -190,7 +193,7 @@ export default function SalesTasksPage() {
     try {
       // Lưu ý: Đảm bảo thứ tự tham số truyền vào đúng với hàm requestLoseApproval ở Server
       const res = await requestLoseApproval(
-        selectedLead.id, // customerId
+        selectedLead.id || selectedLead.customer.id, // customerId
         values.reasonId, // reasonId
         values.note, // note
         values.status, // targetStatus (LOSE, FROZEN...)
@@ -693,7 +696,7 @@ export default function SalesTasksPage() {
             const res = await requestSaleApproval(
               selectedLead.customer?.id || selectedLead.id,
               v,
-              selectedLead.id,
+              selectedLead.id || selectedLead.customer?.id,
             );
             if (res.success) {
               messageApi.success("Đã gửi phê duyệt!");
