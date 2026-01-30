@@ -171,7 +171,6 @@ export default function SalesTasksPage() {
     setLoading(true);
     try {
       const res = await requestLoseApproval(
-        selectedLead.id,
         selectedLead.customerId || selectedLead.id,
         values.reasonId,
         values.note,
