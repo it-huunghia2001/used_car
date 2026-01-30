@@ -224,10 +224,10 @@ model LeadCar {
 // 6. KHO XE THỰC TẾ
 // ==========================================
 model Car {
-  id        String @id @default(cuid())
-  stockCode String @unique
+  id        String  @id @default(cuid())
+  stockCode String  @unique
   modelName String
-  vin       String
+  vin       String?
 
   engineNumber   String?
   licensePlate   String?

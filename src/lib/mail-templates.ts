@@ -586,7 +586,7 @@ export const dealResultEmailTemplate = (data: {
   `;
 };
 
-export const purchaseResultEmailTemplate = (data: {
+export const purchaseResultEmailTemplate2 = (data: {
   staffName: string;
   customerName: string;
   decision: "APPROVE" | "REJECT";
@@ -816,6 +816,93 @@ export const unfreezeAssignmentEmailTemplate = (data: {
 
     <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8;">
       CRM Toyota Bình Dương - Used Car Division
+    </div>
+  </div>
+  `;
+};
+
+export const purchaseResultEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  decision: "APPROVE" | "REJECT";
+  reason?: string;
+  stockCode?: string;
+  carName: string;
+  price: number;
+}) => {
+  const isApprove = data.decision === "APPROVE";
+  const themeColor = isApprove ? "#f59e0b" : "#ef4444"; // Vàng cho Thu mua, Đỏ cho Từ chối
+  const resultText = isApprove ? "ĐÃ ĐƯỢC DUYỆT NHẬP KHO" : "CẦN CHỈNH SỬA LẠI";
+  const icon = isApprove ? "📥" : "⚠️";
+
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    
+    <div style="background-color: ${themeColor}; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Kết quả phê duyệt hồ sơ thu mua</p>
+    </div>
+
+    <div style="padding: 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <div style="font-size: 48px; margin-bottom: 10px;">${icon}</div>
+        <h2 style="color: #1e293b; margin: 0; font-size: 20px;">Hồ Sơ ${resultText}</h2>
+      </div>
+
+      <p style="color: #475569; font-size: 16px;">Chào <strong>${data.staffName}</strong>,</p>
+      <p style="color: #475569; font-size: 16px;">Quản trị viên đã xem xét yêu cầu thu mua xe từ khách hàng <strong>${data.customerName.toUpperCase()}</strong>.</p>
+
+      <div style="margin: 20px 0; padding: 20px; background-color: #f8fafc; border-radius: 8px; border-top: 4px solid ${themeColor};">
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8; width: 35%;">Mẫu xe:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.carName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Giá thu mua:</td>
+            <td style="font-weight: bold; color: #1e293b;">${new Intl.NumberFormat("vi-VN").format(data.price)} VNĐ</td>
+          </tr>
+          ${
+            isApprove
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8;">Mã kho (Stock):</td>
+            <td style="font-weight: bold; color: #f59e0b; font-family: monospace; font-size: 16px;">${data.stockCode}</td>
+          </tr>
+          `
+              : ""
+          }
+          <tr>
+            <td style="padding: 8px 0; color: #94a3b8; vertical-align: top;">Ghi chú Admin:</td>
+            <td style="padding: 8px 0; color: #1e293b; font-style: italic;">"${data.reason || "Không có ghi chú thêm"}"</td>
+          </tr>
+        </table>
+      </div>
+
+      ${
+        !isApprove
+          ? `
+      <div style="background-color: #fff1f0; border: 1px solid #ffa39e; padding: 15px; border-radius: 6px;">
+        <p style="color: #cf1322; margin: 0; font-size: 14px;">
+          <strong>Yêu cầu:</strong> Vui lòng kiểm tra lại Task "Sửa hồ sơ" trên hệ thống, hoàn thiện thông tin theo yêu cầu của Admin và gửi duyệt lại.
+        </p>
+      </div>
+      `
+          : `
+      <p style="text-align: center; color: #475569; font-size: 14px;">Xe đã chính thức được ghi nhận vào kho với trạng thái <strong>ĐANG TÂN TRANG</strong>.</p>
+      `
+      }
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
+           style="background-color: #1e293b; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+           XEM NHIỆM VỤ CỦA TÔI
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+      Hệ thống CRM Toyota Bình Dương - Quản lý xe qua sử dụng
     </div>
   </div>
   `;

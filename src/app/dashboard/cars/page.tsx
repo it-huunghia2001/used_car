@@ -248,7 +248,7 @@ export default function InventoryPage() {
                       shape="square"
                       size={54}
                       className="bg-indigo-50 text-indigo-600 flex items-center justify-center rounded-2xl"
-                      src={r.images[0]}
+                      src={r?.images?.[0] || undefined}
                       icon={<CarOutlined />}
                     />
                     <div>
@@ -263,7 +263,7 @@ export default function InventoryPage() {
                           {r.stockCode || "CHƯA CÓ MÃ"}
                         </Tag>
                         <Text type="secondary" className="text-[11px]">
-                          VIN: ...{r.vin.slice(-6)} | Năm: {r.year}
+                          VIN: ...{r?.vin?.slice(-6)} | Năm: {r.year}
                         </Text>
                       </Space>
                     </div>

@@ -26,6 +26,7 @@ import {
   loseApprovalRequestEmailTemplate,
   loseResultEmailTemplate,
   purchaseResultEmailTemplate,
+  purchaseResultEmailTemplate2,
   unfreezeAssignmentEmailTemplate,
 } from "@/lib/mail-templates";
 
@@ -309,9 +310,10 @@ export async function approveCarPurchase(
     const activity = await db.leadActivity.findUnique({
       where: { id: activityId },
       include: {
-        customer: true,
+        customer: {
+          include: { branch: true }, // Lấy thêm chi nhánh từ khách hàng
+        },
         user: {
-          // Nhân viên đề xuất
           select: { email: true, fullName: true, username: true },
         },
       },
@@ -330,7 +332,7 @@ export async function approveCarPurchase(
 
     const result = await db.$transaction(
       async (tx) => {
-        // --- LOGIC TRƯỜNG HỢP TỪ CHỐI ---
+        // --- TRƯỜNG HỢP TỪ CHỐI ---
         if (decision === "REJECT") {
           await tx.customer.update({
             where: { id: activity.customerId },
@@ -366,8 +368,9 @@ export async function approveCarPurchase(
           return { type: "REJECTED" };
         }
 
-        // --- LOGIC TRƯỜNG HỢP PHÊ DUYỆT ---
+        // --- TRƯỜNG HỢP PHÊ DUYỆT ---
         if (isPurchaseRequest) {
+          // Lấy dữ liệu xe từ Admin sửa hoặc từ Note của Sales
           const carData = adminUpdatedData || purchaseData.carData;
           const contractData = adminUpdatedData
             ? {
@@ -382,10 +385,26 @@ export async function approveCarPurchase(
             select: { branchId: true, id: true },
           });
 
-          if (!staff?.branchId)
-            throw new Error("Nhân viên đề xuất thiếu chi nhánh");
+          // Ưu tiên branchId của nhân viên, nếu không có lấy của khách hàng
+          const finalBranchId = staff?.branchId || activity.customer.branchId;
+          if (!finalBranchId)
+            throw new Error("Không xác định được chi nhánh cho xe này");
 
-          // Logic tạo Stock Code
+          // 1. LỌC DỮ LIỆU SẠCH (Quan trọng nhất để tránh lỗi Unknown argument)
+          // Destructure bỏ qua các trường không thuộc Schema bảng Car
+          const {
+            price,
+            contractNo,
+            id,
+            customerId,
+            createdAt,
+            updatedAt,
+            note,
+            adminNote,
+            ...validCarFields
+          } = carData;
+
+          // 2. Logic tạo Stock Code
           const carModelDb = await tx.carModel.findUnique({
             where: { id: carData.carModelId },
           });
@@ -407,27 +426,31 @@ export async function approveCarPurchase(
           }
           const generatedStockCode = `${carTypePrefix}${yearSuffix}${(lastNumber + 1).toString().padStart(3, "0")}`;
 
-          // Tạo Xe nhập kho
+          // 3. Tạo Xe nhập kho
           const createdCar = await tx.car.create({
             data: {
-              ...carData, // Lưu ý: carData phải lọc các trường ID/Date nếu có
+              ...validCarFields, // Các trường như color, transmission, fuelType...
               stockCode: generatedStockCode,
-              vin: carData.vin?.toUpperCase(),
-              licensePlate: carData.licensePlate?.toUpperCase(),
-              year: Number(carData.year),
-              odo: Number(carData.odo),
-              seats: Number(carData.seats) || 5,
+              vin: carData.vin?.toUpperCase() || null,
+              engineNumber: carData.engineNumber?.toUpperCase() || null,
+              licensePlate: carData.licensePlate?.toUpperCase() || null,
+              year: carData.year
+                ? Number(carData.year)
+                : new Date().getFullYear(),
+              odo: carData.odo ? Number(carData.odo) : 0,
+              seats: carData.seats ? Number(carData.seats) : 5,
               costPrice: contractData.price,
-              modelName: carModelDb?.name ?? "",
-              branchId: staff.branchId,
-              purchaserId: staff.id,
+              contractNumber: contractData.contractNo,
+              modelName: carModelDb?.name ?? "Xe thu mua",
+              branchId: finalBranchId,
+              purchaserId: activity.createdById,
               referrerId: activity.customer.referrerId,
               purchasedAt: new Date(),
               status: "REFURBISHING",
-              contractNumber: contractData.contractNo,
             },
           });
 
+          // 4. Lưu lịch sử chủ xe
           await tx.carOwnerHistory.create({
             data: {
               carId: createdCar.id,
@@ -436,9 +459,11 @@ export async function approveCarPurchase(
               contractNo: contractData.contractNo,
               price: contractData.price,
               date: new Date(),
+              note: `Nhập kho từ hồ sơ ${activity.customer.fullName}`,
             },
           });
 
+          // 5. Cập nhật Customer & Hoàn tất các Task còn lại
           await tx.customer.update({
             where: { id: activity.customerId },
             data: { status: "DEAL_DONE" },
@@ -449,6 +474,7 @@ export async function approveCarPurchase(
             data: { status: "COMPLETED", completedAt: new Date() },
           });
 
+          // 6. Đóng Activity phê duyệt
           await tx.leadActivity.update({
             where: { id: activityId },
             data: {
@@ -456,6 +482,34 @@ export async function approveCarPurchase(
               note: `✅ Admin đã duyệt nhập kho: ${generatedStockCode}. ${reason ? "Ghi chú: " + reason : ""}`,
             },
           });
+
+          // --- GỬI EMAIL THÔNG BÁO CHO NHÂN VIÊN ---
+          // Chỉ gửi khi transaction thành công và có thông tin email nhân viên
+          if (activity.user?.email && result.type !== "UNKNOWN") {
+            // Chạy ngầm (Background task) để không làm chậm response
+            (async () => {
+              try {
+                await sendMail({
+                  to: activity.user!.email,
+                  subject: `[KẾT QUẢ] Phê duyệt hồ sơ thu mua: ${activity.customer.fullName.toUpperCase()}`,
+                  html: purchaseResultEmailTemplate2({
+                    staffName:
+                      activity.user!.fullName ||
+                      activity.user!.username ||
+                      "Nhân viên",
+                    customerName: activity.customer.fullName,
+                    decision: decision,
+                    reason: reason,
+                    stockCode: (result as any).stockCode,
+                    carName: result.carName ?? "",
+                    price: result.price,
+                  }),
+                });
+              } catch (mailErr) {
+                console.error("Lỗi gửi mail phản hồi thu mua:", mailErr);
+              }
+            })();
+          }
 
           return {
             type: "PURCHASE_DONE",
@@ -470,21 +524,23 @@ export async function approveCarPurchase(
     );
 
     // --- GỬI EMAIL THÔNG BÁO CHO NHÂN VIÊN ---
-    if (activity.user?.email) {
+    if (activity.user?.email && result.type !== "UNKNOWN") {
       (async () => {
         try {
           await sendMail({
-            to: activity.user.email,
+            to: activity.user!.email,
             subject: `[KẾT QUẢ] Phê duyệt hồ sơ thu mua: ${activity.customer.fullName.toUpperCase()}`,
             html: purchaseResultEmailTemplate({
               staffName:
-                activity.user.fullName || activity.user.username || "Nhân viên",
+                activity.user!.fullName ||
+                activity.user!.username ||
+                "Nhân viên",
               customerName: activity.customer.fullName,
               decision: decision,
               reason: reason,
-              stockCode: result.stockCode,
-              carName: result.carName || "Xe thu mua",
-              price: Number(result.price || 0),
+              stockCode: (result as any).stockCode,
+              carName: (result as any).carName || "Xe thu mua",
+              price: Number((result as any).price || 0),
             }),
           });
         } catch (mailErr) {
@@ -496,9 +552,10 @@ export async function approveCarPurchase(
     revalidatePath("/dashboard/approvals");
     revalidatePath("/dashboard/assigned-tasks");
     revalidatePath("/dashboard/inventory");
+
     return { success: true, data: result };
   } catch (error: any) {
-    console.error(error);
+    console.error("Approve Car Purchase Error:", error);
     return { success: false, error: error.message };
   }
 }

@@ -40,7 +40,6 @@ interface ModalApproveLoseProps {
     decision: "APPROVE" | "REJECT",
     targetStatus?: string,
   ) => void;
-  // Bổ sung thêm props để nhận dữ liệu lịch sử từ Page cha
   history?: any[];
   historyLoading?: boolean;
 }
@@ -54,26 +53,30 @@ export default function ModalApproveLose({
   history = [],
   historyLoading = false,
 }: ModalApproveLoseProps) {
+  // --- GUARD CLAUSE ---
   if (!selectedActivity || selectedActivity.status !== "PENDING_LOSE_APPROVAL")
     return null;
 
   const rawNote = selectedActivity.note || "";
-  const parts = rawNote.split("]: ");
-  const targetStatus =
-    parts.length > 1 ? parts[parts.length - 1].trim() : "LOSE";
 
-  let salesNote = "";
-  const matchNote = rawNote.match(/MỤC TIÊU: ([\s\S]*?)\]:/);
-  if (matchNote && matchNote[1]) {
-    salesNote = matchNote[1].replace(/\\n/g, "").trim();
-  } else {
-    salesNote = rawNote;
-  }
+  // --- LOGIC BÓC TÁCH CHUỖI (REGEX) ---
+  // 1. Tìm trạng thái sau chữ "ĐÍCH: " (Ví dụ: FROZEN, LOSE)
+  const targetStatusMatch = rawNote.match(/ĐÍCH:\s*([A-Z_]+)/);
+  const targetStatus = targetStatusMatch ? targetStatusMatch[1] : "LOSE";
 
+  // 2. Tìm nội dung giải trình sau dấu "]: "
+  const salesNote = rawNote.includes("]: ")
+    ? rawNote.split("]: ").pop()?.trim()
+    : rawNote;
+
+  // Lấy cấu hình hiển thị (Màu sắc, Icon, Label) của trạng thái đích
   const { label, color, icon } = getLeadStatusHelper(targetStatus);
-  // Nội dung Tab 1: Chi tiết phê duyệt
+
+  // --- SUB-RENDERS ---
+
+  // Tab 1: Nội dung yêu cầu
   const renderApprovalDetail = (
-    <>
+    <div className="py-2">
       <Alert
         title={
           <Space>
@@ -88,8 +91,8 @@ export default function ModalApproveLose({
             Yêu cầu được gửi lúc:{" "}
             {dayjs(selectedActivity.createdAt).format("HH:mm DD/MM/YYYY")}
             <br />
-            Hệ thống sẽ cập nhật trạng thái khách hàng sang{" "}
-            <b>{targetStatus}</b> nếu được duyệt.
+            Hệ thống sẽ chuyển khách hàng sang trạng thái <b>{label}</b> nếu bạn
+            phê duyệt.
           </div>
         }
         type="warning"
@@ -97,6 +100,7 @@ export default function ModalApproveLose({
         icon={<InfoCircleFilled />}
         className="mb-5 rounded-xl border-orange-100 bg-orange-50"
       />
+
       <Descriptions
         bordered
         column={1}
@@ -115,18 +119,17 @@ export default function ModalApproveLose({
             {selectedActivity.customer?.phone}
           </div>
         </Descriptions.Item>
-        <Descriptions.Item label="Đề xuất sang">
+        <Descriptions.Item label="Đề xuất chuyển">
           <Tag
             icon={icon}
             color={color}
-            className="rounded-full px-3 font-medium uppercase text-[10px] flex! gap-2 py-2 w-fit"
+            className="rounded-full px-3 font-medium uppercase text-[10px] py-1 m-0"
           >
             {label}
           </Tag>
         </Descriptions.Item>
         <Descriptions.Item label="Lý do hệ thống">
-          {selectedActivity.reason?.content ||
-            `Mã: ${selectedActivity.reasonId}`}
+          {selectedActivity.reason?.content || "Không xác định"}
         </Descriptions.Item>
       </Descriptions>
 
@@ -135,20 +138,24 @@ export default function ModalApproveLose({
           type="secondary"
           className="text-[11px] uppercase font-bold text-slate-400"
         >
-          Giải trình từ Sales
+          Nội dung giải trình từ Sales
         </Text>
       </Divider>
 
-      <div className="bg-slate-50 p-5 rounded-2xl border border-dashed border-slate-200 italic text-slate-700 shadow-inner">
+      <div className="bg-slate-50 p-5 rounded-2xl border border-dashed border-slate-200 italic text-slate-700 shadow-inner min-h-[80px]">
         {salesNote || "Không có nội dung giải trình chi tiết."}
       </div>
-    </>
+    </div>
   );
 
-  // Nội dung Tab 2: Lịch sử chăm sóc
+  // Tab 2: Dòng thời gian tương tác
   const renderHistoryTimeline = (
-    <div className="max-h-[450px] overflow-y-auto px-2 py-4">
-      {history.length > 0 ? (
+    <div className="max-h-[450px] overflow-y-auto px-2 py-4 custom-scrollbar">
+      {historyLoading ? (
+        <div className="py-10 text-center text-slate-400">
+          Đang tải lịch sử...
+        </div>
+      ) : history.length > 0 ? (
         <Timeline
           mode="left"
           items={history.map((item) => ({
@@ -160,11 +167,11 @@ export default function ModalApproveLose({
             color: item.status === "PENDING_LOSE_APPROVAL" ? "orange" : "blue",
             children: (
               <div className="mb-4">
-                <Tag className="text-[10px] mb-1">{item.status}</Tag>
-                <div className="text-sm text-slate-700 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                <Tag className="text-[10px] mb-1 rounded-md">{item.status}</Tag>
+                <div className="text-sm text-slate-700 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
                   {item.note || "Cập nhật trạng thái"}
                 </div>
-                <div className="text-[10px] text-gray-400 mt-1">
+                <div className="text-[10px] text-gray-400 mt-1 pl-1">
                   <UserOutlined className="mr-1" /> {item.user?.fullName}
                 </div>
               </div>
@@ -172,7 +179,7 @@ export default function ModalApproveLose({
           }))}
         />
       ) : (
-        <Empty description="Không có lịch sử tương tác" />
+        <Empty description="Không có lịch sử tương tác" className="py-10" />
       )}
     </div>
   );
@@ -183,7 +190,7 @@ export default function ModalApproveLose({
         <Space>
           <QuestionCircleOutlined className="text-orange-500" />
           <span className="uppercase font-bold tracking-tight text-slate-700">
-            Phê duyệt & Lịch sử hồ sơ
+            Chi tiết phê duyệt & Lịch sử hồ sơ
           </span>
         </Space>
       }
@@ -196,7 +203,7 @@ export default function ModalApproveLose({
           disabled={loading}
           className="rounded-lg"
         >
-          Hủy bỏ
+          Đóng
         </Button>,
         <Button
           key="reject"
@@ -206,27 +213,28 @@ export default function ModalApproveLose({
           loading={loading}
           className="rounded-lg"
         >
-          Từ chối
+          Từ chối (Yêu cầu chăm sóc tiếp)
         </Button>,
         <Button
           key="approve"
           type="primary"
-          className="bg-green-600 border-none rounded-lg"
+          className="bg-emerald-600 border-none rounded-lg hover:bg-emerald-700"
           icon={<CheckCircleFilled />}
           onClick={() =>
             onConfirm(selectedActivity.id, "APPROVE", targetStatus)
           }
           loading={loading}
         >
-          Đồng ý cho {targetStatus}
+          Đồng ý cho {label}
         </Button>,
       ]}
-      width={650}
+      width={700}
       centered
       destroyOnHidden
     >
       <Tabs
         defaultActiveKey="1"
+        className="custom-tabs"
         items={[
           {
             key: "1",
@@ -248,6 +256,15 @@ export default function ModalApproveLose({
           },
         ]}
       />
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+      `}</style>
     </Modal>
   );
 }
