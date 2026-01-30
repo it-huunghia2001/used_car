@@ -171,7 +171,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
           children: [
             {
               key: "/dashboard/cars",
-              label: <Link href="/dashboard/cars">Kho xe thực tế</Link>,
+              label: <Link href="/dashboard/cars">Kho xe</Link>,
             },
             {
               key: "/dashboard/admin/approval-customer",

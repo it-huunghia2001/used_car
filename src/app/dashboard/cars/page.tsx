@@ -146,9 +146,11 @@ export default function InventoryPage() {
   const filteredCars = useMemo(() => {
     return cars.filter(
       (car) =>
-        car.modelName.toLowerCase().includes(searchText.toLowerCase()) ||
-        car.vin.toLowerCase().includes(searchText.toLowerCase()) ||
-        car.stockCode?.toLowerCase().includes(searchText.toLowerCase()),
+        String(car.modelName)
+          .toLowerCase()
+          .includes(searchText.toLowerCase()) ||
+        String(car.vin).toLowerCase().includes(searchText.toLowerCase()) ||
+        String(car.stockCode)?.toLowerCase().includes(searchText.toLowerCase()),
     );
   }, [cars, searchText]);
 

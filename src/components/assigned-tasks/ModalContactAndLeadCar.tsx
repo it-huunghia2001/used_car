@@ -138,7 +138,7 @@ export default function ModalContactAndLeadCar({
         centered
         width={500}
         // Cho phép các thành phần lơ lửng thoát ra ngoài giới hạn Modal
-        bodyStyle={{ overflow: "visible" }}
+        style={{ overflow: "visible" }}
       >
         <Form
           form={form}
