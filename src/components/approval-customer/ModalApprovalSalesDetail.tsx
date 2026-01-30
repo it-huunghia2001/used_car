@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Modal,
   Descriptions,
@@ -11,12 +11,15 @@ import {
   Alert,
   Form,
   Input,
+  Space,
+  Tag,
 } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
-  CarOutlined,
   FileTextOutlined,
+  UserOutlined,
+  DollarCircleOutlined,
 } from "@ant-design/icons";
 
 const { Text, Title } = Typography;
@@ -41,175 +44,230 @@ export default function ModalApprovalSalesDetail({
 }: Props) {
   const [form] = Form.useForm();
 
+  // --- LOGIC BÓC TÁCH DỮ LIỆU TỪ GHI CHÚ (REGEX) ---
+  const rawNote = selectedActivity?.note || "";
+
+  // 1. Trích xuất số hợp đồng: Tìm sau "HĐ: " đến trước dấu "." hoặc "|"
+  const contractNoMatch = rawNote.match(/HĐ:\s*([^.|]*)/);
+  const extractedContractNo = contractNoMatch ? contractNoMatch[1].trim() : "";
+
+  // 2. Trích xuất thông tin xe và giá (phòng trường hợp leadCar bị null)
+  const carNameMatch = rawNote.match(/Xe\s*([^.-]*)/);
+  const extractedCarName = carNameMatch ? carNameMatch[1].trim() : "";
+
+  // Tự động điền dữ liệu vào Form khi mở Modal
+  useEffect(() => {
+    if (isOpen) {
+      form.setFieldsValue({
+        contractNo: extractedContractNo,
+        adminNote:
+          "Đồng ý chốt bán. Đề nghị bộ phận kho chuẩn bị hồ sơ giao xe.",
+      });
+    }
+  }, [isOpen, extractedContractNo, form]);
+
   if (!selectedActivity) return null;
 
-  const { customer, note } = selectedActivity;
+  const { customer, user } = selectedActivity;
   const leadCar = customer?.leadCar;
 
-  // Xử lý khi bấm nút Phê duyệt
+  // Xử lý Phê duyệt
   const handleApprove = async () => {
     try {
       const values = await form.validateFields();
       await onApprove({
-        ...values, // Gửi contractNo và adminNote
+        ...values,
         isReject: false,
       });
     } catch (error) {
-      console.log("Validation failed:", error);
+      console.error("Validation failed:", error);
     }
   };
 
-  // Xử lý khi bấm nút Từ chối
+  // Xử lý Từ chối
   const handleReject = async () => {
-    const adminNote = form.getFieldValue("adminNote");
-    if (!adminNote) {
-      form.setFields([
-        {
-          name: "adminNote",
-          errors: ["Vui lòng nhập lý do từ chối vào ô Ghi chú"],
-        },
-      ]);
-      return;
+    try {
+      const adminNote = form.getFieldValue("adminNote");
+      if (
+        !adminNote ||
+        adminNote.trim() === "" ||
+        adminNote ===
+          "Đồng ý chốt bán. Đề nghị bộ phận kho chuẩn bị hồ sơ giao xe."
+      ) {
+        form.setFields([
+          {
+            name: "adminNote",
+            errors: [
+              "Vui lòng nhập lý do từ chối cụ thể để nhân viên sửa đổi!",
+            ],
+          },
+        ]);
+        return;
+      }
+      await onReject(adminNote);
+    } catch (error) {
+      console.error("Reject failed:", error);
     }
-    await onReject(adminNote);
   };
 
   return (
     <Modal
       title={
-        <Title level={4} className="m-0!">
-          <CheckCircleOutlined className="text-cyan-600 mr-2" />
-          PHÊ DUYỆT CHỐT BÁN XE
-        </Title>
+        <Space>
+          <CheckCircleOutlined className="text-cyan-600" />
+          <span className="uppercase font-bold tracking-tight text-slate-700">
+            Chi tiết phê duyệt chốt bán lẻ
+          </span>
+        </Space>
       }
       open={isOpen}
       onCancel={onClose}
       footer={[
-        <Button key="close" onClick={onClose}>
-          Hủy
+        <Button
+          key="close"
+          onClick={onClose}
+          disabled={loading}
+          className="rounded-lg"
+        >
+          Hủy bỏ
         </Button>,
         <Button
           key="reject"
           danger
           icon={<CloseCircleOutlined />}
           onClick={handleReject}
+          loading={loading}
+          className="rounded-lg font-medium"
         >
-          Từ chối
+          Từ chối yêu cầu
         </Button>,
         <Button
           key="approve"
           type="primary"
-          className="bg-cyan-600"
+          className="bg-cyan-600 border-none rounded-lg font-medium shadow-lg shadow-cyan-100"
           icon={<CheckCircleOutlined />}
           loading={loading}
           onClick={handleApprove}
         >
-          Xác nhận chốt bán & Xuất kho
+          Xác nhận & Xuất kho bán
         </Button>,
       ]}
-      width={800}
-      className="top-10"
+      width={750}
+      centered
       destroyOnHidden
     >
+      {/* Thông tin nhân viên đề xuất */}
       <Alert
         message={
           <Text strong>
-            Đề xuất từ Sales: {selectedActivity.user?.fullName}
+            <UserOutlined className="mr-2" />
+            Nhân viên tư vấn: {user?.fullName || user?.username}
           </Text>
         }
-        description={note}
+        description={rawNote}
         type="info"
         showIcon
-        className="mb-4 rounded-xl"
+        className="mb-6 rounded-xl bg-cyan-50 border-cyan-100"
       />
 
-      <Descriptions
-        title="Thông tin khách mua"
-        bordered
-        column={2}
-        size="small"
-      >
-        <Descriptions.Item label="Khách hàng">
-          {customer.fullName}
-        </Descriptions.Item>
-        <Descriptions.Item label="Số điện thoại">
-          {customer.phone}
-        </Descriptions.Item>
-        <Descriptions.Item label="Ngân sách khách">
-          {Number(customer.budget).toLocaleString()}đ
-        </Descriptions.Item>
-      </Descriptions>
-
-      <Divider titlePlacement="left" className="m-4!">
-        <CarOutlined /> THÔNG TIN XE CHỐT BÁN
-      </Divider>
-
-      {leadCar ? (
-        <Descriptions bordered column={2} size="small" className="mb-4">
-          <Descriptions.Item label="Mẫu xe" span={2}>
-            <Text strong className="text-blue-600 uppercase">
-              {leadCar.modelName}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* Cột 1: Khách hàng */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+          <Divider plain className="m-0! mb-3!">
+            <Text type="secondary" className="text-[11px] font-bold uppercase">
+              Khách hàng
             </Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="Năm sản xuất">
-            {leadCar.year}
-          </Descriptions.Item>
-          <Descriptions.Item label="Màu sắc">
-            {leadCar.color || "---"}
-          </Descriptions.Item>
-          <Descriptions.Item label="Giá chốt bán" span={2}>
-            <Title level={4} className="m-0! text-red-600 font-black">
-              {Number(leadCar.finalPrice).toLocaleString()} VNĐ
-            </Title>
-          </Descriptions.Item>
-        </Descriptions>
-      ) : (
-        <Alert
-          message="Không tìm thấy thông tin xe liên kết"
-          type="warning"
-          className="mb-4"
-        />
-      )}
+          </Divider>
+          <Descriptions column={1} size="small">
+            <Descriptions.Item label="Họ tên">
+              <Text strong>{customer?.fullName}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Điện thoại">
+              <Text copyable>{customer?.phone}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngân sách">
+              <Tag color="blue">
+                {Number(customer?.budget || 0).toLocaleString()}đ
+              </Tag>
+            </Descriptions.Item>
+          </Descriptions>
+        </div>
 
-      {/* PHẦN NHẬP LIỆU CỦA QUẢN LÝ */}
-      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-        <Title level={5} className="mt-0! mb-3!">
-          <FileTextOutlined className="mr-2 text-cyan-600" /> THÔNG TIN HỢP ĐỒNG
-          & PHÊ DUYỆT
+        {/* Cột 2: Sản phẩm & Giá */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+          <Divider plain className="m-0! mb-3!">
+            <Text type="secondary" className="text-[11px] font-bold uppercase">
+              Sản phẩm chốt
+            </Text>
+          </Divider>
+          <Descriptions column={1} size="small">
+            <Descriptions.Item label="Mẫu xe">
+              <Text strong className="text-cyan-700 uppercase">
+                {leadCar?.modelName || extractedCarName}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Giá chốt">
+              <Text strong className="text-red-600 text-lg">
+                <DollarCircleOutlined className="mr-1" />
+                {Number(leadCar?.finalPrice || 0).toLocaleString()}{" "}
+                <small>VNĐ</small>
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Số HĐ tạm">
+              <Tag color="orange" className="font-mono">
+                {extractedContractNo || "N/A"}
+              </Tag>
+            </Descriptions.Item>
+          </Descriptions>
+        </div>
+      </div>
+
+      {/* Phần nhập liệu của Quản lý */}
+      <div className="bg-slate-50 p-5 rounded-2xl border border-dashed border-slate-300">
+        <Title level={5} className="mt-0! mb-4! flex items-center">
+          <FileTextOutlined className="mr-2 text-cyan-600" />
+          XÁC NHẬN PHÁP LÝ & HỢP ĐỒNG
         </Title>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ adminNote: "Đồng ý chốt bán." }}
-        >
+
+        <Form form={form} layout="vertical" requiredMark="optional">
           <Form.Item
             name="contractNo"
-            label={<Text strong>Số hợp đồng bán lẻ</Text>}
+            label={<Text strong>Số hợp đồng bán lẻ chính thức</Text>}
             rules={[
-              {
-                required: true,
-                message: "Vui lòng nhập số hợp đồng để chốt xe!",
-              },
+              { required: true, message: "Vui lòng kiểm tra lại số hợp đồng!" },
             ]}
           >
             <Input
-              placeholder="Ví dụ: 123/2026/HĐB-TBD"
-              className="rounded-lg h-10 font-bold text-blue-700"
+              placeholder="VD: 123/2026/HĐB-TBD"
+              className="rounded-lg h-10 font-bold text-blue-700 uppercase placeholder:normal-case"
+              prefix={<FileTextOutlined className="text-slate-400" />}
             />
           </Form.Item>
 
           <Form.Item
             name="adminNote"
-            label={<Text strong>Ghi chú của Quản lý</Text>}
+            label={<Text strong>Chỉ đạo từ Quản lý</Text>}
+            extra="Nội dung này sẽ được gửi email thông báo cho nhân viên."
           >
             <TextArea
-              rows={2}
-              placeholder="Nhập lý do nếu từ chối hoặc chỉ dẫn thêm cho nhân viên..."
-              className="rounded-lg"
+              rows={3}
+              placeholder="Nhập lý do nếu từ chối hoặc ghi chú giao xe..."
+              className="rounded-lg shadow-inner"
             />
           </Form.Item>
         </Form>
       </div>
+
+      <style jsx global>{`
+        .ant-descriptions-item-label {
+          color: #94a3b8 !important;
+          font-size: 13px;
+        }
+        .ant-modal-content {
+          border-radius: 24px !important;
+          padding: 24px !important;
+        }
+      `}</style>
     </Modal>
   );
 }

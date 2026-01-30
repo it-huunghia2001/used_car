@@ -218,7 +218,23 @@ export default function ModalApproveSales({
           )}
 
           <Divider className="my-2" />
-
+          <Col xs={24} md={12}>
+            <Form.Item
+              name="contractNo"
+              label={<Text strong>Số hợp đồng bán lẻ</Text>}
+              rules={[
+                {
+                  required: true,
+                  message: "Vui lòng nhập số hợp đồng để chốt xe!",
+                },
+              ]}
+            >
+              <Input
+                placeholder="Ví dụ: 123/2026/HĐB-TBD"
+                className="rounded-lg h-10 font-bold text-blue-700"
+              />
+            </Form.Item>
+          </Col>
           {/* PHẦN NHẬP GIÁ CHỐT */}
           <Col xs={24} md={12}>
             <Form.Item

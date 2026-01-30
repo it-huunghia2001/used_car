@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export const referralEmailTemplate = (data: {
   customerName: string;
   typeLabel: string;
@@ -903,6 +904,74 @@ export const purchaseResultEmailTemplate = (data: {
 
     <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
       Hệ thống CRM Toyota Bình Dương - Quản lý xe qua sử dụng
+    </div>
+  </div>
+  `;
+};
+
+export const saleApprovalRequestEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  carName: string;
+  stockCode: string;
+  finalPrice: number;
+  paymentMethod: string;
+  contractNo: string; // THÊM TRƯỜNG NÀY
+  note: string;
+  branchName: string;
+}) => {
+  const now = new Date().toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <div style="background-color: #10b981; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Yêu cầu phê duyệt chốt bán xe</p>
+    </div>
+
+    <div style="padding: 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <span style="background-color: #ecfdf5; color: #059669; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #d1fae5;">
+          HỒ SƠ CHỜ DUYỆT
+        </span>
+        <h2 style="color: #1e293b; margin: 15px 0 5px 0;">Đề Nghị Chốt Bán Lẻ</h2>
+        <p style="color: #64748b; font-size: 13px; margin: 0;">Số HĐ: <strong>${data.contractNo}</strong></p>
+      </div>
+
+      <div style="margin: 20px 0; padding: 20px; background-color: #f8fafc; border-radius: 8px; border-left: 5px solid #10b981;">
+        <div style="font-size: 12px; color: #64748b; margin-bottom: 5px; text-transform: uppercase;">Giá trị chốt (VNĐ):</div>
+        <div style="font-size: 28px; color: #10b981; font-weight: bold; margin-bottom: 15px;">
+          ${new Intl.NumberFormat("vi-VN").format(data.finalPrice)}
+        </div>
+
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; color: #94a3b8; width: 35%;">Số hợp đồng:</td>
+            <td style="font-weight: bold; color: #1e293b; font-family: monospace;">${data.contractNo}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #94a3b8;">Khách hàng:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.customerName.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #94a3b8;">Xe giao dịch:</td>
+            <td style="color: #1e293b;">${data.carName} (<strong>${data.stockCode}</strong>)</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #94a3b8;">Thanh toán:</td>
+            <td style="color: #1e293b;">${data.paymentMethod}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/approvals" 
+           style="background-color: #1e293b; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+           XEM CHI TIẾT & PHÊ DUYỆT
+        </a>
+      </div>
     </div>
   </div>
   `;
