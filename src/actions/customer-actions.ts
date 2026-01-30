@@ -55,7 +55,6 @@ export async function createCustomerAction(rawData: any) {
       const duplicate = await db.customer.findFirst({
         where: {
           licensePlate: cleanPlate,
-          type: data.type,
           status: {
             notIn: [
               LeadStatus.DEAL_DONE,

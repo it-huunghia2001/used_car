@@ -57,3 +57,43 @@ export const UrgencyBadge = ({ type }: { type: UrgencyType | null }) => {
     </div>
   );
 };
+
+import {
+  ClockCircleOutlined,
+  SyncOutlined,
+  CheckCircleOutlined,
+  LockOutlined,
+  FileDoneOutlined,
+  PlusCircleOutlined,
+} from "@ant-design/icons";
+
+export const getCarStatusHelper = (status: string) => {
+  switch (status) {
+    case "NEW":
+      return { label: "Mới nhập", color: "cyan", icon: <PlusCircleOutlined /> };
+    case "PENDING":
+      return {
+        label: "Chờ duyệt",
+        color: "warning",
+        icon: <ClockCircleOutlined />,
+      };
+    case "REFURBISHING":
+      return {
+        label: "Đang tân trang",
+        color: "processing",
+        icon: <SyncOutlined spin />,
+      };
+    case "READY_FOR_SALE":
+      return {
+        label: "Sẵn sàng bán",
+        color: "success",
+        icon: <CheckCircleOutlined />,
+      };
+    case "BOOKED":
+      return { label: "Đã đặt cọc", color: "error", icon: <LockOutlined /> };
+    case "SOLD":
+      return { label: "Đã bán", color: "default", icon: <FileDoneOutlined /> };
+    default:
+      return { label: "Không xác định", color: "default", icon: null };
+  }
+};

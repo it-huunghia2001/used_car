@@ -104,11 +104,11 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
           children: [
             {
               key: "/dashboard/sales-inventory",
-              label: <Link href="/dashboard/sales-inventory">Xử lý Lead</Link>,
+              label: <Link href="/dashboard/sales-inventory">Xử lý</Link>,
             },
             {
-              key: "/dashboard/history",
-              label: <Link href="/dashboard/history">Lịch sử giao dịch</Link>,
+              key: "/dashboard/sales/history",
+              label: <Link href="/dashboard/sales/history">Lịch sử </Link>,
             },
           ],
         },
@@ -119,7 +119,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
           children: [
             {
               key: "/dashboard/assigned-tasks",
-              label: <Link href="/dashboard/assigned-tasks">Định giá xe</Link>,
+              label: <Link href="/dashboard/assigned-tasks">Xử lý</Link>,
             },
             {
               key: "/dashboard/purchase/history",
@@ -144,7 +144,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
           children: [
             {
               key: "/dashboard/customers",
-              label: <Link href="/dashboard/customers">Phân bổ Lead</Link>,
+              label: <Link href="/dashboard/customers">Phân bổ</Link>,
             },
             {
               key: "/dashboard/lead",
@@ -298,7 +298,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         defaultOpenKeys={menuItems.filter((i) => i.children).map((i) => i.key)}
         items={menuItems}
         onClick={() => setVisible(false)}
-        className="font-medium flex-grow py-4 custom-sidebar-menu"
+        className="font-medium h-[calc(100vh-100px)] overflow-y-scroll grow py-4 custom-sidebar-menu"
         style={{ background: "transparent" }}
       />
     </div>
