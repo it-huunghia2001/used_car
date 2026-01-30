@@ -124,6 +124,8 @@ export default function UserManagementPage() {
 
   const onFinish = async (vals: any) => {
     setLoading(true);
+    console.log(vals);
+
     try {
       await upsertUserAction({ ...vals, id: editingUser?.id });
       message.success("Đã lưu thông tin nhân sự");

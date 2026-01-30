@@ -169,87 +169,92 @@ export async function upsertUserAction(data: any) {
       role,
       isGlobalManager,
       branchId,
-      // ... các field khác
+      departmentId,
+      positionId,
+      // extension và extensionPwd sẽ được lấy trực tiếp từ data bên dưới
     } = data;
 
     // --- 1. KIỂM TRA QUYỀN HẠN ---
     const isGlobalPower =
       currentUser.role === "ADMIN" || currentUser.isGlobalManager;
 
-    // --- 2. BẢO VỆ PHÂN QUYỀN ROLE (CHỐT CHẶN CHÍNH) ---
+    // --- 2. BẢO VỆ PHÂN QUYỀN (Logic giữ nguyên) ---
     const finalRole = role;
     let finalIsGlobalManager = Boolean(isGlobalManager);
     let finalBranchId;
+
     if (!isGlobalPower) {
-      // A. Nếu không phải Admin, không được gán role ADMIN cho bất kỳ ai
-      if (role === "ADMIN") {
-        throw new Error(
-          "Bạn không có quyền gán vai trò Quản trị viên (ADMIN).",
-        );
-      }
-
-      // B. Nếu không phải Admin, không được phép kích hoạt quyền Global Manager
-      if (finalIsGlobalManager === true) {
-        finalIsGlobalManager = false; // Cưỡng chế về false thay vì báo lỗi (hoặc throw error nếu muốn gắt hơn)
-      }
-
-      // C. Cưỡng chế chi nhánh về chi nhánh của Manager đó
+      if (role === "ADMIN")
+        throw new Error("Bạn không có quyền gán vai trò ADMIN.");
+      finalIsGlobalManager = false;
       finalBranchId = currentUser.branchId;
     } else {
       finalBranchId = branchId;
     }
 
-    // --- 3. KIỂM TRA KHI CẬP NHẬT (UPDATE) ---
+    // --- 3. KIỂM TRA KHI CẬP NHẬT (Update check) ---
     if (id) {
       const targetUser = await db.user.findUnique({
         where: { id },
         select: { role: true, branchId: true, isGlobalManager: true },
       });
-
-      if (!targetUser)
-        throw new Error("Không tìm thấy người dùng cần cập nhật");
-
+      if (!targetUser) throw new Error("Không tìm thấy người dùng");
       if (!isGlobalPower) {
-        // Chặn sửa người thuộc chi nhánh khác
-        if (targetUser.branchId !== currentUser.branchId) {
-          throw new Error(
-            "Bạn không có quyền chỉnh sửa nhân viên thuộc chi nhánh khác",
-          );
-        }
-        // Chặn Manager chi nhánh sửa đổi thông tin của một ADMIN hoặc GlobalManager hiện có
-        if (targetUser.role === "ADMIN" || targetUser.isGlobalManager) {
-          throw new Error(
-            "Bạn không có quyền chỉnh sửa tài khoản cấp quản trị toàn cầu.",
-          );
-        }
+        if (targetUser.branchId !== currentUser.branchId)
+          throw new Error("Khác chi nhánh");
+        if (targetUser.role === "ADMIN" || targetUser.isGlobalManager)
+          throw new Error("Cấp cao không được sửa");
       }
     }
 
-    // --- 4. CHUẨN BỊ DỮ LIỆU ---
+    // --- 4. CHUẨN BỊ DỮ LIỆU (Sửa lỗi mapping extension tại đây) ---
     const userData: any = {
       fullName: data.fullName,
       phone: data.phone,
       active: data.active ?? true,
-      extension: data.extension,
-      extensionPwd: data.extensionPassword,
+
+      // FIX: Map đúng tên trường từ Payload gửi lên
+      extension: data.extension ? String(data.extension).trim() : null,
+      extensionPwd: data.extensionPwd ? String(data.extensionPwd).trim() : null,
+
       username: username?.trim(),
       email: email?.trim().toLowerCase(),
-      role: finalRole, // Sử dụng role đã qua kiểm duyệt
-      isGlobalManager: finalIsGlobalManager, // Sử dụng flag đã qua kiểm duyệt
+      role: finalRole,
+      isGlobalManager: finalIsGlobalManager,
+      status: data.status || "APPROVED",
     };
 
-    // ... (Phần logic kết nối branch, department, position giữ nguyên như trước)
-    if (finalBranchId) {
-      userData.branch = { connect: { id: finalBranchId } };
+    // Kết nối các quan hệ (Relations)
+    if (finalBranchId) userData.branchId = finalBranchId;
+    if (departmentId) userData.departmentId = departmentId;
+    if (positionId) userData.positionId = positionId;
+
+    // Xử lý mật khẩu
+    if (password) {
+      userData.password = await bcrypt.hash(password, 10);
     }
 
-    // ... (Phần xử lý Password và Prisma Create/Update giữ nguyên)
+    // --- 5. THỰC THI LƯU TRỮ ---
+    if (id) {
+      await db.user.update({
+        where: { id },
+        data: userData,
+      });
+    } else {
+      // Khi tạo mới nếu không có pass thì đặt mặc định
+      if (!userData.password) {
+        userData.password = await bcrypt.hash("Toyota@123", 10);
+      }
+      await db.user.create({
+        data: userData,
+      });
+    }
 
     revalidatePath("/dashboard/users");
     return { success: true };
   } catch (error: any) {
     console.error("Upsert user error:", error);
-    throw new Error(error.message || "Lỗi xử lý dữ liệu người dùng");
+    return { success: false, error: error.message };
   }
 }
 /**
