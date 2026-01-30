@@ -621,7 +621,11 @@ export default function ModalDetailCustomer({
                           name="registrationDeadline"
                           label="Hạn đăng kiểm"
                         >
-                          <DatePicker className="w-full" format="DD/MM/YYYY" />
+                          <DatePicker
+                            dropdownClassName="mobile-center-picker"
+                            className="w-full"
+                            format="DD/MM/YYYY"
+                          />
                         </Form.Item>
                       </Col>
                       <Col span={6}>
@@ -629,7 +633,11 @@ export default function ModalDetailCustomer({
                           name="insuranceVCDeadline"
                           label="Hạn bảo hiểm VC"
                         >
-                          <DatePicker className="w-full" format="DD/MM/YYYY" />
+                          <DatePicker
+                            dropdownClassName="mobile-center-picker"
+                            className="w-full"
+                            format="DD/MM/YYYY"
+                          />
                         </Form.Item>
                       </Col>
                       <Col span={6}>
@@ -637,7 +645,11 @@ export default function ModalDetailCustomer({
                           name="insuranceTNDSDeadline"
                           label="Hạn bảo hiểm DS"
                         >
-                          <DatePicker className="w-full" format="DD/MM/YYYY" />
+                          <DatePicker
+                            dropdownClassName="mobile-center-picker"
+                            className="w-full"
+                            format="DD/MM/YYYY"
+                          />
                         </Form.Item>
                       </Col>
                     </Row>

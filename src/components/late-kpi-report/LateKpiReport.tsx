@@ -247,6 +247,7 @@ export default function LateKpiReport({
                   Thời gian
                 </div>
                 <RangePicker
+                  dropdownClassName="mobile-center-picker"
                   value={filter.dates}
                   onChange={(val) => setFilter({ ...filter, dates: val })}
                   className="border-none bg-slate-50 w-full"

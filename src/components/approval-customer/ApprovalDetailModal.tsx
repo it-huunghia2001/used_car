@@ -331,17 +331,29 @@ export default function ModalApprovalDetail({
                       name="registrationDeadline"
                       label="Hạn đăng kiểm"
                     >
-                      <DatePicker className="w-full" format="DD/MM/YYYY" />
+                      <DatePicker
+                        dropdownClassName="mobile-center-picker" // Class để CSS xử lý vị trí
+                        className="w-full"
+                        format="DD/MM/YYYY"
+                      />
                     </Form.Item>
                   </Col>
                   <Col xs={12} md={6}>
                     <Form.Item name="insuranceTNDSDeadline" label="Hạn BHDS">
-                      <DatePicker className="w-full" format="DD/MM/YYYY" />
+                      <DatePicker
+                        dropdownClassName="mobile-center-picker" // Class để CSS xử lý vị trí
+                        className="w-full"
+                        format="DD/MM/YYYY"
+                      />
                     </Form.Item>
                   </Col>
                   <Col xs={12} md={6}>
                     <Form.Item name="insuranceVCDeadline" label="Hạn BHVC">
-                      <DatePicker className="w-full" format="DD/MM/YYYY" />
+                      <DatePicker
+                        dropdownClassName="mobile-center-picker"
+                        className="w-full"
+                        format="DD/MM/YYYY"
+                      />
                     </Form.Item>
                   </Col>
                   <Col xs={12} md={6}>
@@ -349,7 +361,11 @@ export default function ModalApprovalDetail({
                       name="insuranceDeadline"
                       label="Thời hạn bảo hành"
                     >
-                      <DatePicker className="w-full" format="DD/MM/YYYY" />
+                      <DatePicker
+                        dropdownClassName="mobile-center-picker"
+                        className="w-full"
+                        format="DD/MM/YYYY"
+                      />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={12}>

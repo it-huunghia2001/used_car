@@ -392,6 +392,7 @@ export default function ModalApproveTransaction({
                     label="Thời hạn đăng kiểm"
                   >
                     <DatePicker
+                      dropdownClassName="mobile-center-picker"
                       className="w-full!"
                       placeholder="Chọn ngày"
                       format="DD/MM/YYYY"
@@ -401,6 +402,7 @@ export default function ModalApproveTransaction({
                 <Col xs={12} md={6}>
                   <Form.Item name="insuranceVCDeadline" label="Thời hạn BHVC">
                     <DatePicker
+                      dropdownClassName="mobile-center-picker"
                       className="w-full!"
                       placeholder="Chọn ngày"
                       format="DD/MM/YYYY"
@@ -410,6 +412,7 @@ export default function ModalApproveTransaction({
                 <Col xs={12} md={6}>
                   <Form.Item name="insuranceTNDSDeadline" label="Thời hạn BHDS">
                     <DatePicker
+                      dropdownClassName="mobile-center-picker"
                       className="w-full!"
                       placeholder="Chọn ngày"
                       format="DD/MM/YYYY"
@@ -422,6 +425,7 @@ export default function ModalApproveTransaction({
                     label="Thời gian bảo hành"
                   >
                     <DatePicker
+                      dropdownClassName="mobile-center-picker"
                       className="w-full!"
                       placeholder="Đến ngày"
                       format="DD/MM/YYYY"

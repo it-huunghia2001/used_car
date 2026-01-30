@@ -5,9 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  Table,
   Button,
-  Modal,
   Form,
   Tag,
   Space,
@@ -23,26 +21,19 @@ import {
   Input,
   Divider,
   Avatar,
-  ConfigProvider,
+  Empty,
+  Skeleton,
 } from "antd";
 import {
-  SyncOutlined,
   CloseCircleOutlined,
   CarOutlined,
-  DollarOutlined,
-  SafetyCertificateOutlined,
   PhoneOutlined,
   CalendarOutlined,
-  HistoryOutlined,
-  ClockCircleOutlined,
-  UserAddOutlined,
   TeamOutlined,
   SearchOutlined,
-  EnvironmentOutlined,
-  UsergroupAddOutlined,
+  UserAddOutlined,
   UserOutlined,
   FilterOutlined,
-  ArrowRightOutlined,
 } from "@ant-design/icons";
 
 // Actions & Libs
@@ -56,8 +47,10 @@ import {
   getMyCustomersAction,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
+import { getMeAction } from "@/actions/user-actions";
 import dayjs from "@/lib/dayjs";
 import { UrgencyBadge } from "@/lib/urgencyBadge";
+import { getLeadStatusHelper } from "@/lib/status-helper";
 
 // Sub-components
 import ModalApproveTransaction from "@/components/assigned-tasks/ModalApproveTransaction";
@@ -65,24 +58,23 @@ import ModalLoseLead from "@/components/assigned-tasks/ModalLoseLead";
 import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndLeadCar";
 import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
 import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
-import { getLeadStatusHelper } from "@/lib/status-helper";
-import { getMeAction } from "@/actions/user-actions";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 export default function AssignedTasksPage() {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
 
-  // Data States
+  // --- DATA STATES ---
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [inventory, setInventory] = useState([]);
   const [reasons, setReasons] = useState<any[]>([]);
   const [carModels, setCarModels] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // UI States
+  // --- UI STATES ---
   const [activeView, setActiveView] = useState("TASKS");
   const [searchText, setSearchText] = useState("");
   const [filterType, setFilterType] = useState<any>("ALL");
@@ -92,8 +84,8 @@ export default function AssignedTasksPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  // Load Data
+
+  // --- LOAD DATA ---
   const loadData = async () => {
     setLoading(true);
     try {
@@ -106,7 +98,6 @@ export default function AssignedTasksPage() {
           getMeAction(),
         ]);
       setTasks(leads);
-
       setCustomers(myCustomers);
       setInventory(cars);
       setCarModels(models);
@@ -122,9 +113,9 @@ export default function AssignedTasksPage() {
     loadData();
   }, []);
 
-  // --- LOGIC LỌC DỮ LIỆU ---
+  // --- LOGIC LỌC & TÍNH TOÁN ---
   const calculateDelay = (task: any) => {
-    if (!task.scheduledAt) return { isLate: false, minutes: 0, lateMinutes: 0 };
+    if (!task.scheduledAt) return { isLate: false, lateMinutes: 0 };
     const scheduledTime = dayjs(task.scheduledAt);
     const now = dayjs();
     const deadline = scheduledTime.add(30, "minute");
@@ -149,19 +140,6 @@ export default function AssignedTasksPage() {
     });
   }, [tasks, searchText, filterType]);
 
-  const handleMakeCall = (customerPhone: string) => {
-    if (!customerPhone) return;
-
-    // Lấy extension từ thông tin user đã load (hoặc từ props/session)
-    const extension = currentUser?.extension || "";
-
-    // Nối chuỗi: [Mã extension][Số điện thoại]
-    const finalPhoneNumber = `${extension}${customerPhone}`;
-    console.log(finalPhoneNumber);
-
-    window.location.href = `tel:${finalPhoneNumber}`;
-  };
-
   const filteredCustomers = useMemo(() => {
     return customers.filter(
       (r) =>
@@ -170,7 +148,13 @@ export default function AssignedTasksPage() {
     );
   }, [customers, searchText]);
 
-  // --- ACTIONS ---
+  const handleMakeCall = (customerPhone: string) => {
+    if (!customerPhone) return;
+    const extension = currentUser?.extension || "";
+    window.location.href = `tel:${extension}${customerPhone}`;
+  };
+
+  // --- ACTIONS FINISH ---
   const onContactFinish = async (values: any) => {
     setLoading(true);
     try {
@@ -195,188 +179,205 @@ export default function AssignedTasksPage() {
   const onFailFinish = async (values: any) => {
     setLoading(true);
     try {
-      // Lưu ý: Đảm bảo thứ tự tham số truyền vào đúng với hàm requestLoseApproval ở Server
       const res = await requestLoseApproval(
-        selectedLead.id, // customerId
-        values.reasonId, // reasonId
-        values.note, // note
-        values.status, // targetStatus (LOSE, FROZEN...)
+        selectedLead.id,
+        values.reasonId,
+        values.note,
+        values.status,
       );
-
       if (res.success) {
-        // ✅ TRƯỜNG HỢP THÀNH CÔNG
         messageApi.success("Đã gửi yêu cầu phê duyệt thành công");
-        setIsFailModalOpen(false); // Chỉ đóng modal khi thành công
-        form.resetFields(); // Reset form để lần sau mở lại không bị dính dữ liệu cũ
+        setIsFailModalOpen(false);
+        form.resetFields();
         loadData();
       } else {
-        // ❌ TRƯỜNG HỢP THẤT BẠI (Lỗi chặn trùng, lỗi logic...)
-        // messageApi.error sẽ hiển thị thông báo: "Hồ sơ này đang có một yêu cầu phê duyệt khác..."
         messageApi.error(res.error || "Không thể gửi yêu cầu phê duyệt");
       }
     } catch (error: any) {
-      // Lỗi kết nối hoặc lỗi server crash
       messageApi.error("Lỗi hệ thống: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // --- COLUMNS (DESKTOP) ---
-  const taskColumns = [
-    {
-      title: "Khách hàng",
-      key: "customer",
-      render: (record: any) => {
-        const { isLate, lateMinutes } = calculateDelay(record);
-        return (
-          <Space align="start">
-            <Avatar
-              size={40}
-              icon={<UserOutlined />}
-              className="bg-blue-50 text-blue-500"
-            />
-            <div className="flex flex-col">
-              <Space size={4}>
-                <Text strong className="text-slate-700">
-                  {record.customer?.fullName}
-                </Text>
-                {isLate && (
-                  <Badge
-                    count={`-${lateMinutes}m`}
-                    style={{ backgroundColor: "#ff4d4f" }}
-                  />
-                )}
-              </Space>
-              <Text type="secondary" className="text-[12px]">
-                <PhoneOutlined /> {record.customer?.phone}
-              </Text>
-              <UrgencyBadge type={record.customer?.urgencyLevel} />
-            </div>
-          </Space>
-        );
-      },
-    },
-    {
-      title: "Xe & Nhu cầu",
-      render: (record: any) => (
-        <div className="text-[13px]">
-          <Text strong>
-            <CarOutlined /> {record.customer?.carModel?.name || "Chưa xác định"}
-          </Text>
-          <div className="text-slate-400 text-[12px] mt-1">
-            Biển số: {record.customer?.licensePlate || "---"}
-          </div>
-          <Tag color="orange" className="mt-1 border-none text-[10px]">
-            Kỳ vọng: {record.customer?.expectedPrice || "---"}
-          </Tag>
-        </div>
-      ),
-    },
-    {
-      title: "Lịch hẹn / KPI",
-      width: 300,
-      render: (task: any) => {
-        const { isLate } = calculateDelay(task);
-        const scheduledTime = dayjs(task.scheduledAt);
-        return (
-          <div className="flex flex-col">
-            <Text type="secondary" className="text-[11px] uppercase font-bold">
-              <CalendarOutlined /> {scheduledTime.format("HH:mm - DD/MM")}
-            </Text>
-            <Text
-              className={
-                isLate
-                  ? "text-red-500! font-bold"
-                  : "text-emerald-500! font-medium"
-              }
-            >
-              {isLate ? "ĐÃ QUÁ HẠN" : scheduledTime.fromNow()}
-            </Text>
-            {task?.content ? (
-              <div className="text-slate-400 text-[12px] mt-1">
-                Nội dung: {task?.content}
+  // --- TASK CARD COMPONENT ---
+  const TaskCard = ({
+    item,
+    isTask = true,
+  }: {
+    item: any;
+    isTask?: boolean;
+  }) => {
+    // Nếu là Task thì lấy data từ task.customer, nếu là Customer thì lấy trực tiếp item
+    const customer = isTask ? item.customer : item;
+    const { isLate, lateMinutes } = isTask
+      ? calculateDelay(item)
+      : { isLate: false, lateMinutes: 0 };
+    const scheduledTime = isTask ? dayjs(item.scheduledAt) : null;
+
+    return (
+      <Card
+        hoverable
+        className={`task-card mb-4 border-l-4 transition-all ${isLate ? "border-l-red-500 shadow-red-50" : "border-l-blue-500 shadow-blue-50"}`}
+        onClick={() => {
+          setSelectedLead(isTask ? item : { customer: item });
+          setIsDetailModalOpen(true);
+        }}
+      >
+        <Row gutter={[16, 16]} align="middle">
+          {/* CỘT 1: KHÁCH HÀNG */}
+          <Col xs={24} sm={10} md={8}>
+            <Space align="start">
+              <Avatar
+                size={48}
+                icon={<UserOutlined />}
+                className="bg-slate-100 text-blue-600"
+              />
+              <div>
+                <Space size={4}>
+                  <Text strong className="text-base text-slate-800">
+                    {customer?.fullName}
+                  </Text>
+                  {isLate && (
+                    <Badge
+                      count={`-${lateMinutes}m`}
+                      style={{ backgroundColor: "#ff4d4f" }}
+                    />
+                  )}
+                </Space>
+                <div className="text-slate-500 text-sm">
+                  <PhoneOutlined className="mr-1" /> {customer?.phone}
+                </div>
+                <UrgencyBadge type={customer?.urgencyLevel} />
               </div>
-            ) : (
-              ""
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: "Hành động",
-      align: "right" as const,
-      render: (record: any) => (
-        <Space onClick={(e) => e.stopPropagation()}>
-          <Tooltip title="Ghi chú">
-            <Button
-              icon={<PhoneOutlined />}
-              shape="circle"
-              type="primary"
-              ghost
-              onClick={(e) => {
-                e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài Card/Row
+            </Space>
+          </Col>
 
-                // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
-                const phoneNumber = record?.customer?.phone;
+          {/* CỘT 2: XE & TRẠNG THÁI */}
+          <Col xs={24} sm={7} md={8}>
+            <div className="flex flex-col gap-1">
+              <Text strong className="text-slate-700">
+                <CarOutlined className="mr-2 text-slate-400" />{" "}
+                {customer?.carModel?.name || "Chưa xác định"}
+              </Text>
+              {!isTask && (
+                <div>
+                  {(() => {
+                    const { label, color, icon } = getLeadStatusHelper(
+                      customer.status,
+                    );
+                    return (
+                      <Tag
+                        icon={icon}
+                        color={color}
+                        className="rounded-full px-3"
+                      >
+                        {label}
+                      </Tag>
+                    );
+                  })()}
+                </div>
+              )}
+              <Space wrap size={4}>
+                <Tag
+                  color="orange"
+                  className="border-none rounded-md text-[11px]"
+                >
+                  Kỳ vọng: {customer?.expectedPrice || "---"}
+                </Tag>
+                <Text type="secondary" className="text-xs font-mono">
+                  BS: {customer?.licensePlate || "---"}
+                </Text>
+              </Space>
+            </div>
+          </Col>
 
-                handleMakeCall(phoneNumber);
-                setSelectedLead(record);
-                setIsContactModalOpen(true);
-              }}
-            />
-          </Tooltip>
-          <Button
-            type="primary"
-            className="rounded-lg font-bold bg-blue-600"
-            onClick={() => {
-              setSelectedLead(record);
-              setIsModalOpen(true);
-            }}
+          {/* CỘT 3: HÀNH ĐỘNG */}
+          <Col
+            xs={24}
+            sm={7}
+            md={8}
+            className="flex flex-col sm:items-end gap-3"
           >
-            CHỐT
-          </Button>
-          <Button
-            danger
-            icon={<CloseCircleOutlined />}
-            shape="circle"
-            onClick={() => {
-              setSelectedLead(record);
-              setIsFailModalOpen(true);
-              getActiveReasonsAction("LOSE").then(setReasons);
-            }}
-          />
-        </Space>
-      ),
-    },
-  ];
+            {isTask && (
+              <div className="sm:text-right">
+                <div
+                  className={`text-[11px] font-bold uppercase tracking-widest ${isLate ? "text-red-500" : "text-emerald-500"}`}
+                >
+                  {isLate ? "Quá hạn" : scheduledTime?.fromNow().toUpperCase()}
+                </div>
+                <Text strong className="text-slate-600">
+                  <CalendarOutlined className="mr-1" />{" "}
+                  {scheduledTime?.format("HH:mm - DD/MM")}
+                </Text>
+              </div>
+            )}
+
+            <Space wrap onClick={(e) => e.stopPropagation()}>
+              <Tooltip title="Gọi & Ghi chú">
+                <Button
+                  icon={<PhoneOutlined />}
+                  className="bg-blue-50 text-blue-600 border-none rounded-xl h-10 w-10 flex items-center justify-center"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMakeCall(customer?.phone);
+                    setSelectedLead(isTask ? item : { customer: item });
+                    setIsContactModalOpen(true);
+                  }}
+                />
+              </Tooltip>
+              <Button
+                type="primary"
+                className="bg-blue-600 rounded-xl px-6 h-10 font-bold shadow-md shadow-blue-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedLead(isTask ? item : { customer: item });
+                  setIsModalOpen(true);
+                }}
+              >
+                CHỐT
+              </Button>
+              <Button
+                danger
+                icon={<CloseCircleOutlined />}
+                className="rounded-xl h-10 w-10 flex items-center justify-center"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedLead(isTask ? item : { customer: item });
+                  setIsFailModalOpen(true);
+                  getActiveReasonsAction("LOSE").then(setReasons);
+                }}
+              />
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#f4f7fe] p-4 md:p-8">
       {contextHolder}
-      <div className="max-w-[1400px] mx-auto space-y-6">
-        {/* HEADER SECTION */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 transition-all hover:shadow-md">
+      <div className="max-w-[1200px] mx-auto space-y-6">
+        {/* HEADER */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
           <div className="flex items-center gap-4">
-            <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-200">
+            <div className="bg-blue-600 p-3.5 rounded-2xl text-white shadow-lg shadow-blue-200">
               <TeamOutlined className="text-2xl" />
             </div>
-            <div>
-              <Title
-                level={3}
-                className="m-0! font-black uppercase tracking-tight text-slate-800"
-              >
-                Quản lý Nhiệm vụ
-              </Title>
-            </div>
+            <Title
+              level={3}
+              className="m-0! font-black uppercase tracking-tight text-slate-800 leading-none"
+            >
+              Quản lý Nhiệm vụ
+            </Title>
           </div>
 
           <Space wrap className="w-full lg:w-auto">
             <Input
-              placeholder="Tìm tên, SĐT khách hàng..."
+              placeholder="Tìm khách hàng..."
               prefix={<SearchOutlined className="text-slate-400" />}
-              className="rounded-xl h-11 w-full lg:w-72 border-none bg-slate-100 hover:bg-slate-200 focus:bg-white transition-all"
+              className="rounded-xl h-12 w-full lg:w-72 border-none bg-slate-100 focus:bg-white transition-all shadow-inner"
               allowClear
               onChange={(e) => setSearchText(e.target.value)}
             />
@@ -384,16 +385,16 @@ export default function AssignedTasksPage() {
               type="primary"
               danger
               icon={<UserAddOutlined />}
-              className="rounded-xl h-12 font-bold px-6 shadow-lg shadow-red-200 w-full lg:w-auto"
+              className="rounded-xl h-12 font-bold px-8 shadow-lg shadow-red-200"
               onClick={() => setIsAddModalOpen(true)}
             >
-              <p className="hidden md:block">THÊM KHÁCH</p>
+              THÊM KHÁCH
             </Button>
           </Space>
         </div>
 
-        {/* MAIN CONTENT SECTION */}
-        <Card className="shadow-xl rounded-[2.5rem] border-none overflow-hidden bg-white/80 backdrop-blur-md">
+        {/* TABS CONTENT */}
+        <Card className="shadow-xl rounded-[2.5rem] border-none overflow-hidden bg-white/80 backdrop-blur-md min-h-[600px]">
           <Tabs
             activeKey={activeView}
             onChange={setActiveView}
@@ -414,9 +415,9 @@ export default function AssignedTasksPage() {
                   </Badge>
                 ),
                 children: (
-                  <div className="py-4">
-                    <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-                      <Text className="text-slate-400 italic text-[13px]">
+                  <div className="py-6 px-2">
+                    <div className="mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+                      <Text className="text-slate-400 italic text-xs">
                         <FilterOutlined /> Đang lọc theo trạng thái nhiệm vụ
                       </Text>
                       <Segmented
@@ -427,31 +428,29 @@ export default function AssignedTasksPage() {
                         ]}
                         value={filterType}
                         onChange={setFilterType}
-                        className="rounded-xl p-1 bg-slate-100 font-bold text-[11px] w-full sm:w-auto"
-                        block={false}
+                        className="rounded-2xl p-1 bg-slate-100 font-bold text-[11px]"
                       />
                     </div>
 
-                    <Table
-                      dataSource={filteredTasks}
-                      columns={taskColumns}
-                      rowKey="id"
-                      loading={loading}
-                      pagination={{
-                        pageSize: 10,
-                        className: "p-4",
-                        showSizeChanger: false,
-                      }}
-                      onRow={(record) => ({
-                        onClick: () => {
-                          setSelectedLead(record);
-                          setIsDetailModalOpen(true);
-                        },
-                        className:
-                          "hover:bg-blue-50/30 transition-all cursor-pointer",
-                      })}
-                      scroll={{ x: 900 }}
-                    />
+                    {loading ? (
+                      [1, 2, 3].map((i) => (
+                        <Skeleton
+                          key={i}
+                          active
+                          avatar
+                          className="bg-white p-6 rounded-3xl mb-4"
+                        />
+                      ))
+                    ) : filteredTasks.length > 0 ? (
+                      filteredTasks.map((task) => (
+                        <TaskCard key={task.id} item={task} isTask={true} />
+                      ))
+                    ) : (
+                      <Empty
+                        description="Không có nhiệm vụ nào"
+                        className="py-20"
+                      />
+                    )}
                   </div>
                 ),
               },
@@ -459,129 +458,20 @@ export default function AssignedTasksPage() {
                 key: "CUSTOMERS",
                 label: (
                   <span className="font-bold px-2 py-3 inline-block uppercase tracking-wider text-[12px]">
-                    KHTN
+                    Khách hàng của tôi
                   </span>
                 ),
                 children: (
-                  <div className="py-4">
-                    <Table
-                      dataSource={filteredCustomers}
-                      rowKey="id"
-                      loading={loading}
-                      pagination={{ pageSize: 10, className: "p-4" }}
-                      onRow={(record) => ({
-                        onClick: () => {
-                          setSelectedLead({ customer: record });
-                          setIsDetailModalOpen(true);
-                        },
-                        className:
-                          "hover:bg-blue-50/30 transition-all cursor-pointer",
-                      })}
-                      scroll={{ x: 900 }}
-                      columns={[
-                        {
-                          title: "KHÁCH HÀNG",
-                          render: (r: any) => (
-                            <Space>
-                              <Avatar
-                                size={40}
-                                className="bg-slate-200 text-slate-600 font-bold"
-                              >
-                                {r.fullName?.[0].toUpperCase()}
-                              </Avatar>
-                              <div className="flex flex-col">
-                                <Text strong className="text-slate-700">
-                                  {r.fullName}
-                                </Text>
-                                <Text
-                                  type="secondary"
-                                  className="text-[11px] font-mono"
-                                >
-                                  {r.phone}
-                                </Text>
-                              </div>
-                            </Space>
-                          ),
-                        },
-                        {
-                          title: "TRẠNG THÁI",
-                          dataIndex: "status",
-                          render: (status) => {
-                            const { label, color, icon } =
-                              getLeadStatusHelper(status);
-                            return (
-                              <Tag
-                                icon={icon}
-                                color={color}
-                                className="rounded-full border-none font-black text-[10px] uppercase px-3 py-0.5"
-                              >
-                                {label}
-                              </Tag>
-                            );
-                          },
-                        },
-                        {
-                          title: "DÒNG XE",
-                          render: (r) => (
-                            <div>
-                              <div className="font-bold text-[13px] text-slate-600">
-                                {r.carModel?.name || "N/A"}
-                              </div>
-                              <div className="text-[11px] text-slate-400">
-                                Năm SX: {r.carYear || "---"}
-                              </div>
-                            </div>
-                          ),
-                        },
-                        {
-                          title: "THAO TÁC",
-                          align: "right",
-                          render: (record: any) => (
-                            <Space onClick={(e) => e.stopPropagation()}>
-                              <Tooltip title="Ghi chú">
-                                <Button
-                                  icon={<PhoneOutlined />}
-                                  shape="circle"
-                                  type="primary"
-                                  ghost
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài Card/Row
-
-                                    // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
-                                    const phoneNumber = record?.phone;
-                                    handleMakeCall(phoneNumber);
-                                    setSelectedLead(record);
-                                    setIsContactModalOpen(true);
-                                  }}
-                                />
-                              </Tooltip>
-                              <Button
-                                type="primary"
-                                className="rounded-lg font-bold bg-blue-600"
-                                onClick={() => {
-                                  setSelectedLead(record);
-                                  setIsModalOpen(true);
-                                }}
-                              >
-                                CHỐT
-                              </Button>
-                              <Button
-                                danger
-                                icon={<CloseCircleOutlined />}
-                                shape="circle"
-                                onClick={() => {
-                                  setSelectedLead(record);
-                                  setIsFailModalOpen(true);
-                                  getActiveReasonsAction("LOSE").then(
-                                    setReasons,
-                                  );
-                                }}
-                              />
-                            </Space>
-                          ),
-                        },
-                      ]}
-                    />
+                  <div className="py-6 px-2">
+                    {loading ? (
+                      <Skeleton active />
+                    ) : filteredCustomers.length > 0 ? (
+                      filteredCustomers.map((cust) => (
+                        <TaskCard key={cust.id} item={cust} isTask={false} />
+                      ))
+                    ) : (
+                      <Empty description="Không tìm thấy khách hàng" />
+                    )}
                   </div>
                 ),
               },
@@ -590,7 +480,9 @@ export default function AssignedTasksPage() {
         </Card>
       </div>
 
-      {/* --- MODALS (Giữ nguyên logic cũ của bạn) --- */}
+      {/* --- MODALS (Logic nghiệp vụ đầy đủ) --- */}
+
+      {/* 1. Modal Ghi chú / Tương tác */}
       <ModalContactAndLeadCar
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
@@ -598,6 +490,8 @@ export default function AssignedTasksPage() {
         onFinish={onContactFinish}
         loading={loading}
       />
+
+      {/* 2. Modal Chi tiết khách hàng */}
       <ModalDetailCustomer
         carModels={carModels}
         isOpen={isDetailModalOpen}
@@ -610,6 +504,8 @@ export default function AssignedTasksPage() {
         UrgencyBadge={UrgencyBadge}
         onUpdateSuccess={loadData}
       />
+
+      {/* 3. Modal Phê duyệt (Chốt mua/bán) */}
       <ModalApproveTransaction
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -620,12 +516,11 @@ export default function AssignedTasksPage() {
         onFinish={async (values) => {
           setLoading(true);
           try {
-            const res = await requestPurchaseApproval(
-              selectedLead.customerId || selectedLead.id,
-              values,
-            );
+            // Logic quan trọng: Kiểm tra ID dựa trên nguồn mở modal
+            const targetId = selectedLead.customerId || selectedLead.id;
+            const res = await requestPurchaseApproval(targetId, values);
             if (res.success) {
-              messageApi.success("Đã gửi phê duyệt!");
+              messageApi.success("Đã gửi yêu cầu phê duyệt thành công!");
               setIsModalOpen(false);
               loadData();
             }
@@ -634,6 +529,8 @@ export default function AssignedTasksPage() {
           }
         }}
       />
+
+      {/* 4. Modal Thất bại / Đóng băng */}
       <ModalLoseLead
         isOpen={isFailModalOpen}
         onClose={() => setIsFailModalOpen(false)}
@@ -643,6 +540,8 @@ export default function AssignedTasksPage() {
         onFinish={onFailFinish}
         onStatusChange={(val) => getActiveReasonsAction(val).then(setReasons)}
       />
+
+      {/* 5. Modal Tự thêm khách hàng */}
       <ModalSelfAddCustomer
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -650,46 +549,32 @@ export default function AssignedTasksPage() {
         onSuccess={loadData}
       />
 
-      {/* CSS CUSTOM MODER UI */}
       <style jsx global>{`
         .custom-modern-tabs .ant-tabs-nav::before {
-          border-bottom: 2px solid #f8fafc !important;
+          border-bottom: none !important;
         }
-        .ant-tabs-tab {
-          padding: 12px 0 !important;
-          margin: 0 16px !important;
+        .ant-tabs-ink-bar {
+          background: #2563eb !important;
+          height: 4px !important;
+          border-radius: 4px;
         }
         .ant-tabs-tab-active .ant-tabs-tab-btn {
           color: #2563eb !important;
         }
-        .ant-tabs-ink-bar {
-          background: #2563eb !important;
-          height: 3px !important;
-          border-radius: 3px 3px 0 0;
+        .task-card {
+          border-radius: 1.5rem !important;
+          border: 1px solid #f1f5f9 !important;
         }
-
-        .ant-table-thead > tr > th {
-          background: #f8fafc !important;
-          font-size: 11px !important;
-          text-transform: uppercase !important;
-          color: #94a3b8 !important;
-          letter-spacing: 0.8px;
-          border-bottom: 1px solid #f1f5f9 !important;
+        .task-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1) !important;
         }
-
-        .ant-table-row:hover .ant-btn-ghost {
-          background: white !important;
-        }
-
         @media (max-width: 640px) {
-          .ant-tabs-tab {
-            margin: 0 8px !important;
-          }
-          .ant-card {
-            border-radius: 1.5rem !important;
-          }
           .p-8 {
             padding: 1rem !important;
+          }
+          .task-card .ant-card-body {
+            padding: 16px !important;
           }
         }
       `}</style>
