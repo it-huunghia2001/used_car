@@ -7,7 +7,6 @@ import {
   Card,
   Button,
   Input,
-  Space,
   Badge,
   Tabs,
   Typography,
@@ -20,7 +19,7 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 
-// Import actions
+// Actions & Libs
 import {
   getUsersAction,
   upsertUserAction,
@@ -32,12 +31,12 @@ import {
   getBranchesAction,
 } from "@/actions/category-actions";
 
-// Import sub-components
+// Sub-components
 import UserTable from "./_component/UserTable";
 import ApprovalModal from "./_component/ApprovalModal";
 import UserFormModal from "./_component/UserFormModal";
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 export default function UserManagementPage() {
   const [form] = Form.useForm();
@@ -67,7 +66,7 @@ export default function UserManagementPage() {
       const [resAppr, resPend, resRej] = await Promise.all([
         getUsersAction({ status: "APPROVED", search: searchText }),
         getUsersAction({ status: "PENDING" }),
-        getUsersAction({ status: "REJECTED" }), // Lấy danh sách từ chối
+        getUsersAction({ status: "REJECTED" }),
       ]);
 
       setUsers(resAppr.data || []);
@@ -116,7 +115,7 @@ export default function UserManagementPage() {
       const res = await approveUserAction(id, status);
       if (res.success) {
         message.success("Thao tác thành công");
-        loadData(); // Reload để cập nhật số lượng badge và danh sách
+        loadData();
       }
     } catch (err) {
       message.error("Không thể xử lý yêu cầu");
@@ -138,63 +137,67 @@ export default function UserManagementPage() {
   };
 
   return (
-    <div className="p-8 bg-[#f8fafc] min-h-screen">
+    <div className="p-3 sm:p-6 md:p-8 bg-[#f8fafc] min-h-screen">
       <div className="max-w-[1500px] mx-auto">
-        {/* HEADER SECTION */}
-        <div className="flex justify-between items-center mb-8">
+        {/* HEADER SECTION - RESPONSIVE STACK */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 md:mb-8 gap-4">
           <div>
             <Title
               level={2}
-              className="!m-0 !font-black uppercase tracking-tight"
+              className="!m-0 !font-black uppercase tracking-tight text-xl md:text-2xl"
             >
               Quản trị nhân sự
             </Title>
-            <Typography.Text type="secondary">
+            <Text type="secondary" className="text-xs md:text-sm">
               Quản lý tài khoản, phân quyền và phê duyệt hệ thống
-            </Typography.Text>
+            </Text>
           </div>
 
-          <Space size="middle">
+          <div className="flex flex-row gap-2 w-full lg:w-auto">
             <Badge
               count={pendingUsers.length}
               offset={[-2, 2]}
               showZero={false}
+              className="flex-1 lg:flex-none"
             >
               <Button
                 icon={<BellOutlined />}
-                className="rounded-xl h-11 font-bold bg-white shadow-sm border-slate-200"
+                className="rounded-xl h-10 md:h-11 font-bold bg-white shadow-sm border-slate-200 w-full"
                 onClick={() => setIsApproveOpen(true)}
               >
-                YÊU CẦU PHÊ DUYỆT
+                <span className="inline-block sm:hidden xl:inline-block ml-1">
+                  PHÊ DUYỆT
+                </span>
               </Button>
             </Badge>
             <Button
               type="primary"
               danger
               icon={<UserAddOutlined />}
-              className="rounded-xl h-11 font-bold shadow-lg shadow-red-100"
+              className="rounded-xl h-10 md:h-11 font-bold shadow-lg shadow-red-100 flex-1 lg:flex-none"
               onClick={() => {
                 setEditingUser(null);
                 form.resetFields();
                 setIsEditOpen(true);
               }}
             >
-              THÊM NHÂN SỰ
+              THÊM <span className="hidden sm:inline-block ml-1">NHÂN SỰ</span>
             </Button>
-          </Space>
+          </div>
         </div>
 
         {/* TAB & TABLE SECTION */}
-        <Card className="rounded-[2rem] shadow-sm border-none overflow-hidden bg-white">
-          <div className="px-6 pt-4 flex justify-between items-center border-b border-slate-50">
+        <Card className="rounded-2xl md:rounded-[2rem] shadow-sm border-none overflow-hidden bg-white">
+          <div className="px-4 md:px-6 pt-4 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-50 gap-4">
             <Tabs
               activeKey={activeTab}
               onChange={setActiveTab}
+              className="w-full md:w-auto custom-manage-tabs"
               items={[
                 {
                   key: "ACTIVE",
                   label: (
-                    <span className="px-4 font-bold uppercase text-[12px]">
+                    <span className="px-1 md:px-4 font-bold uppercase text-[10px] md:text-[12px]">
                       Đang hoạt động ({users.filter((u) => u.active).length})
                     </span>
                   ),
@@ -202,7 +205,7 @@ export default function UserManagementPage() {
                 {
                   key: "INACTIVE",
                   label: (
-                    <span className="px-4 font-bold uppercase text-red-500 text-[12px]">
+                    <span className="px-1 md:px-4 font-bold uppercase text-red-500 text-[10px] md:text-[12px]">
                       Tạm ngưng ({users.filter((u) => !u.active).length})
                     </span>
                   ),
@@ -210,23 +213,34 @@ export default function UserManagementPage() {
               ]}
             />
 
-            <Input
-              placeholder="Tìm kiếm nhân viên..."
-              prefix={<SearchOutlined className="text-slate-400" />}
-              className="max-w-xs rounded-xl h-10 mb-3 bg-slate-50 border-none"
-              allowClear
-              onChange={(e) => setSearchText(e.target.value)}
-            />
+            <div className="w-full md:max-w-xs pb-4 md:pb-0">
+              <Input
+                placeholder="Tìm kiếm nhân viên..."
+                prefix={<SearchOutlined className="text-slate-400" />}
+                className="rounded-xl h-10 bg-slate-50 border-none w-full"
+                allowClear
+                onChange={(e: {
+                  target: { value: React.SetStateAction<string> };
+                }) => setSearchText(e.target.value)}
+              />
+            </div>
           </div>
 
-          <UserTable
-            users={users.filter((u) =>
-              activeTab === "ACTIVE" ? u.active : !u.active,
-            )}
-            loading={loading}
-            onEdit={handleEdit}
-            onDelete={(id: string) => deleteUserAction(id).then(loadData)}
-          />
+          <div className="overflow-x-auto">
+            <UserTable
+              users={users.filter((u) =>
+                activeTab === "ACTIVE" ? u.active : !u.active,
+              )}
+              loading={loading}
+              onEdit={handleEdit}
+              onDelete={(id: string) =>
+                deleteUserAction(id).then(() => {
+                  message.success("Đã xóa người dùng");
+                  loadData();
+                })
+              }
+            />
+          </div>
         </Card>
       </div>
 
@@ -251,6 +265,28 @@ export default function UserManagementPage() {
         onFinish={onFinish}
         loading={loading}
       />
+
+      {/* MOBILE CSS OVERRIDES */}
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          .custom-manage-tabs .ant-tabs-nav-list {
+            width: 100%;
+            justify-content: space-between;
+          }
+          .custom-manage-tabs .ant-tabs-tab {
+            margin: 0 !important;
+            padding: 8px 4px !important;
+          }
+          .ant-card-body {
+            padding: 0 !important;
+          }
+        }
+
+        .ant-tabs-ink-bar {
+          height: 3px !important;
+          border-radius: 3px 3px 0 0;
+        }
+      `}</style>
     </div>
   );
 }

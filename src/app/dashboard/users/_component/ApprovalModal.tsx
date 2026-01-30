@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React from "react";
+import React, { useState } from "react";
 import {
   Modal,
   Table,
@@ -16,23 +16,37 @@ import {
   HistoryOutlined,
   ClockCircleOutlined,
   UndoOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
+import { getRoleTag } from "@/components/role";
 
 const { Text } = Typography;
 
 export default function ApprovalModal({
   open,
   onCancel,
-  pendingData = [], // Gán mặc định là mảng rỗng để tránh lỗi .length
+  pendingData = [],
   rejectedData = [],
   onProcess,
 }: any) {
+  // State quản lý việc đang xử lý một ID cụ thể
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const handleAction = async (id: string, status: string) => {
+    setProcessingId(id); // Bật loading cho dòng hiện tại
+    try {
+      await onProcess(id, status);
+    } finally {
+      setProcessingId(null); // Tắt loading sau khi xong
+    }
+  };
+
   return (
     <Modal
       title={
         <Space>
-          <CheckCircleOutlined className="text-blue-600" /> QUẢN LÝ PHÊ DUYỆT
-          ĐĂNG KÝ
+          <CheckCircleOutlined className="text-blue-600" />
+          <span className="font-bold">QUẢN LÝ PHÊ DUYỆT ĐĂNG KÝ</span>
         </Space>
       }
       open={open}
@@ -40,6 +54,9 @@ export default function ApprovalModal({
       footer={null}
       width={900}
       centered
+      // Chặn đóng modal khi đang xử lý
+      maskClosable={!processingId}
+      closable={!processingId}
     >
       <Tabs
         defaultActiveKey="1"
@@ -77,33 +94,40 @@ export default function ApprovalModal({
                     title: "VAI TRÒ",
                     dataIndex: "role",
                     key: "role",
-                    width: 180,
+                    width: 150,
                     render: (role: string) => getRoleTag(role),
                   },
                   {
                     title: "HÀNH ĐỘNG",
                     align: "right",
-                    render: (r) => (
-                      <Space>
-                        <Button
-                          type="primary"
-                          icon={<CheckOutlined />}
-                          className="bg-green-600 border-none rounded-lg shadow-sm"
-                          onClick={() => onProcess(r.id, "APPROVED")}
-                        >
-                          Duyệt
-                        </Button>
-                        <Button
-                          danger
-                          ghost
-                          icon={<CloseOutlined />}
-                          className="rounded-lg"
-                          onClick={() => onProcess(r.id, "REJECTED")}
-                        >
-                          Từ chối
-                        </Button>
-                      </Space>
-                    ),
+                    render: (r) => {
+                      const isRowLoading = processingId === r.id;
+                      return (
+                        <Space>
+                          <Button
+                            type="primary"
+                            icon={<CheckOutlined />}
+                            className="bg-green-600 border-none rounded-lg shadow-sm"
+                            onClick={() => handleAction(r.id, "APPROVED")}
+                            loading={isRowLoading}
+                            disabled={!!processingId && !isRowLoading}
+                          >
+                            Duyệt
+                          </Button>
+                          <Button
+                            danger
+                            ghost
+                            icon={<CloseOutlined />}
+                            className="rounded-lg"
+                            onClick={() => handleAction(r.id, "REJECTED")}
+                            loading={isRowLoading}
+                            disabled={!!processingId && !isRowLoading}
+                          >
+                            Từ chối
+                          </Button>
+                        </Space>
+                      );
+                    },
                   },
                 ]}
               />
@@ -140,7 +164,7 @@ export default function ApprovalModal({
                     title: "VAI TRÒ",
                     dataIndex: "role",
                     key: "role",
-                    width: 180,
+                    width: 150,
                     render: (role: string) => getRoleTag(role),
                   },
                   {
@@ -157,18 +181,23 @@ export default function ApprovalModal({
                   {
                     title: "KHÔI PHỤC",
                     align: "right",
-                    render: (r) => (
-                      <Tooltip title="Duyệt lại nếu từ chối nhầm">
-                        <Button
-                          type="link"
-                          icon={<UndoOutlined />}
-                          className="font-bold text-blue-600"
-                          onClick={() => onProcess(r.id, "APPROVED")}
-                        >
-                          DUYỆT LẠI
-                        </Button>
-                      </Tooltip>
-                    ),
+                    render: (r) => {
+                      const isRowLoading = processingId === r.id;
+                      return (
+                        <Tooltip title="Duyệt lại nếu từ chối nhầm">
+                          <Button
+                            type="link"
+                            icon={<UndoOutlined />}
+                            className="font-bold text-blue-600"
+                            onClick={() => handleAction(r.id, "APPROVED")}
+                            loading={isRowLoading}
+                            disabled={!!processingId && !isRowLoading}
+                          >
+                            DUYỆT LẠI
+                          </Button>
+                        </Tooltip>
+                      );
+                    },
                   },
                 ]}
               />
@@ -179,6 +208,3 @@ export default function ApprovalModal({
     </Modal>
   );
 }
-
-import { CheckCircleOutlined } from "@ant-design/icons";
-import { getRoleTag } from "@/components/role";
