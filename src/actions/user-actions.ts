@@ -377,3 +377,48 @@ export async function approveUserAction(
     return { success: false, error: "Không thể xử lý yêu cầu này." };
   }
 }
+
+export async function getMeAction() {
+  try {
+    // 1. Lấy thông tin cơ bản (id) từ Session/Cookie
+    const sessionUser = await getCurrentUser();
+
+    if (!sessionUser || !sessionUser.id) {
+      return { success: false, error: "Chưa đăng nhập" };
+    }
+
+    // 2. Truy vấn chi tiết từ Database để lấy extension và các trường khác
+    const user = await db.user.findUnique({
+      where: { id: sessionUser.id },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        extension: true, // Trường bạn cần cho cuộc gọi
+        extensionPwd: true,
+        branchId: true,
+        departmentId: true,
+        isGlobalManager: true,
+        branch: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (!user) {
+      return { success: false, error: "Người dùng không tồn tại" };
+    }
+
+    // 3. Trả về dữ liệu sạch (Plain Object)
+    return {
+      success: true,
+      data: JSON.parse(JSON.stringify(user)),
+    };
+  } catch (error: any) {
+    console.error("getMeAction Error:", error);
+    return { success: false, error: "Lỗi hệ thống" };
+  }
+}

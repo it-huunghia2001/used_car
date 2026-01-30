@@ -210,28 +210,39 @@ export async function getInventoryAdvancedAction({
 }) {
   try {
     const skip = (page - 1) * limit;
-    const whereCondition: any = {};
 
-    // 1. Bộ lọc trạng thái
-    if (status && status !== "ALL") {
+    // 1. ĐIỀU KIỆN LỌC TỔNG THỂ
+    const whereCondition: any = {
+      // CHỈ lấy những xe đã được bấm "Công bố" (isPublished = true)
+      isPublished: true,
+    };
+
+    // 2. BỘ LỌC TRẠNG THÁI (LOẠI BỎ SOLD)
+    if (status && status !== "ALL" && status !== "SOLD") {
       whereCondition.status = status;
     } else {
+      // Mặc định cho Showroom: Không hiện xe đã bán (SOLD)
+      // và xe mới thu chưa duyệt (PENDING)
       whereCondition.status = {
-        in: ["REFURBISHING", "READY_FOR_SALE", "BOOKED", "SOLD"],
+        in: ["REFURBISHING", "READY_FOR_SALE", "BOOKED"],
       };
     }
 
-    // 2. Bộ lọc Model
+    // 3. LỌC THEO MODEL (Nếu có chọn từ Dropdown)
     if (carModelId && carModelId !== "ALL") {
       whereCondition.carModelId = carModelId;
     }
 
-    // 3. Tìm kiếm theo tên, biển số hoặc số khung (VIN)
+    // 4. TÌM KIẾM
     if (search) {
-      whereCondition.OR = [
-        { modelName: { contains: search } },
-        { licensePlate: { contains: search } },
-        { vin: { contains: search } },
+      whereCondition.AND = [
+        {
+          OR: [
+            { modelName: { contains: search } },
+            { licensePlate: { contains: search } },
+            { stockCode: { contains: search } },
+          ],
+        },
       ];
     }
 
@@ -239,52 +250,21 @@ export async function getInventoryAdvancedAction({
       db.car.findMany({
         where: whereCondition,
         select: {
-          // --- THÔNG TIN ĐỊNH DANH ---
           id: true,
           modelName: true,
-          vin: true,
-          engineNumber: true,
-          licensePlate: true,
-          year: true,
-
-          // --- THÔNG SỐ KỸ THUẬT (Đã bổ sung đầy đủ) ---
           stockCode: true,
+          year: true,
           odo: true,
           transmission: true,
           fuelType: true,
-          carType: true,
-          engineSize: true,
-          driveTrain: true,
-          color: true,
-          interiorColor: true,
-          seats: true,
-          origin: true,
-          ownerType: true,
-
-          // --- THÔNG TIN THƯƠNG MẠI (Bỏ costPrice) ---
           sellingPrice: true,
+          images: true,
+          status: true,
           isPromoted: true,
           promotionNote: true,
-
-          // --- NỘI DUNG CMS ---
-          images: true,
-          videoUrl: true,
-          description: true,
-          features: true,
-
-          // --- TRẠNG THÁI & QUẢN LÝ ---
-          status: true,
-          branchId: true,
-          referrerId: true,
-          purchaserId: true,
-          updatedAt: true,
-          createdAt: true,
-
-          // --- QUAN HỆ (Relations) ---
-          branch: { select: { id: true, name: true } },
-          carModel: { select: { id: true, name: true, grade: true } },
-          referrer: { select: { id: true, fullName: true } },
-          purchaser: { select: { id: true, fullName: true } },
+          carModel: { select: { name: true, grade: true } },
+          branch: { select: { name: true } },
+          // ... lấy các trường khác nếu cần
         },
         orderBy: { updatedAt: "desc" },
         skip: skip,
@@ -293,8 +273,11 @@ export async function getInventoryAdvancedAction({
       db.car.count({ where: whereCondition }),
     ]);
 
+    // Xử lý Decimal để tránh lỗi Serialization
+    const serializedCars = JSON.parse(JSON.stringify(cars));
+
     return {
-      data: cars.map(serializeCar),
+      data: serializedCars,
       total,
       hasMore: skip + cars.length < total,
     };

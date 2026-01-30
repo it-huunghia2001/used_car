@@ -66,6 +66,7 @@ import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndL
 import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
 import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
 import { getLeadStatusHelper } from "@/lib/status-helper";
+import { getMeAction } from "@/actions/user-actions";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -91,23 +92,25 @@ export default function AssignedTasksPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
-
+  const [currentUser, setCurrentUser] = useState<any>(null);
   // Load Data
   const loadData = async () => {
     setLoading(true);
     try {
-      const [leads, cars, models, myCustomers]: any = await Promise.all([
-        getMyTasksAction(),
-        getAvailableCars(),
-        getCarModelsAction(),
-        getMyCustomersAction(),
-      ]);
+      const [leads, cars, models, myCustomers, userData]: any =
+        await Promise.all([
+          getMyTasksAction(),
+          getAvailableCars(),
+          getCarModelsAction(),
+          getMyCustomersAction(),
+          getMeAction(),
+        ]);
       setTasks(leads);
-      console.log(leads);
 
       setCustomers(myCustomers);
       setInventory(cars);
       setCarModels(models);
+      setCurrentUser(userData);
     } catch (err) {
       messageApi.error("Không thể tải dữ liệu");
     } finally {
@@ -145,6 +148,18 @@ export default function AssignedTasksPage() {
       return matchSearch && matchType;
     });
   }, [tasks, searchText, filterType]);
+
+  const handleMakeCall = (customerPhone: string) => {
+    if (!customerPhone) return;
+
+    // Lấy extension từ thông tin user đã load (hoặc từ props/session)
+    const extension = currentUser?.extension || "";
+
+    // Nối chuỗi: [Mã extension][Số điện thoại]
+    const finalPhoneNumber = `${extension}${customerPhone}`;
+
+    window.location.href = `tel:${finalPhoneNumber}`;
+  };
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(
@@ -299,7 +314,13 @@ export default function AssignedTasksPage() {
               shape="circle"
               type="primary"
               ghost
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài Card/Row
+
+                // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
+                const phoneNumber = record?.customer?.phone;
+
+                handleMakeCall(phoneNumber);
                 setSelectedLead(record);
                 setIsContactModalOpen(true);
               }}
@@ -308,14 +329,7 @@ export default function AssignedTasksPage() {
           <Button
             type="primary"
             className="rounded-lg font-bold bg-blue-600"
-            onClick={(e) => {
-              e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài Card/Row
-
-              // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
-              const phoneNumber = record?.customer?.phone;
-              if (phoneNumber) {
-                window.location.href = `tel:${phoneNumber}`;
-              }
+            onClick={() => {
               setSelectedLead(record);
               setIsModalOpen(true);
             }}
@@ -534,9 +548,7 @@ export default function AssignedTasksPage() {
 
                                     // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
                                     const phoneNumber = record?.phone;
-                                    if (phoneNumber) {
-                                      window.location.href = `tel:${phoneNumber}`;
-                                    }
+                                    handleMakeCall(phoneNumber);
                                     setSelectedLead(record);
                                     setIsContactModalOpen(true);
                                   }}

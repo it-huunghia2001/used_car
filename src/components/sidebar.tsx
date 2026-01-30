@@ -19,6 +19,7 @@ import {
   HistoryOutlined,
   CheckCircleOutlined,
   ScheduleOutlined,
+  AccountBookOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -265,7 +266,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
     },
   ].filter(Boolean);
 
-  const SidebarContent = (
+  const SidebarContent = (isMobile: boolean) => (
     <div className="flex flex-col h-full">
       <div className="flex flex-col items-center py-8 px-4 border-b border-gray-800">
         <div className="w-14 h-14 bg-white rounded-2xl p-1 shadow-lg mb-3 shrink-0 transition-all hover:scale-105">
@@ -275,7 +276,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
             className="w-full h-full object-contain rounded-xl"
           />
         </div>
-        {!collapsed && (
+        {(!collapsed || isMobile) && (
           <div className="text-center animate-in fade-in slide-in-from-top-2 duration-500">
             <div className="text-white font-black text-sm tracking-tighter leading-none">
               TOYOTA BÌNH DƯƠNG
@@ -306,7 +307,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
   return (
     <>
       <Button
-        className="lg:hidden fixed! top-4 left-4 z-[100] bg-red-600 border-none text-white shadow-lg hover:bg-red-700 h-10 w-10 flex items-center justify-center rounded-xl"
+        className="lg:hidden! fixed! top-4 left-4 z-100 bg-red-600 border-none text-white shadow-lg hover:bg-red-700 h-10 w-10 flex items-center justify-center rounded-xl"
         icon={<MenuOutlined />}
         onClick={() => setVisible(true)}
       />
@@ -316,10 +317,10 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         onClose={() => setVisible(false)}
         open={visible}
         className="absolute left-0"
-        style={{ padding: 0, background: "#001529", width: "280px" }}
+        style={{ padding: 0, background: "#001529", width: "100%" }}
         closable={false}
       >
-        {SidebarContent}
+        {SidebarContent(true)}
       </Drawer>
 
       <Sider
@@ -333,7 +334,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         className="hidden lg:block h-screen sticky top-0 left-0 shadow-2xl z-40 select-none overflow-hidden"
         style={{ background: "#001529" }}
       >
-        {SidebarContent}
+        {SidebarContent(false)}
       </Sider>
 
       <style jsx global>{`

@@ -61,6 +61,7 @@ import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustom
 import ModalApproveSales from "@/components/assigned-tasks/ModalApproveSales";
 import { UrgencyBadge } from "@/lib/urgencyBadge";
 import { log } from "console";
+import { getMeAction } from "@/actions/user-actions";
 
 const { Title, Text } = Typography;
 
@@ -85,6 +86,8 @@ export default function SalesTasksPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [maintenanceTasks, setMaintenanceTasks] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
   const [now, setNow] = useState(dayjs());
 
   useEffect(() => {
@@ -101,21 +104,22 @@ export default function SalesTasksPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [leads, cars, models, maintenance, myCustomers]: any =
+      const [leads, cars, models, maintenance, myCustomers, userData]: any =
         await Promise.all([
           getMyTasksAction(),
           getAvailableCars(),
           getCarModelsAction(),
           getMaintenanceTasksAction(),
           getMyCustomersAction(),
+          getMeAction(),
         ]);
       setTasks(leads);
-      console.log(leads);
 
       setInventory(cars);
       setCarModels(models);
       setMaintenanceTasks(maintenance);
       setCustomers(myCustomers);
+      setCurrentUser(userData);
     } catch (err) {
       messageApi.error("Lỗi tải dữ liệu");
     } finally {
@@ -126,6 +130,18 @@ export default function SalesTasksPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleMakeCall = (customerPhone: string) => {
+    if (!customerPhone) return;
+
+    // Lấy extension từ thông tin user đã load (hoặc từ props/session)
+    const extension = currentUser?.extension || "";
+
+    // Nối chuỗi: [Mã extension][Số điện thoại]
+    const finalPhoneNumber = `${extension}${customerPhone}`;
+
+    window.location.href = `tel:${finalPhoneNumber}`;
+  };
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((i) => {
@@ -283,9 +299,7 @@ export default function SalesTasksPage() {
 
                   // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
                   const phoneNumber = record.customer?.phone;
-                  if (phoneNumber) {
-                    window.location.href = `tel:${phoneNumber}`;
-                  }
+                  handleMakeCall(phoneNumber);
 
                   // 2. Mở Modal ghi chú tương tác
                   setSelectedLead(item);
@@ -440,10 +454,7 @@ export default function SalesTasksPage() {
 
                             // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
                             const phoneNumber = record.customer?.phone;
-                            if (phoneNumber) {
-                              window.location.href = `tel:${phoneNumber}`;
-                            }
-
+                            handleMakeCall(phoneNumber);
                             // 2. Mở Modal ghi chú tương tác
                             setSelectedLead(record);
                             setIsContactModalOpen(true);
@@ -574,9 +585,7 @@ export default function SalesTasksPage() {
 
                             // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
                             const phoneNumber = record?.phone;
-                            if (phoneNumber) {
-                              window.location.href = `tel:${phoneNumber}`;
-                            }
+                            handleMakeCall(phoneNumber);
 
                             // 2. Mở Modal ghi chú tương tác
                             setSelectedLead(record);

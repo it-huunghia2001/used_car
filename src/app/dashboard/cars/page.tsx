@@ -17,6 +17,7 @@ import {
   Input,
   Statistic,
   Avatar,
+  message,
 } from "antd";
 import {
   CarOutlined,
@@ -44,7 +45,7 @@ const { Title, Text } = Typography;
 
 export default function InventoryPage() {
   // Hook xử lý thông báo chuẩn AntD v5
-  const { message: messageApi } = App.useApp();
+  const [messageApi, contextHolder] = message.useMessage();
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -137,6 +138,7 @@ export default function InventoryPage() {
       messageApi.error("Lỗi khi lưu dữ liệu");
     } finally {
       setSubmitting(false);
+      setIsModalOpen(false);
     }
   };
 
@@ -152,6 +154,7 @@ export default function InventoryPage() {
 
   return (
     <div className="p-4 md:p-8 bg-[#f8fafc] min-h-screen">
+      {contextHolder}
       <div className="max-w-[1600px] mx-auto">
         {/* THỐNG KÊ NHANH */}
         <Row gutter={[20, 20]} className="mb-8">
