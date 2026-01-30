@@ -50,29 +50,43 @@ export async function createCustomerAction(rawData: any) {
       ? data.licensePlate.toUpperCase().replace(/[^A-Z0-9]/g, "")
       : undefined;
 
-    // 2. KIỂM TRA TRÙNG LẶP (Chỉ dành cho xe có biển số - SELL/VALUATION)
-    if (cleanPlate) {
-      const duplicate = await db.customer.findFirst({
+    // 2. KIỂM TRA TRÙNG LẶP
+    const activeStatuses = {
+      notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED, LeadStatus.LOSE],
+    };
+
+    if (data.type === "BUY") {
+      // Đối với khách MUA: Chặn trùng Số điện thoại
+      const duplicatePhone = await db.customer.findFirst({
         where: {
-          licensePlate: cleanPlate,
-          status: {
-            notIn: [
-              LeadStatus.DEAL_DONE,
-              LeadStatus.CANCELLED,
-              LeadStatus.LOSE,
-            ],
-          },
+          phone: data.phone,
+          type: "BUY",
+          status: activeStatuses,
         },
       });
 
-      if (duplicate) {
+      if (duplicatePhone) {
         return {
           success: false,
-          error: `Biển số ${cleanPlate} đang hiện hữu trong hệ thống và đang được xử lý.`,
+          error: `Số điện thoại ${data.phone} đang có yêu cầu MUA XE đang xử lý.`,
+        };
+      }
+    } else if (cleanPlate) {
+      // Đối với luồng khác (SELL/VALUATION...): Chặn trùng Biển số
+      const duplicateCar = await db.customer.findFirst({
+        where: {
+          licensePlate: cleanPlate,
+          status: activeStatuses,
+        },
+      });
+
+      if (duplicateCar) {
+        return {
+          success: false,
+          error: `Xe biển số ${cleanPlate} đang có yêu cầu xử lý trên hệ thống.`,
         };
       }
     }
-
     // 3. XÁC ĐỊNH CHI NHÁNH NGƯỜI GIỚI THIỆU
     const referrer = await db.user.findUnique({
       where: { id: data.referrerId },

@@ -910,100 +910,114 @@ export async function selfCreateCustomerAction(values: any) {
   if (!auth) throw new Error("Unauthorized");
 
   try {
-    // START: KIỂM TRA TRÙNG LẶP (Logic tương tự createCustomerAction)
-
-    // 1. Chuẩn hóa biển số xe
+    // 1. CHUẨN HÓA DỮ LIỆU
     const cleanPlate = values.licensePlate
       ? values.licensePlate.toUpperCase().replace(/[^A-Z0-9]/g, "")
       : undefined;
 
-    // 2. Kiểm tra trùng Biển số (Chỉ trùng khi đang trong giai đoạn xử lý)
-    if (cleanPlate) {
+    const activeStatuses = {
+      notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED, LeadStatus.LOSE],
+    };
+
+    // 2. KIỂM TRA TRÙNG LẶP (Đồng bộ logic với createCustomerAction)
+    if (values.type === "BUY") {
+      // Đối với khách MUA: Chặn trùng Số điện thoại đang xử lý
+      const duplicatePhone = await db.customer.findFirst({
+        where: {
+          phone: values.phone,
+          type: "BUY",
+          status: activeStatuses,
+        },
+      });
+
+      if (duplicatePhone) {
+        return {
+          success: false,
+          error: `Số điện thoại ${values.phone} đang có yêu cầu MUA XE đang xử lý.`,
+        };
+      }
+    } else if (cleanPlate) {
+      // Đối với khách BÁN/ĐỊNH GIÁ: Chặn trùng Biển số xe đang xử lý
       const duplicatePlate = await db.customer.findFirst({
         where: {
           licensePlate: cleanPlate,
-          status: {
-            notIn: [
-              LeadStatus.DEAL_DONE,
-              LeadStatus.CANCELLED,
-              LeadStatus.LOSE,
-            ],
-          },
+          status: activeStatuses,
         },
       });
 
       if (duplicatePlate) {
         return {
           success: false,
-          error: `Biển số ${cleanPlate} đang hiện hữu trong hệ thống.`,
+          error: `Biển số ${cleanPlate} đang hiện hữu và đang được xử lý trên hệ thống.`,
         };
       }
     }
 
+    // 3. TRANSACTION LƯU DỮ LIỆU
     return await db.$transaction(async (tx) => {
       const now = new Date();
 
-      // Tạo Customer
       const customer = await tx.customer.create({
         data: {
           fullName: values.fullName,
           phone: values.phone,
-          status: LeadStatus.CONTACTED,
+          status: LeadStatus.CONTACTED, // Tự tạo thì nhảy thẳng sang Contacted
           type: values.type,
           referrerId: auth.id,
           assignedToId: auth.id,
           assignedAt: now,
           branchId: auth.branchId,
           carModelId: values.carModelId,
-          licensePlate: values.licensePlate?.toUpperCase(),
+          licensePlate: cleanPlate,
           note: values.note,
 
-          // Tạo LeadCar
           leadCar: {
             create: {
               carModelId: values.carModelId,
-              licensePlate: values.licensePlate?.toUpperCase(),
-              year: values.year,
+              licensePlate: cleanPlate,
+              year: values.year ? values.year : undefined, // Đảm bảo kiểu string cho carYear
             },
           },
 
-          // TẠO TASK ĐỂ HIỂN THỊ TRÊN TRANG NHIỆM VỤ
           tasks: {
             create: {
               title: `🌟 CHĂM SÓC: ${values.fullName}`,
               content: `Khách hàng tự khai thác - ${values.note || "Nghiệp vụ " + values.type}`,
               scheduledAt: now,
-              // Mẹo: Đặt Deadline 1 năm sau để không bao giờ bị báo "QUÁ HẠN" (LATE KPI)
-              type: "PURCHASE", // CẬP NHẬT TYPE
+              // Deadline 1 năm để nhân viên tự quản lý, không ép KPI trễ phút
               deadlineAt: dayjs(now).add(1, "year").toDate(),
               assigneeId: auth.id,
-              status: "PENDING",
+              status: TaskStatus.PENDING,
+              type: values.type === "BUY" ? "SALES" : "PURCHASE", // Gán type task chuẩn theo nghiệp vụ
             },
           },
 
           activities: {
             create: {
               status: LeadStatus.CONTACTED,
-              note: `[NHÂN VIÊN TỰ TẠO] Khách hàng tự khai thác. Biển số: ${values.licensePlate || "N/A"}`,
+              note: `[NHÂN VIÊN TỰ TẠO] Khách hàng tự khai thác. Biển số: ${cleanPlate || "N/A"}`,
               createdById: auth.id,
             },
           },
         },
       });
 
+      // Cập nhật mốc thời gian gán cuối cho chính nhân viên này
       await tx.user.update({
         where: { id: auth.id },
         data: { lastAssignedAt: now },
       });
 
       revalidatePath("/dashboard/assigned-tasks");
-      return { success: true, data: customer };
+      revalidatePath("/dashboard/my-referrals"); // Revalidate thêm trang lịch sử cá nhân
+
+      return { success: true, data: JSON.parse(JSON.stringify(customer)) };
     });
   } catch (error: any) {
-    return { success: false, error: error.message };
+    console.error("Lỗi selfCreateCustomerAction:", error);
+    return { success: false, error: error.message || "Lỗi hệ thống" };
   }
 }
-
 export async function approveLoseRequestAction(
   activityId: string,
   decision: "APPROVE" | "REJECT",
