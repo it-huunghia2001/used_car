@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getBranchesAction } from "@/actions/branch-actions";
 import { getLateReportAction } from "@/actions/report-actions";
 import { getEligibleStaffAction } from "@/actions/user-actions";
