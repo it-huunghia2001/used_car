@@ -110,7 +110,7 @@ export default function AssignedTasksPage() {
       setCustomers(myCustomers);
       setInventory(cars);
       setCarModels(models);
-      setCurrentUser(userData);
+      setCurrentUser(userData.data);
     } catch (err) {
       messageApi.error("Không thể tải dữ liệu");
     } finally {
@@ -157,6 +157,7 @@ export default function AssignedTasksPage() {
 
     // Nối chuỗi: [Mã extension][Số điện thoại]
     const finalPhoneNumber = `${extension}${customerPhone}`;
+    console.log(finalPhoneNumber);
 
     window.location.href = `tel:${finalPhoneNumber}`;
   };
