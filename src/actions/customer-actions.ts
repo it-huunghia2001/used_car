@@ -181,10 +181,10 @@ export async function createCustomerAction(rawData: any) {
             licensePlate: cleanPlate,
             carYear: finalYear,
             budget: finalBudget,
+            expectedPrice: String(data.expectedPrice),
             status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
             assignedToId: assignedStaffId,
             assignedAt: assignedStaffId ? now : null,
-            urgencyLevel: "HOT",
             note: data.note ? `${data.note}${stockNote}` : stockNote,
             branchId: referrer?.branchId,
 
@@ -221,9 +221,16 @@ export async function createCustomerAction(rawData: any) {
                     title: "📞 Liên hệ khách hàng mới",
                     content: `Nhu cầu ${data.type}. ${stockNote || "Khách tìm xe theo nhu cầu chung."}`,
                     scheduledAt: now,
-                    deadlineAt: dayjs(now).add(maxLate, "minute").toDate(),
-                    assigneeId: assignedStaffId,
+                    // Ép kiểu Number để đảm bảo dayjs tính toán đúng
+                    deadlineAt: dayjs(now)
+                      .add(Number(maxLate), "minute")
+                      .toDate(),
                     status: TaskStatus.PENDING,
+                    type: data.type !== "BUY" ? "PURCHASE" : "SALES",
+                    // Sử dụng connect thay vì điền ID trực tiếp nếu Schema định nghĩa quan hệ
+                    assignee: {
+                      connect: { id: assignedStaffId },
+                    },
                   },
                 }
               : undefined,
@@ -342,40 +349,13 @@ export async function updateCustomerStatusAction(
     const now = new Date();
 
     await db.$transaction(async (tx) => {
-      const customer = await tx.customer.findUnique({
-        where: { id: customerId },
-        select: { assignedAt: true, firstContactAt: true, urgencyLevel: true },
-      });
-
       const updateData: any = { status, lastContactAt: now };
 
       if (nextContactAt) {
         updateData.nextContactAt = nextContactAt;
       }
 
-      // LOGIC TÍNH URGENCY KHI LIÊN HỆ LẦN ĐẦU (Chuyển sang CONTACTED)
-      if (
-        status === LeadStatus.CONTACTED &&
-        !customer?.firstContactAt &&
-        customer?.assignedAt
-      ) {
-        // Lấy config từ Admin, nếu không có mặc định là 1 ngày cho HOT, 3 ngày cho WARM
-        const config = await tx.leadSetting.findFirst();
-        const hotDays = config?.hotDays || 1;
-        const warmDays = config?.warmDays || 3;
-
-        const diffTime = Math.abs(
-          now.getTime() - customer.assignedAt.getTime(),
-        );
-        const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-        let urgency: UrgencyType = UrgencyType.COOL;
-        if (diffDays <= hotDays) urgency = UrgencyType.HOT;
-        else if (diffDays <= warmDays) urgency = UrgencyType.WARM;
-
-        updateData.firstContactAt = now;
-        updateData.urgencyLevel = urgency;
-      }
+      updateData.firstContactAt = now;
 
       // 1. Cập nhật khách hàng
       await tx.customer.update({

@@ -1,11 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { Row, Col, Badge, Avatar, Tag, Divider } from "antd";
+import { Row, Col, Badge, Avatar, Tag, Divider, Typography } from "antd";
 import {
   UserOutlined,
   PhoneOutlined,
   ClockCircleOutlined,
+  CalendarOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
+
+const { Text } = Typography;
 
 export const CustomerBanner = ({
   customerData,
@@ -18,8 +22,7 @@ export const CustomerBanner = ({
       <div className="absolute top-0 right-0 w-64 h-64 md:w-96 md:h-96 bg-indigo-500/10 rounded-full -mr-20 -mt-20 blur-3xl opacity-50 md:opacity-100"></div>
 
       <Row gutter={[24, 24]} align="middle" className="relative z-10">
-        {/* Phần thông tin chính */}
-        <Col xs={24} md={16} lg={18}>
+        <Col xs={24} md={16} lg={16}>
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
             <Badge
               count={
@@ -52,12 +55,10 @@ export const CustomerBanner = ({
                     {customerData.phone}
                   </span>
                 </a>
-
                 <Divider
                   type="vertical"
                   className="hidden sm:block bg-slate-700 h-4"
                 />
-
                 <Tag
                   color="blue"
                   className="bg-indigo-500/20 border-indigo-500/30 text-indigo-300 px-3 uppercase text-[10px] font-bold leading-5 m-0 rounded-lg"
@@ -69,17 +70,42 @@ export const CustomerBanner = ({
           </div>
         </Col>
 
-        {/* Phần thống kê bên phải/dưới */}
-        <Col xs={24} md={8} lg={6}>
-          <div className="h-full flex flex-col justify-center items-center md:items-end p-4 md:p-0 bg-slate-800/40 md:bg-transparent rounded-2xl border border-slate-700/50 md:border-none">
-            <div className="flex items-center gap-2 md:block">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1 text-center md:text-right font-bold">
-                <ClockCircleOutlined className="mr-1 md:hidden" />
-                Liên hệ gần nhất
+        <Col xs={24} md={8} lg={8}>
+          <div className="space-y-4">
+            {/* Liên hệ gần nhất */}
+            <div className="flex items-center justify-center md:justify-end gap-3">
+              <div className="text-right">
+                <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">
+                  Liên hệ gần nhất
+                </div>
+                <div className="text-base font-mono text-indigo-400 font-bold">
+                  {renderTime(customerData.lastContactAt)}
+                </div>
               </div>
-              <div className="text-lg md:text-xl font-mono text-indigo-400 font-bold">
-                {renderTime(customerData.lastContactAt)}
+              <ClockCircleOutlined className="text-slate-600 text-lg hidden md:block" />
+            </div>
+
+            {/* Hẹn tiếp theo */}
+            <div className="p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] uppercase tracking-[0.1em] text-indigo-400 font-bold">
+                  <CalendarOutlined className="mr-1" /> Hẹn tiếp theo
+                </span>
               </div>
+              <div className="text-sm font-mono text-emerald-400 font-bold mb-2">
+                {customerData.nextContactAt
+                  ? renderTime(customerData.nextContactAt)
+                  : "Chưa có hẹn"}
+              </div>
+
+              {customerData.nextContactNote && (
+                <div className="pt-2 border-t border-indigo-500/20 flex items-start gap-2">
+                  <MessageOutlined className="text-indigo-400 text-xs mt-1" />
+                  <Text className="text-slate-300! italic text-[12px] leading-relaxed">
+                    {customerData.nextContactNote}
+                  </Text>
+                </div>
+              )}
             </div>
           </div>
         </Col>

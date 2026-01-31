@@ -10,6 +10,7 @@ import {
   Col,
   message,
   Typography,
+  InputNumber,
 } from "antd";
 import {
   UserOutlined,
@@ -17,7 +18,6 @@ import {
   SendOutlined,
   AuditOutlined,
   CalendarOutlined,
-  CarOutlined,
 } from "@ant-design/icons";
 import { createCustomerAction } from "@/actions/customer-actions";
 import { useState } from "react";
@@ -203,14 +203,22 @@ export default function FormSellCar({
                 <Input prefix={<CalendarOutlined />} placeholder="Vd: 2019" />
               </Form.Item>
             </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                name="expectedPrice"
-                label={type === "SELL" ? "Giá muốn bán" : "Giá kỳ vọng"}
-              >
-                <Input prefix={<CarOutlined />} placeholder="Vd: 450 triệu" />
-              </Form.Item>
-            </Col>
+            <Form.Item
+              name="expectedPrice"
+              label={type === "SELL" ? "Giá muốn bán" : "Giá kỳ vọng"}
+            >
+              <InputNumber
+                style={{ width: "100%" }}
+                addonBefore="VNĐ"
+                placeholder="Vd: 450.000.000"
+                formatter={(value) =>
+                  value !== undefined
+                    ? value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                    : ""
+                }
+                parser={(value) => value?.replace(/\./g, "") ?? ""}
+              />
+            </Form.Item>
           </Row>
         </section>
 

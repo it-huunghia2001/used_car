@@ -24,7 +24,7 @@ export const VehicleFormFields = ({ carModels }: any) => {
   return (
     <div className="animate-fadeIn pb-4">
       {/* SECTION 1: KHÁCH HÀNG */}
-      <Divider className="!m-0 !mb-4">
+      <Divider className="m-0! mb-4!">
         <Text
           type="secondary"
           className="text-[11px] uppercase font-bold flex items-center gap-2"
@@ -43,10 +43,36 @@ export const VehicleFormFields = ({ carModels }: any) => {
             <Input disabled className="bg-gray-50 font-medium" />
           </Form.Item>
         </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item name="urgencyLevel" label="Trạng thái khách hàng">
+            <Input className="bg-gray-50 font-medium" />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="urgencyLevel"
+            label={
+              <Text strong className="text-orange-600">
+                Mức độ tiềm năng
+              </Text>
+            }
+            rules={[{ required: true, message: "Vui lòng chọn mức độ!" }]}
+          >
+            <Select
+              placeholder="Chọn độ nóng khách hàng"
+              options={[
+                { value: "HOT", label: "🔥 HOT (Chốt ngay)" },
+                { value: "WARM", label: "☀️ WARM (Tiềm năng)" },
+                { value: "COOL", label: "❄️ COOL (Theo dõi thêm)" },
+              ]}
+            />
+          </Form.Item>
+        </Col>
       </Row>
 
       {/* SECTION 2: THÔNG SỐ CƠ BẢN */}
-      <Divider className="!mb-4">
+      <Divider className="mb-4!">
         <Text
           type="secondary"
           className="text-[11px] uppercase font-bold flex items-center gap-2"

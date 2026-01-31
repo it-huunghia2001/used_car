@@ -58,6 +58,18 @@ model CarModel {
   leadCars  LeadCar[]
 }
 
+model NotSeenCarModel {
+  id      String  @id @default(cuid())
+  name    String  @unique
+  content String?
+}
+
+model reasonBuyCar {
+  id      String  @id @default(cuid())
+  name    String  @unique
+  content String?
+}
+
 // ==========================================
 // 3. TÀI KHOẢN NGƯỜI DÙNG
 // ==========================================

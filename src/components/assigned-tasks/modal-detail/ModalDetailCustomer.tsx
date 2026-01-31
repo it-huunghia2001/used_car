@@ -253,7 +253,10 @@ export default function ModalDetailCustomer({
                 }
               >
                 {isEditing ? (
-                  <VehicleFormFields carModels={carModels} />
+                  <VehicleFormFields
+                    carModels={carModels}
+                    customerData={customerData}
+                  />
                 ) : (
                   <VehicleView
                     lc={leadCar}

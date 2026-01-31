@@ -959,20 +959,6 @@ export async function updateCustomerStatusAction(
           });
         }
 
-        // 3. Tính toán Urgency Level
-        let urgencyLevel = customer.urgencyLevel;
-        if (customer.lastContactAt) {
-          const diffDays = dayjs(now).diff(
-            dayjs(customer.lastContactAt),
-            "day",
-          );
-          if (diffDays <= (config?.hotDays || 3)) urgencyLevel = "HOT";
-          else if (diffDays <= (config?.warmDays || 7)) urgencyLevel = "WARM";
-          else urgencyLevel = "COOL";
-        }
-
-        console.log("urgencyLevel: " + urgencyLevel);
-
         // 4. THỰC THI SONG SONG CÁC LỆNH GHI (Tối ưu tốc độ tránh Timeout)
         const operations = [];
 
@@ -982,7 +968,6 @@ export async function updateCustomerStatusAction(
             where: { id: customerId },
             data: {
               status,
-              urgencyLevel,
               lastContactAt: now,
               firstContactAt: customer.firstContactAt ? undefined : now,
               nextContactAt: nextContactAt,
