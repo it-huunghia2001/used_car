@@ -1647,3 +1647,30 @@ export async function getMyCustomersAction() {
   });
   return serializePrisma(customers);
 }
+
+export async function getAllStaffAPPRAISERAction() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+  return await db.user.findMany({
+    where: { active: true, role: Role.APPRAISER },
+    select: { id: true, fullName: true, username: true },
+  });
+}
+
+// 2. Lấy danh mục lý do bán xe
+export async function getSellReasonsAction() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+  return await db.reasonBuyCar.findMany({
+    orderBy: { name: "asc" },
+  });
+}
+
+// 3. Lấy danh mục lý do chưa xem xe
+export async function getNotSeenReasonsAction() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+  return await db.notSeenCarModel.findMany({
+    orderBy: { name: "asc" },
+  });
+}

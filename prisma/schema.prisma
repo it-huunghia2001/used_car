@@ -446,6 +446,7 @@ enum Role {
   PURCHASE_STAFF
   SALES_STAFF
   REFERRER
+  APPRAISER
 }
 
 enum ReferralType {

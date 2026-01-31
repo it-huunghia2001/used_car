@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation";
 import { CustomerBanner } from "./CustomerBanner";
 import { VehicleFormFields } from "./VehicleFormFields";
 import { ActivityTimeline } from "./ActivityTimeline";
-import { VehicleView } from "./VehicleView"; // Import Component View vừa tạo
+import { VehicleView } from "./VehicleView";
 
 export default function ModalDetailCustomer({
   isOpen,
@@ -30,6 +30,9 @@ export default function ModalDetailCustomer({
   onContactClick,
   UrgencyBadge,
   carModels = [],
+  notSeenReasons = [], // Danh mục từ bảng NotSeenCarModel
+  sellReasons = [], // Danh mục từ bảng reasonBuyCar (dùng cho lý do bán)
+  users = [], // Danh sách nhân viên để chọn giám định viên
   onUpdateSuccess,
 }: any) {
   const [form] = Form.useForm();
@@ -43,31 +46,45 @@ export default function ModalDetailCustomer({
     setHasMounted(true);
   }, []);
 
-  // Ưu tiên lấy dữ liệu chi tiết (fullDetail) sau khi fetch
+  // Dữ liệu hiển thị
   const customerData =
     fullDetail || selectedLead?.customer || selectedLead || {};
   const leadCar = customerData.leadCar || {};
 
   const fetchData = async () => {
-    if (!selectedLead?.id) return;
+    if (!selectedLead?.customer?.id && !selectedLead?.id) return;
+    const targetId = selectedLead?.customer?.id || selectedLead?.id;
     setLoading(true);
 
     try {
-      const res = await getLeadDetail(selectedLead?.customer.id);
+      const res = await getLeadDetail(targetId);
       setFullDetail(res);
-      console.log(res);
 
       if (res) {
         // PHẲNG HÓA DỮ LIỆU ĐỂ FILL VÀO FORM
         const formValues = {
-          // 1. Thông tin khách hàng
-          fullName: res.fullName || res.customer?.fullName,
-          phone: res.phone || res.customer?.phone,
+          // 1. Thông tin khách hàng & Phân loại
+          fullName: res.fullName,
+          phone: res.phone,
+          urgencyLevel: res.urgencyLevel,
+          status: res.status,
 
-          // 2. Spread toàn bộ thông số xe ra ngoài (color, odo, transmission, carModelId...)
+          // 2. Thông tin giám định & Nhu cầu
+          inspectStatus: res.inspectStatus,
+          inspectorId: res.inspectorId,
+          inspectLocation: res.inspectLocation,
+          notSeenReasonId: res.notSeenReasonId,
+          notSeenReason: res.notSeenReason,
+          buyReasonId: res.buyReasonId, // Liên kết lý do bán/mua
+
+          // 3. Thông số xe từ leadCar
           ...res.leadCar,
 
-          // 3. Xử lý các trường ngày tháng (Bắt buộc phải dùng dayjs)
+          // 4. Xử lý các trường ngày tháng
+          inspectDoneDate: res.inspectDoneDate
+            ? dayjs(res.inspectDoneDate)
+            : null,
+          inspectDate: res.inspectDate ? dayjs(res.inspectDate) : null,
           registrationDeadline: res.leadCar?.registrationDeadline
             ? dayjs(res.leadCar.registrationDeadline)
             : null,
@@ -76,6 +93,9 @@ export default function ModalDetailCustomer({
             : null,
           insuranceTNDSDeadline: res.leadCar?.insuranceTNDSDeadline
             ? dayjs(res.leadCar.insuranceTNDSDeadline)
+            : null,
+          insuranceDeadline: res.leadCar?.insuranceDeadline
+            ? dayjs(res.leadCar.insuranceDeadline)
             : null,
         };
 
@@ -89,16 +109,14 @@ export default function ModalDetailCustomer({
   };
 
   useEffect(() => {
-    if (isOpen && selectedLead?.id) {
+    if (isOpen) {
       fetchData();
-    } else if (!isOpen) {
+    } else {
       setFullDetail(null);
       setIsEditing(false);
-      if (form && (form as any).__INTERNAL__?.name) {
-        form.resetFields();
-      }
+      form.resetFields();
     }
-  }, [isOpen, selectedLead?.id]);
+  }, [isOpen, selectedLead]);
 
   const handleSave = async () => {
     try {
@@ -107,29 +125,26 @@ export default function ModalDetailCustomer({
 
       const cleanedValues = {
         ...values,
+        // Chuyển đổi tất cả các mốc thời gian sang ISO String cho Prisma
+        inspectDoneDate: values.inspectDoneDate?.toISOString() || null,
+        inspectDate: values.inspectDate?.toISOString() || null,
+        nextContactAt: values.nextContactAt?.toISOString() || null, // Nếu có dùng lịch hẹn
         registrationDeadline:
           values.registrationDeadline?.toISOString() || null,
         insuranceVCDeadline: values.insuranceVCDeadline?.toISOString() || null,
         insuranceTNDSDeadline:
           values.insuranceTNDSDeadline?.toISOString() || null,
+        insuranceDeadline: values.insuranceDeadline?.toISOString() || null,
       };
 
       const res = await updateFullLeadDetail(customerData.id, cleanedValues);
 
       if (res.success) {
-        message.success("Cập nhật thành công");
+        message.success("Cập nhật hồ sơ thành công");
         setIsEditing(false);
-
-        // Bước quan trọng 1: Lấy lại dữ liệu mới nhất từ API cho Modal
         await fetchData();
-
-        // Bước quan trọng 2: Refresh router để Server cập nhật dữ liệu
         router.refresh();
-
-        // Bước quan trọng 3: Gọi callback để trang cha (Table) load lại dữ liệu
-        if (onUpdateSuccess) {
-          onUpdateSuccess();
-        }
+        if (onUpdateSuccess) onUpdateSuccess();
       } else {
         message.error(res.error || "Lỗi khi lưu dữ liệu");
       }
@@ -139,7 +154,6 @@ export default function ModalDetailCustomer({
       setLoading(false);
     }
   };
-
   if (!selectedLead) return null;
 
   return (
@@ -149,8 +163,8 @@ export default function ModalDetailCustomer({
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
             <IdcardOutlined />
           </div>
-          <span className="font-bold text-slate-800">
-            HỒ SƠ KHÁCH HÀNG CHI TIẾT
+          <span className="font-bold text-slate-800 uppercase">
+            Hồ sơ khách hàng chi tiết
           </span>
         </Space>
       }
@@ -175,7 +189,6 @@ export default function ModalDetailCustomer({
       ]}
     >
       <div className="max-h-[78vh] overflow-y-auto px-1 custom-scrollbar overflow-x-hidden">
-        {/* Banner thông tin chính */}
         <CustomerBanner
           customerData={customerData}
           UrgencyBadge={UrgencyBadge}
@@ -188,15 +201,14 @@ export default function ModalDetailCustomer({
 
         <Form form={form} layout="vertical">
           <Row gutter={[24, 24]}>
-            {/* Cột trái: Thông tin xe */}
             <Col lg={17} md={24} span={24}>
               <Card
                 className="shadow-sm rounded-2xl border-slate-100"
                 title={
                   <Space>
                     <CarOutlined className="text-indigo-600" />
-                    <span className="font-bold uppercase text-[15px]">
-                      Thông tin phương tiện
+                    <span className="font-bold uppercase text-[14px]">
+                      Thông tin phương tiện & Giám định
                     </span>
                   </Space>
                 }
@@ -221,33 +233,9 @@ export default function ModalDetailCustomer({
                   ) : (
                     <Button
                       icon={<EditOutlined />}
-                      onClick={() => {
-                        // Fill lại dữ liệu một lần nữa cho chắc chắn trước khi hiện Form
-                        const values = {
-                          fullName:
-                            customerData.fullName ||
-                            customerData.customer?.fullName,
-                          phone:
-                            customerData.phone || customerData.customer?.phone,
-                          ...customerData.leadCar,
-                          registrationDeadline: customerData.leadCar
-                            ?.registrationDeadline
-                            ? dayjs(customerData.leadCar.registrationDeadline)
-                            : null,
-                          insuranceVCDeadline: customerData.leadCar
-                            ?.insuranceVCDeadline
-                            ? dayjs(customerData.leadCar.insuranceVCDeadline)
-                            : null,
-                          insuranceTNDSDeadline: customerData.leadCar
-                            ?.insuranceTNDSDeadline
-                            ? dayjs(customerData.leadCar.insuranceTNDSDeadline)
-                            : null,
-                        };
-                        form.setFieldsValue(values);
-                        setIsEditing(true);
-                      }}
+                      onClick={() => setIsEditing(true)}
                     >
-                      Chỉnh sửa thông số
+                      Chỉnh sửa hồ sơ
                     </Button>
                   )
                 }
@@ -255,7 +243,9 @@ export default function ModalDetailCustomer({
                 {isEditing ? (
                   <VehicleFormFields
                     carModels={carModels}
-                    customerData={customerData}
+                    notSeenReasons={notSeenReasons}
+                    sellReasons={sellReasons}
+                    users={users}
                   />
                 ) : (
                   <VehicleView
@@ -267,7 +257,6 @@ export default function ModalDetailCustomer({
               </Card>
             </Col>
 
-            {/* Cột phải: Timeline hoạt động */}
             <Col lg={7} md={24} span={24}>
               <ActivityTimeline activities={customerData.activities} />
             </Col>

@@ -270,67 +270,91 @@ export async function updateLeadDetailAction(customerId: string, values: any) {
 
 export async function updateFullLeadDetail(customerId: string, values: any) {
   try {
+    const auth = await getCurrentUser();
+    if (!auth)
+      throw new Error("Phiên làm việc hết hạn. Vui lòng đăng nhập lại.");
+
     const {
       fullName,
       phone,
-      ...restValues // Chứa carModelId, color, odo, v.v.
+      urgencyLevel,
+      status,
+      // Thông tin giám định mới
+      inspectStatus,
+      inspectorId,
+      inspectDoneDate,
+      inspectLocation,
+      notSeenReasonId,
+      notSeenReason,
+      buyReasonId,
+      // Thông số xe
+      ...restValues
     } = values;
 
     await db.$transaction(async (tx) => {
-      // 1. Cập nhật Customer
-      await tx.customer.update({
+      // 1. Cập nhật bảng Customer
+      const updatedCustomer = await tx.customer.update({
         where: { id: customerId },
-        data: { fullName, phone },
+        data: {
+          fullName,
+          phone,
+          urgencyLevel,
+          status,
+          carModelId: restValues.carModelId,
+          // Giám định
+          inspectStatus,
+          inspectorId,
+          inspectLocation,
+          inspectDoneDate: inspectDoneDate ? new Date(inspectDoneDate) : null,
+          // Lý do liên kết
+          notSeenReasonId,
+          buyReasonId,
+          notSeenReason, // Ghi chú thêm
+        },
       });
 
-      // 2. Chuẩn hóa dữ liệu cho LeadCar
-      // Loại bỏ những trường không thuộc Schema LeadCar nếu cần
+      // 2. Chuẩn hóa dữ liệu cho bảng LeadCar
       const carPayload = {
-        carModelId: restValues.carModelId,
         modelName: restValues.modelName,
         year: restValues.year ? Number(restValues.year) : null,
         color: restValues.color,
+        interiorColor: restValues.interiorColor,
         licensePlate: restValues.licensePlate,
         odo: restValues.odo ? Number(restValues.odo) : null,
         transmission: restValues.transmission,
+        fuelType: restValues.fuelType,
+        carType: restValues.carType,
+        driveTrain: restValues.driveTrain,
+        engineSize: restValues.engineSize,
+        engineNumber: restValues.engineNumber,
+        vin: restValues.vin,
         seats: restValues.seats ? Number(restValues.seats) : 5,
+        note: restValues.note,
+        // Giá tiền
         expectedPrice: restValues.expectedPrice
           ? Number(restValues.expectedPrice)
           : null,
         tSurePrice: restValues.tSurePrice
           ? Number(restValues.tSurePrice)
           : null,
-        note: restValues.note,
-        engineNumber: restValues.engineNumber,
-        vin: restValues.vin,
-        interiorColor: restValues.interiorColor,
-        engineSize: restValues.engineSize,
-        driveTrain: restValues.driveTrain,
-        carType: restValues.carType,
-
-        // ÉP KIỂU DATE Ở ĐÂY
+        // Hạn định (Date)
         registrationDeadline: restValues.registrationDeadline
           ? new Date(restValues.registrationDeadline)
           : null,
-        insuranceTNDS: restValues.insuranceTNDSDeadline ? true : false,
-        insuranceVC: restValues.insuranceVCDeadline ? true : false,
         insuranceVCDeadline: restValues.insuranceVCDeadline
           ? new Date(restValues.insuranceVCDeadline)
           : null,
         insuranceTNDSDeadline: restValues.insuranceTNDSDeadline
           ? new Date(restValues.insuranceTNDSDeadline)
           : null,
-
         insuranceDeadline: restValues.insuranceDeadline
           ? new Date(restValues.insuranceDeadline)
           : null,
+        // Logic Boolean cho bảo hiểm
+        insuranceTNDS: !!restValues.insuranceTNDSDeadline,
+        insuranceVC: !!restValues.insuranceVCDeadline,
       };
-      await tx.customer.update({
-        where: { id: customerId },
-        data: {
-          carModelId: restValues.carModelId, // Cập nhật luôn ở đây
-        },
-      });
+
       // 3. Upsert LeadCar
       await tx.leadCar.upsert({
         where: { customerId: customerId },
@@ -340,12 +364,28 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
           ...carPayload,
         },
       });
+
+      // 4. Tạo Activity Log (Nhật ký hoạt động)
+      await tx.leadActivity.create({
+        data: {
+          customerId: customerId,
+          createdById: auth.id,
+          status: status || updatedCustomer.status,
+          note: `[CẬP NHẬT HỒ SƠ]: Cập nhật thông tin kỹ thuật xe và trạng thái giám định (${inspectStatus}).`,
+        },
+      });
     });
 
+    // Revalidate các đường dẫn liên quan
     revalidatePath("/dashboard/assigned-tasks");
+    revalidatePath(`/dashboard/customers/${customerId}`);
+
     return { success: true };
   } catch (error: any) {
-    console.error("Update Error Chi Tiết:", error);
-    return { success: false, error: error.message };
+    console.error("CRITICAL UPDATE ERROR:", error);
+    return {
+      success: false,
+      error: error.message || "Lỗi hệ thống không xác định",
+    };
   }
 }

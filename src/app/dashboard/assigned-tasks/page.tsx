@@ -45,6 +45,9 @@ import {
   requestLoseApproval,
   updateCustomerStatusAction,
   getMyCustomersAction,
+  getNotSeenReasonsAction,
+  getSellReasonsAction,
+  getAllStaffAPPRAISERAction,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
 import { getMeAction } from "@/actions/user-actions";
@@ -85,23 +88,42 @@ export default function AssignedTasksPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
 
+  const [notSeenReasons, setNotSeenReasons] = useState<any[]>([]);
+  const [sellReasons, setSellReasons] = useState<any[]>([]);
+  const [allStaffAPPRAISER, setAllStaffAPPRAISER] = useState<any[]>([]);
+
   // --- LOAD DATA ---
   const loadData = async () => {
     setLoading(true);
     try {
-      const [leads, cars, models, myCustomers, userData]: any =
-        await Promise.all([
-          getMyTasksAction(),
-          getAvailableCars(),
-          getCarModelsAction(),
-          getMyCustomersAction(),
-          getMeAction(),
-        ]);
+      const [
+        leads,
+        cars,
+        models,
+        myCustomers,
+        userData,
+        nsReasons,
+        sReasons,
+        staffsAPPRAISER,
+      ]: any = await Promise.all([
+        getMyTasksAction(),
+        getAvailableCars(),
+        getCarModelsAction(),
+        getMyCustomersAction(),
+        getMeAction(),
+        getNotSeenReasonsAction(), // Mới
+        getSellReasonsAction(), // Mới
+        getAllStaffAPPRAISERAction(), // Mới
+      ]);
       setTasks(leads);
       setCustomers(myCustomers);
       setInventory(cars);
       setCarModels(models);
       setCurrentUser(userData.data);
+
+      setNotSeenReasons(nsReasons);
+      setSellReasons(sReasons);
+      setAllStaffAPPRAISER(staffsAPPRAISER);
     } catch (err) {
       messageApi.error("Không thể tải dữ liệu");
     } finally {
@@ -498,6 +520,9 @@ export default function AssignedTasksPage() {
       {/* 2. Modal Chi tiết khách hàng */}
       <ModalDetailCustomer
         carModels={carModels}
+        notSeenReasons={notSeenReasons} // Truyền dữ liệu mới vào đây
+        sellReasons={sellReasons} // Truyền dữ liệu mới vào đây
+        users={allStaffAPPRAISER} // Truyền danh sách nhân viên vào đây
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         selectedLead={selectedLead}

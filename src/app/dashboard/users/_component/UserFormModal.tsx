@@ -136,6 +136,7 @@ export default function UserFormModal({
                         Thu mua
                       </Select.Option>
                       <Select.Option value="SALES_STAFF">Bán xe</Select.Option>
+                      <Select.Option value="APPRAISER">Định giá</Select.Option>
                       <Select.Option value="REFERRER">Giới thiệu</Select.Option>
                     </Select>
                   </Form.Item>
