@@ -17,7 +17,7 @@ export const ActivityTimeline = ({ activities }: any) => {
         </Space>
       }
     >
-      <div className="h-full overflow-y-auto pr-2 custom-scrollbar">
+      <div className="h-full max-h-[calc(100vh-350px)] overflow-y-auto pr-2 custom-scrollbar">
         {activities?.length > 0 ? (
           <Timeline
             mode="left"

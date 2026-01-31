@@ -78,6 +78,21 @@ export async function getMyTasksAction() {
                 },
                 orderBy: { createdAt: "desc" },
               },
+              inspectorRef: {
+                select: {
+                  fullName: true,
+                },
+              },
+              notSeenReasonRef: {
+                select: {
+                  name: true,
+                },
+              },
+              buyReasonRef: {
+                select: {
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -94,21 +109,6 @@ export async function getMyTasksAction() {
 
       const isOverdue = now.isAfter(deadline);
       const minutesOverdue = isOverdue ? now.diff(deadline, "minute") : 0;
-
-      // --- LOGIC TÍNH TOÁN URGENCYLEVEL ĐỘNG ---
-      let currentUrgency = customer?.urgencyLevel || "COOL";
-
-      if (customer?.lastContactAt) {
-        const diffDays = now.diff(dayjs(customer.lastContactAt), "day");
-
-        if (diffDays <= (config?.hotDays || 3)) {
-          currentUrgency = "HOT";
-        } else if (diffDays <= (config?.warmDays || 7)) {
-          currentUrgency = "WARM";
-        } else {
-          currentUrgency = "COOL";
-        }
-      }
 
       // Ép kiểu Decimal sang Number cho leadCar
       const rawLeadCar = customer?.leadCar;
@@ -136,7 +136,6 @@ export async function getMyTasksAction() {
         minutesOverdue,
         customer: {
           ...plainTask.customer,
-          urgencyLevel: currentUrgency, // Ghi đè bằng giá trị vừa tính toán
           leadCar: formattedLeadCar,
         },
       };

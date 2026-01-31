@@ -105,6 +105,21 @@ export async function getLeadDetail(customerId: string) {
           orderBy: { createdAt: "desc" },
         },
         leadCar: true,
+        inspectorRef: {
+          select: {
+            fullName: true,
+          },
+        },
+        notSeenReasonRef: {
+          select: {
+            name: true,
+          },
+        },
+        buyReasonRef: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
