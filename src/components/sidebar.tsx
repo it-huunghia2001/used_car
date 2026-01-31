@@ -238,17 +238,19 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
               ),
             },
             {
-              key: "/dashboard/settings/not-seen-car",
+              key: "/dashboard/settings/reasons/not-seen-car",
               label: (
-                <Link href="/dashboard/settings/not-seen-car/">
+                <Link href="/dashboard/settings/reasons/not-seen-car/">
                   Lý do chưa xem xe
                 </Link>
               ),
             },
             {
-              key: "/dashboard/settings/sell-car",
+              key: "/dashboard/settings/reasons/sell-car",
               label: (
-                <Link href="/dashboard/settings/sell-car">Lý do bán xe</Link>
+                <Link href="/dashboard/settings/reasons/sell-car">
+                  Lý do bán xe
+                </Link>
               ),
             },
             {
