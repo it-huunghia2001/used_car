@@ -32,12 +32,13 @@ export default function FormSellCar({
 }: any) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-
   const SELL_SUB_TYPES = [
     { value: "SELL", label: "Chỉ bán xe cũ" },
     { value: "SELL_TRADE_NEW", label: "Bán cũ - Đổi xe mới" },
     { value: "SELL_TRADE_USED", label: "Bán cũ - Đổi xe cũ" },
   ];
+  const [typeHandel, setTypeHandel] =
+    useState<(typeof SELL_SUB_TYPES)[number]["value"]>("SELL");
 
   const onFinish = async (values: any) => {
     if (!userId) return message.error("Lỗi phiên đăng nhập");
@@ -122,7 +123,13 @@ export default function FormSellCar({
                   label="Hình thức giao dịch"
                   rules={[{ required: true }]}
                 >
-                  <Select options={SELL_SUB_TYPES} className="w-full" />
+                  <Select
+                    options={SELL_SUB_TYPES}
+                    onChange={(e) => {
+                      setTypeHandel(e);
+                    }}
+                    className="w-full"
+                  />
                 </Form.Item>
               </Col>
             )}
@@ -145,7 +152,7 @@ export default function FormSellCar({
             <Col xs={24} md={12}>
               <Form.Item
                 name="carModelId"
-                label="Dòng xe khách tìm"
+                label="Dòng xe khách bán"
                 rules={[{ required: true, message: "Vui lòng chọn dòng xe!" }]}
               >
                 <Select
@@ -164,6 +171,33 @@ export default function FormSellCar({
                 />
               </Form.Item>
             </Col>
+            {typeHandel !== "SELL" && (
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="carModelId"
+                  label="Dòng xe khách muốn đổi"
+                  rules={[
+                    { required: true, message: "Vui lòng chọn dòng xe!" },
+                  ]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Gõ để tìm dòng xe (VD: Vios, Accent...)"
+                    optionFilterProp="label" // QUAN TRỌNG: Cho phép search theo label (m.name)
+                    filterOption={(input, option) =>
+                      String(option?.label ?? "")
+                        .toLowerCase()
+                        .includes(input.toLowerCase())
+                    } // Thêm hàm này để search tiếng Việt không phân biệt hoa thường
+                    options={carModels.map((m: any) => ({
+                      label: m.name,
+                      value: m.id,
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+            )}
+
             <Col xs={24} md={12}>
               <Form.Item name="carYear" label="Năm sản xuất">
                 <Input prefix={<CalendarOutlined />} placeholder="Vd: 2019" />
@@ -180,7 +214,11 @@ export default function FormSellCar({
           </Row>
         </section>
 
-        <Form.Item name="note" label="Ghi chú thêm">
+        <Form.Item
+          name="note"
+          label="Ghi chú thêm"
+          rules={[{ required: true, message: "Nhập ghi chú của khách hàng" }]}
+        >
           <Input.TextArea
             rows={3}
             placeholder="Tình trạng xe, pháp lý, thời gian xem xe tốt nhất..."
