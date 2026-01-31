@@ -263,10 +263,11 @@ model Car {
   promotionNote String?
   displayDate   DateTime?
 
-  status       CarStatus @default(PENDING)
-  costPrice    Decimal?  @db.Decimal(15, 2)
-  sellingPrice Decimal?  @db.Decimal(15, 2)
-  purchasedAt  DateTime?
+  status              CarStatus @default(PENDING)
+  costPrice           Decimal?  @db.Decimal(15, 2)
+  sellingPrice        Decimal?  @db.Decimal(15, 2)
+  purchasedAt         DateTime?
+  authorizedOwnerName String?
 
   branchId String
   branch   Branch @relation(fields: [branchId], references: [id])

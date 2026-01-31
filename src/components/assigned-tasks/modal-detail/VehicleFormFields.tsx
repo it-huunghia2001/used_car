@@ -73,7 +73,11 @@ export const VehicleFormFields = ({ carModels }: any) => {
           </Form.Item>
         </Col>
         <Col xs={24} md={8}>
-          <Form.Item name="modelName" label="Phiên bản chi tiết">
+          <Form.Item
+            name="modelName"
+            rules={[{ required: true }]}
+            label="Phiên bản chi tiết"
+          >
             <Input placeholder="Vios G, Cross V..." />
           </Form.Item>
         </Col>
@@ -111,13 +115,17 @@ export const VehicleFormFields = ({ carModels }: any) => {
         </Col>
 
         <Col xs={12} md={6}>
-          <Form.Item name="year" label="Năm SX">
+          <Form.Item name="year" label="Năm SX" rules={[{ required: true }]}>
             <InputNumber className="w-full!" placeholder="2022" />
           </Form.Item>
         </Col>
 
         <Col xs={12} md={6}>
-          <Form.Item name="odo" label="Số ODO (km)">
+          <Form.Item
+            name="odo"
+            label="Số ODO (km)"
+            rules={[{ required: true }]}
+          >
             <InputNumber
               className="w-full!"
               placeholder="15000"
@@ -129,7 +137,11 @@ export const VehicleFormFields = ({ carModels }: any) => {
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item name="transmission" label="Hộp số">
+          <Form.Item
+            name="transmission"
+            label="Hộp số"
+            rules={[{ required: true }]}
+          >
             <Select
               options={[
                 { value: "AUTOMATIC", label: "Số tự động" },
@@ -150,23 +162,17 @@ export const VehicleFormFields = ({ carModels }: any) => {
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item name="seats" label="Số chỗ ngồi">
+          <Form.Item
+            name="seats"
+            label="Số chỗ ngồi"
+            rules={[{ required: true }]}
+          >
             <InputNumber className="w-full!" />
           </Form.Item>
         </Col>
 
         <Col xs={12} md={6}>
-          <Form.Item name="fuelType" label="Nhiên liệu">
-            <Select
-              options={[
-                { label: "Xăng", value: "GASOLINE" },
-                { label: "Dầu", value: "DIESEL" },
-              ]}
-            />
-          </Form.Item>
-        </Col>
-        <Col xs={12} md={6}>
-          <Form.Item name="origin" label="Xuất xứ">
+          <Form.Item name="origin" label="Xuất xứ" rules={[{ required: true }]}>
             <Select>
               <Select.Option value="VN">Lắp ráp trong nước</Select.Option>
               <Select.Option value="TH">Nhập Thái Lan</Select.Option>
@@ -176,12 +182,20 @@ export const VehicleFormFields = ({ carModels }: any) => {
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item name="color" label="Màu ngoại thất">
+          <Form.Item
+            name="color"
+            label="Màu ngoại thất"
+            rules={[{ required: true }]}
+          >
             <Input />
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item name="interiorColor" label="Màu nội thất">
+          <Form.Item
+            name="interiorColor"
+            label="Màu nội thất"
+            rules={[{ required: true }]}
+          >
             <Input />
           </Form.Item>
         </Col>
@@ -191,7 +205,11 @@ export const VehicleFormFields = ({ carModels }: any) => {
           </Form.Item>
         </Col>
         <Col xs={24} md={6}>
-          <Form.Item name="carType" label="Kiểu dáng">
+          <Form.Item
+            name="carType"
+            label="Kiểu dáng"
+            rules={[{ required: true }]}
+          >
             <Select placeholder="Chọn kiểu dáng">
               <Select.Option value="SEDAN">Sedan</Select.Option>
               <Select.Option value="SUV">SUV</Select.Option>
@@ -203,7 +221,11 @@ export const VehicleFormFields = ({ carModels }: any) => {
           </Form.Item>
         </Col>
         <Col xs={24} md={6}>
-          <Form.Item name="driveTrain" label="Hệ dẫn động">
+          <Form.Item
+            name="driveTrain"
+            label="Hệ dẫn động"
+            rules={[{ required: true }]}
+          >
             <Select placeholder="Chọn hệ dẫn động">
               <Select.Option value="FWD">Cầu trước (FWD)</Select.Option>
               <Select.Option value="RWD">Cầu sau (RWD)</Select.Option>
@@ -216,7 +238,11 @@ export const VehicleFormFields = ({ carModels }: any) => {
         </Col>
 
         <Col xs={12} md={6}>
-          <Form.Item name="fuelType" label="Nhiên liệu">
+          <Form.Item
+            name="fuelType"
+            label="Nhiên liệu"
+            rules={[{ required: true }]}
+          >
             <Select
               options={[
                 { value: "GASOLINE", label: "Xăng" },
@@ -262,7 +288,11 @@ export const VehicleFormFields = ({ carModels }: any) => {
           </Form.Item>
         </Col>
         <Col xs={24} sm={8}>
-          <Form.Item name="ownerType" label="Hình thức sở hữu">
+          <Form.Item
+            name="ownerType"
+            label="Hình thức sở hữu"
+            rules={[{ required: true }]}
+          >
             <Select
               options={[
                 { label: "Chính chủ", value: "PERSONAL_OWNER" },
@@ -290,7 +320,11 @@ export const VehicleFormFields = ({ carModels }: any) => {
       </Divider>
       <Row gutter={[16, 0]}>
         <Col xs={24} sm={8}>
-          <Form.Item name="registrationDeadline" label="Hạn đăng kiểm">
+          <Form.Item
+            name="registrationDeadline"
+            label="Hạn đăng kiểm"
+            rules={[{ required: true }]}
+          >
             <DatePicker
               dropdownClassName="mobile-center-picker"
               className="w-full"
@@ -326,7 +360,11 @@ export const VehicleFormFields = ({ carModels }: any) => {
           </Form.Item>
         </Col>
         <Col xs={24}>
-          <Form.Item name="note" label="Ghi chú kỹ thuật">
+          <Form.Item
+            name="note"
+            label="Ghi chú kỹ thuật"
+            rules={[{ required: true }]}
+          >
             <Input.TextArea
               rows={3}
               placeholder="Mô tả tình trạng xe, các lỗi nhỏ nếu có..."

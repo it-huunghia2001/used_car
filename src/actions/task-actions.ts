@@ -311,12 +311,8 @@ export async function approveCarPurchase(
     const activity = await db.leadActivity.findUnique({
       where: { id: activityId },
       include: {
-        customer: {
-          include: { branch: true }, // Lấy thêm chi nhánh từ khách hàng
-        },
-        user: {
-          select: { email: true, fullName: true, username: true },
-        },
+        customer: { include: { branch: true } },
+        user: { select: { email: true, fullName: true, username: true } },
       },
     });
 
@@ -333,7 +329,7 @@ export async function approveCarPurchase(
 
     const result = await db.$transaction(
       async (tx) => {
-        // --- TRƯỜNG HỢP TỪ CHỐI ---
+        // --- 1. TRƯỜNG HỢP TỪ CHỐI ---
         if (decision === "REJECT") {
           await tx.customer.update({
             where: { id: activity.customerId },
@@ -348,7 +344,7 @@ export async function approveCarPurchase(
           await tx.task.create({
             data: {
               title: "SỬA HỒ SƠ: Thu mua bị từ chối",
-              content: `Lý do: ${reason || "Không xác định"}. Vui lòng kiểm tra lại thông tin xe/giá và gửi lại phê duyệt.`,
+              content: `Lý do: ${reason || "Không xác định"}. Vui lòng chỉnh sửa lại thông tin xe và gửi duyệt lại.`,
               type: "PURCHASE",
               scheduledAt: new Date(),
               deadlineAt: dayjs().add(1, "hour").toDate(),
@@ -366,33 +362,28 @@ export async function approveCarPurchase(
             },
           });
 
-          return { type: "REJECTED" };
+          return { type: "REJECTED", price: 0 };
         }
 
-        // --- TRƯỜNG HỢP PHÊ DUYỆT ---
+        // --- 2. TRƯỜNG HỢP PHÊ DUYỆT ---
         if (isPurchaseRequest) {
-          // Lấy dữ liệu xe từ Admin sửa hoặc từ Note của Sales
           const carData = adminUpdatedData || purchaseData.carData;
           const contractData = adminUpdatedData
             ? {
                 price: adminUpdatedData.price,
                 contractNo: adminUpdatedData.contractNo,
-                note: adminUpdatedData.adminNote,
               }
             : purchaseData.contractData;
 
+          // Xác định chi nhánh cho xe
           const staff = await tx.user.findUnique({
             where: { id: activity.createdById },
-            select: { branchId: true, id: true },
+            select: { branchId: true },
           });
-
-          // Ưu tiên branchId của nhân viên, nếu không có lấy của khách hàng
           const finalBranchId = staff?.branchId || activity.customer.branchId;
-          if (!finalBranchId)
-            throw new Error("Không xác định được chi nhánh cho xe này");
+          if (!finalBranchId) throw new Error("Không xác định được chi nhánh.");
 
-          // 1. LỌC DỮ LIỆU SẠCH (Quan trọng nhất để tránh lỗi Unknown argument)
-          // Destructure bỏ qua các trường không thuộc Schema bảng Car
+          // LỌC DỮ LIỆU SẠCH (Loại bỏ các trường không có trong Schema Car)
           const {
             price,
             contractNo,
@@ -405,7 +396,7 @@ export async function approveCarPurchase(
             ...validCarFields
           } = carData;
 
-          // 2. Logic tạo Stock Code
+          // Logic tạo Stock Code
           const carModelDb = await tx.carModel.findUnique({
             where: { id: carData.carModelId },
           });
@@ -420,17 +411,15 @@ export async function approveCarPurchase(
             },
             orderBy: { stockCode: "desc" },
           });
-
-          let lastNumber = 0;
-          if (lastCar) {
-            lastNumber = parseInt(lastCar.stockCode.slice(-3));
-          }
+          const lastNumber = lastCar
+            ? parseInt(lastCar.stockCode.slice(-3))
+            : 0;
           const generatedStockCode = `${carTypePrefix}${yearSuffix}${(lastNumber + 1).toString().padStart(3, "0")}`;
 
-          // 3. Tạo Xe nhập kho
+          // TẠO XE NHẬP KHO
           const createdCar = await tx.car.create({
             data: {
-              ...validCarFields, // Các trường như color, transmission, fuelType...
+              ...validCarFields,
               stockCode: generatedStockCode,
               vin: carData.vin?.toUpperCase() || null,
               engineNumber: carData.engineNumber?.toUpperCase() || null,
@@ -448,69 +437,37 @@ export async function approveCarPurchase(
               referrerId: activity.customer.referrerId,
               purchasedAt: new Date(),
               status: "REFURBISHING",
+              //authorizedOwnerName đã được spread từ validCarFields nếu có trong carData
             },
           });
 
-          // 4. Lưu lịch sử chủ xe
+          // Ghi lịch sử và cập nhật trạng thái
           await tx.carOwnerHistory.create({
             data: {
               carId: createdCar.id,
               customerId: activity.customerId,
               type: "PURCHASE",
-              contractNo: contractData.contractNo,
+              contractNo: contractNo,
               price: contractData.price,
               date: new Date(),
-              note: `Nhập kho từ hồ sơ ${activity.customer.fullName}`,
             },
           });
 
-          // 5. Cập nhật Customer & Hoàn tất các Task còn lại
           await tx.customer.update({
             where: { id: activity.customerId },
             data: { status: "DEAL_DONE" },
           });
-
           await tx.task.updateMany({
             where: { customerId: activity.customerId, status: "PENDING" },
             data: { status: "COMPLETED", completedAt: new Date() },
           });
-
-          // 6. Đóng Activity phê duyệt
           await tx.leadActivity.update({
             where: { id: activityId },
             data: {
               status: "DEAL_DONE",
-              note: `✅ Admin đã duyệt nhập kho: ${generatedStockCode}. ${reason ? "Ghi chú: " + reason : ""}`,
+              note: `✅ Nhập kho: ${generatedStockCode}`,
             },
           });
-
-          // --- GỬI EMAIL THÔNG BÁO CHO NHÂN VIÊN ---
-          // Chỉ gửi khi transaction thành công và có thông tin email nhân viên
-          if (activity.user?.email && result.type !== "UNKNOWN") {
-            // Chạy ngầm (Background task) để không làm chậm response
-            (async () => {
-              try {
-                await sendMail({
-                  to: activity.user!.email,
-                  subject: `[KẾT QUẢ] Phê duyệt hồ sơ thu mua: ${activity.customer.fullName.toUpperCase()}`,
-                  html: purchaseResultEmailTemplate2({
-                    staffName:
-                      activity.user!.fullName ||
-                      activity.user!.username ||
-                      "Nhân viên",
-                    customerName: activity.customer.fullName,
-                    decision: decision,
-                    reason: reason,
-                    stockCode: (result as any).stockCode,
-                    carName: result.carName ?? "",
-                    price: result.price,
-                  }),
-                });
-              } catch (mailErr) {
-                console.error("Lỗi gửi mail phản hồi thu mua:", mailErr);
-              }
-            })();
-          }
 
           return {
             type: "PURCHASE_DONE",
@@ -519,44 +476,33 @@ export async function approveCarPurchase(
             carName: carModelDb?.name,
           };
         }
-        return { type: "UNKNOWN" };
+        return { type: "UNKNOWN", price: 0 };
       },
       { timeout: 30000 },
     );
 
-    // --- GỬI EMAIL THÔNG BÁO CHO NHÂN VIÊN ---
+    // --- GỬI EMAIL THÔNG BÁO (NGOÀI TRANSACTION) ---
     if (activity.user?.email && result.type !== "UNKNOWN") {
-      (async () => {
-        try {
-          await sendMail({
-            to: activity.user!.email,
-            subject: `[KẾT QUẢ] Phê duyệt hồ sơ thu mua: ${activity.customer.fullName.toUpperCase()}`,
-            html: purchaseResultEmailTemplate({
-              staffName:
-                activity.user!.fullName ||
-                activity.user!.username ||
-                "Nhân viên",
-              customerName: activity.customer.fullName,
-              decision: decision,
-              reason: reason,
-              stockCode: (result as any).stockCode,
-              carName: (result as any).carName || "Xe thu mua",
-              price: Number((result as any).price || 0),
-            }),
-          });
-        } catch (mailErr) {
-          console.error("Lỗi gửi mail phản hồi thu mua:", mailErr);
-        }
-      })();
+      sendMail({
+        to: activity.user.email,
+        subject: `[KẾT QUẢ] Phê duyệt thu mua: ${activity.customer.fullName}`,
+        html: purchaseResultEmailTemplate({
+          staffName: activity.user.fullName || "Nhân viên",
+          customerName: activity.customer.fullName,
+          decision,
+          reason,
+          stockCode: (result as any).stockCode,
+          carName: (result as any).carName || "Xe thu mua",
+          price: Number(result.price),
+        }),
+      }).catch((err) => console.error("Mail Error:", err));
     }
 
     revalidatePath("/dashboard/approvals");
-    revalidatePath("/dashboard/assigned-tasks");
     revalidatePath("/dashboard/inventory");
-
     return { success: true, data: result };
   } catch (error: any) {
-    console.error("Approve Car Purchase Error:", error);
+    console.error("🔥 Error:", error);
     return { success: false, error: error.message };
   }
 }

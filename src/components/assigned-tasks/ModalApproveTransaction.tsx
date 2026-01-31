@@ -267,12 +267,20 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="vin" label="Số khung (VIN)">
+                  <Form.Item
+                    name="vin"
+                    label="Số khung (VIN)"
+                    rules={[{ required: true }]}
+                  >
                     <Input className="uppercase" />
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="engineNumber" label="Số máy">
+                  <Form.Item
+                    name="engineNumber"
+                    label="Số máy"
+                    rules={[{ required: true }]}
+                  >
                     <Input className="uppercase" />
                   </Form.Item>
                 </Col>
@@ -286,7 +294,11 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="transmission" label="Hộp số">
+                  <Form.Item
+                    name="transmission"
+                    label="Hộp số"
+                    rules={[{ required: true }]}
+                  >
                     <Select
                       options={[
                         { label: "Tự động", value: "AUTOMATIC" },
@@ -296,7 +308,11 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="seats" label="Số chỗ ngồi">
+                  <Form.Item
+                    name="seats"
+                    label="Số chỗ ngồi"
+                    rules={[{ required: true }]}
+                  >
                     <InputNumber className="w-full!" />
                   </Form.Item>
                 </Col>
@@ -304,46 +320,66 @@ export default function ModalApproveTransaction({
 
               <Row gutter={16}>
                 <Col xs={12} md={6}>
-                  <Form.Item name="fuelType" label="Nhiên liệu">
+                  <Form.Item
+                    name="fuelType"
+                    label="Nhiên liệu"
+                    rules={[{ required: true }]}
+                  >
                     <Select
                       options={[
-                        { label: "Xăng", value: "GASOLINE" },
-                        { label: "Dầu", value: "DIESEL" },
+                        { value: "GASOLINE", label: "Xăng" },
+                        { value: "DIESEL", label: "Dầu" },
+                        { value: "HYBRID", label: "Hybrid" },
+                        { value: "ELECTRIC", label: "Điện" },
                       ]}
                     />
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="origin" label="Xuất xứ">
+                  <Form.Item
+                    name="origin"
+                    label="Xuất xứ"
+                    rules={[{ required: true }]}
+                  >
                     <Select>
-                      <Select.Option value="VN">
-                        Lắp ráp trong nước
-                      </Select.Option>
-                      <Select.Option value="TH">Nhập Thái Lan</Select.Option>
-                      <Select.Option value="ID">Nhập Indonesia</Select.Option>
-                      <Select.Option value="OTHER">
-                        Nhập khẩu khác
-                      </Select.Option>
+                      <Select.Option value="VN">Lắp ráp</Select.Option>
+                      <Select.Option value="OTHER">Nhập khẩu</Select.Option>
                     </Select>
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="color" label="Màu ngoại thất">
+                  <Form.Item
+                    name="color"
+                    label="Màu ngoại thất"
+                    rules={[{ required: true }]}
+                  >
                     <Input />
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="interiorColor" label="Màu nội thất">
+                  <Form.Item
+                    name="interiorColor"
+                    label="Màu nội thất"
+                    rules={[{ required: true }]}
+                  >
                     <Input />
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="engineSize" label="Dung tích">
+                  <Form.Item
+                    name="engineSize"
+                    label="Dung tích"
+                    rules={[{ required: true }]}
+                  >
                     <Input />
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="carType" label="Kiểu dáng">
+                  <Form.Item
+                    name="carType"
+                    label="Kiểu dáng"
+                    rules={[{ required: true }]}
+                  >
                     <Select placeholder="Chọn kiểu dáng">
                       <Select.Option value="SEDAN">Sedan</Select.Option>
                       <Select.Option value="SUV">SUV</Select.Option>
@@ -357,7 +393,11 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="driveTrain" label="Hệ dẫn động">
+                  <Form.Item
+                    name="driveTrain"
+                    label="Hệ dẫn động"
+                    rules={[{ required: true }]}
+                  >
                     <Select placeholder="Chọn hệ dẫn động">
                       <Select.Option value="FWD">Cầu trước (FWD)</Select.Option>
                       <Select.Option value="RWD">Cầu sau (RWD)</Select.Option>
@@ -369,7 +409,11 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="ownerType" label="Hình thức sở hữu">
+                  <Form.Item
+                    name="ownerType"
+                    label="Hình thức sở hữu"
+                    rules={[{ required: true }]}
+                  >
                     <Select
                       options={[
                         { label: "Chính chủ", value: "PERSONAL" },
@@ -389,6 +433,7 @@ export default function ModalApproveTransaction({
                   <Form.Item
                     name="registrationDeadline"
                     label="Thời hạn đăng kiểm"
+                    rules={[{ required: true }]}
                   >
                     <DatePicker
                       dropdownClassName="mobile-center-picker"
@@ -399,7 +444,11 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="insuranceVCDeadline" label="Thời hạn BHVC">
+                  <Form.Item
+                    name="insuranceVCDeadline"
+                    label="Thời hạn BHVC"
+                    rules={[{ required: true }]}
+                  >
                     <DatePicker
                       dropdownClassName="mobile-center-picker"
                       className="w-full!"
@@ -409,7 +458,11 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item name="insuranceTNDSDeadline" label="Thời hạn BHDS">
+                  <Form.Item
+                    name="insuranceTNDSDeadline"
+                    label="Thời hạn BHDS"
+                    rules={[{ required: true }]}
+                  >
                     <DatePicker
                       dropdownClassName="mobile-center-picker"
                       className="w-full!"
@@ -422,6 +475,7 @@ export default function ModalApproveTransaction({
                   <Form.Item
                     name="insuranceDeadline"
                     label="Thời gian bảo hành"
+                    rules={[{ required: true }]}
                   >
                     <DatePicker
                       dropdownClassName="mobile-center-picker"
@@ -429,20 +483,6 @@ export default function ModalApproveTransaction({
                       placeholder="Đến ngày"
                       format="DD/MM/YYYY"
                     />
-                  </Form.Item>
-                </Col>
-                <Col xs={12} md={6}>
-                  <Form.Item name="origin" label="Xuất xứ">
-                    <Select>
-                      <Select.Option value="VN">
-                        Lắp ráp trong nước
-                      </Select.Option>
-                      <Select.Option value="TH">Nhập Thái Lan</Select.Option>
-                      <Select.Option value="ID">Nhập Indonesia</Select.Option>
-                      <Select.Option value="OTHER">
-                        Nhập khẩu khác
-                      </Select.Option>
-                    </Select>
                   </Form.Item>
                 </Col>
               </Row>
@@ -471,7 +511,12 @@ export default function ModalApproveTransaction({
                   ))}
                 </Select>
               </Form.Item>
-              <Form.Item name="features" label="Tiện nghi nổi bật">
+
+              <Form.Item
+                name="features"
+                label="Phụ kiện"
+                rules={[{ required: true }]}
+              >
                 <Input placeholder="VD: Cửa sổ trời, Ghế điện..." />
               </Form.Item>
             </Card>

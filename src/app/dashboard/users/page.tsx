@@ -183,7 +183,7 @@ export default function UserManagementPage() {
                 setIsEditOpen(true);
               }}
             >
-              THÊM <span className="hidden sm:inline-block ml-1">NHÂN SỰ</span>
+              THÊM <span className="hidden sm:inline-block">NHÂN SỰ</span>
             </Button>
           </div>
         </div>
