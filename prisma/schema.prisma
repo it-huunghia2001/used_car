@@ -53,21 +53,23 @@ model CarModel {
   id        String     @id @default(cuid())
   name      String     @unique
   grade     String?
-  customers Customer[] @relation("InterestedModel")
+  customers Customer[] @relation("InterestedModel") // Cần đặt tên relation để phân biệt
   cars      Car[]
   leadCars  LeadCar[]
 }
 
 model NotSeenCarModel {
-  id      String  @id @default(cuid())
-  name    String  @unique
-  content String?
+  id        String     @id @default(cuid())
+  name      String     @unique
+  content   String?
+  customers Customer[] @relation("NotSeenReason")
 }
 
 model reasonBuyCar {
-  id      String  @id @default(cuid())
-  name    String  @unique
-  content String?
+  id        String     @id @default(cuid())
+  name      String     @unique
+  content   String?
+  customers Customer[] @relation("BuyReason") // Quan hệ cho lý do mua xe
 }
 
 // ==========================================
@@ -110,10 +112,11 @@ model User {
   salesSchedules   SalesSchedule[]
   tasks            Task[]          @relation("UserTasks")
 
-  lastAssignedAt DateTime? @default(now())
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  lastAssignedAt DateTime?  @default(now())
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
   cars           Car[]
+  customers      Customer[]
 
   @@index([branchId])
 }
@@ -142,23 +145,36 @@ model Customer {
   province String?
   address  String? @db.Text
 
-  firstContactAt DateTime? // THÊM DÒNG NÀY
+  firstContactAt DateTime?
 
-  carModelId    String?
-  carModel      CarModel? @relation("InterestedModel", fields: [carModelId], references: [id])
+  // Quan hệ với dòng xe quan tâm
+  carModelId  String?
+  carModelRef CarModel? @relation("InterestedModel", fields: [carModelId], references: [id])
+
   licensePlate  String?
   carYear       String?
   expectedPrice String?
   budget        String?
-  note          String?   @db.Text
+  note          String? @db.Text
 
-  inspectorId     String?
-  inspector       User?     @relation("Inspector", fields: [inspectorId], references: [id])
-  inspectDate     DateTime?
+  // --- THÔNG TIN GIÁM ĐỊNH ---
+  inspectStatus   InspectStatus? @default(NOT_INSPECTED)
+  inspectDate     DateTime? // Ngày hẹn xem xe
+  inspectDoneDate DateTime? // Ngày thực tế đã xem xong
   inspectLocation String?
-  inspectStatus   String?
-  inspectDoneDate DateTime?
-  notSeenReason   String?   @db.Text
+
+  // Liên kết tài khoản nhân viên giám định (nếu dùng User)
+  inspectorId  String?
+  inspectorRef User?   @relation("Inspector", fields: [inspectorId], references: [id])
+
+  // Lý do chưa xem xe (Liên kết với danh mục NotSeenCarModel)
+  notSeenReasonId  String?
+  notSeenReasonRef NotSeenCarModel? @relation("NotSeenReason", fields: [notSeenReasonId], references: [id])
+  notSeenReason    String?          @db.Text // Ghi chú thêm lý do dạng chữ
+
+  // --- NHU CẦU MUA XE ---
+  buyReasonId  String?
+  buyReasonRef reasonBuyCar? @relation("BuyReason", fields: [buyReasonId], references: [id])
 
   urgencyLevel      UrgencyType?
   lastContactAt     DateTime?
@@ -173,10 +189,12 @@ model Customer {
   leadCar        LeadCar?
   activities     LeadActivity[]
   ownerHistories CarOwnerHistory[]
+  tasks          Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  tasks     Task[]
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
 
   @@index([status])
   @@index([phone])
@@ -500,4 +518,10 @@ enum OwnerType {
   AUTHORIZATION_L1
   AUTHORIZATION_L2
   COMPANY_VAT
+}
+
+enum InspectStatus {
+  INSPECTED // Đã xem xe
+  NOT_INSPECTED // Chưa xem xe
+  APPOINTED // Hẹn xem xe
 }
