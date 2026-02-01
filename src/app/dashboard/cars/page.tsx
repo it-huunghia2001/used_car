@@ -18,6 +18,7 @@ import {
   Statistic,
   Avatar,
   message,
+  Tooltip,
 } from "antd";
 import {
   CarOutlined,
@@ -30,6 +31,8 @@ import {
   DollarOutlined,
   CheckCircleOutlined,
   BgColorsOutlined,
+  FileTextOutlined,
+  ToolOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -40,6 +43,7 @@ import { getBranchesAction } from "@/actions/branch-actions";
 
 // Components
 import EditCarModal from "@/components/cars/EditCarModal";
+import CarDetailModal from "@/components/cars/CarDetailModal";
 
 const { Title, Text } = Typography;
 
@@ -53,6 +57,7 @@ export default function InventoryPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCar, setSelectedCar] = useState<any>(null);
   const [searchText, setSearchText] = useState("");
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const [staffList, setStaffList] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -306,7 +311,7 @@ export default function InventoryPage() {
                 ),
               },
               {
-                title: "GIÁ NIÊM YẾT",
+                title: "GIÁ NIÊM YẾT (VNĐ)",
                 align: "right",
                 width: 180,
                 render: (r) => (
@@ -314,29 +319,40 @@ export default function InventoryPage() {
                     <Text className="text-rose-600 text-lg font-black font-mono">
                       {Number(r.sellingPrice).toLocaleString()}
                     </Text>
-                    <Text className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                      VNĐ
-                    </Text>
                   </div>
                 ),
               },
               {
-                title: "THAO TÁC",
-                fixed: "right",
-                width: 140,
-                align: "center",
-                render: (r) => (
-                  <Button
-                    type="primary"
-                    icon={<EditOutlined />}
-                    className="rounded-xl font-bold bg-indigo-600 shadow-md shadow-indigo-100 h-10"
-                    onClick={() => {
-                      setSelectedCar(r);
-                      setIsModalOpen(true);
-                    }}
-                  >
-                    QUẢN LÝ
-                  </Button>
+                title: "QUẢN TRỊ",
+                key: "action",
+                fixed: "right" as any,
+                width: 220,
+                render: (record: any) => (
+                  <Space size="middle">
+                    {/* NÚT XEM CHI TIẾT MỚI */}
+                    <Tooltip title="Xem toàn bộ hồ sơ xe">
+                      <Button
+                        className="bg-slate-100 border-none hover:!bg-slate-200 text-slate-600 rounded-xl font-bold flex items-center"
+                        icon={<FileTextOutlined />}
+                        onClick={() => {
+                          setSelectedCar(record);
+                          setIsDetailOpen(true);
+                        }}
+                      >
+                        Hồ sơ
+                      </Button>
+                    </Tooltip>
+
+                    <Button
+                      type="primary"
+                      ghost
+                      className="rounded-xl font-bold"
+                      icon={<ToolOutlined />}
+                      onClick={() => setIsModalOpen(true)}
+                    >
+                      Quản lý
+                    </Button>
+                  </Space>
                 ),
               },
             ]}
@@ -353,6 +369,11 @@ export default function InventoryPage() {
         statusMap={statusMap}
         staffList={staffList}
         branches={branches}
+      />
+      <CarDetailModal
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        car={selectedCar}
       />
 
       <style jsx global>{`

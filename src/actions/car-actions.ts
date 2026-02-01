@@ -80,15 +80,19 @@ export async function getInventory() {
         branch: { select: { name: true } },
         purchaser: { select: { fullName: true } },
         soldBy: { select: { fullName: true } },
-        // Lấy lịch sử để dự phòng nếu bảng Car chưa cập nhật số hợp đồng
+        carModel: { select: { name: true, grade: true } },
+        // Lấy toàn bộ lịch sử chủ xe và thông tin khách hàng liên quan
         ownerHistory: {
+          include: {
+            customer: {
+              select: { fullName: true, phone: true, address: true },
+            },
+          },
           orderBy: { date: "desc" },
-          take: 1,
         },
       },
       orderBy: { createdAt: "desc" },
     });
-
     // Xử lý dữ liệu để trả về cho Frontend
     const processedCars = cars.map((car: any) => {
       // Ưu tiên lấy contractNumber ở bảng Car, nếu ko có thì lấy ở History

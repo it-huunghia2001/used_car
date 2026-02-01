@@ -64,6 +64,7 @@ interface CustomerData {
   carYear?: number;
   note?: string;
   budget?: string;
+  tradeInModel?: string;
   expectedPrice?: string;
   assignedToId: string | null;
   referrer: {
@@ -306,6 +307,9 @@ export default function CustomerManagementPage() {
           onRow={(record) => ({
             onClick: () => {
               setSelectedCustomer(record);
+
+              console.log(record);
+
               setDetailVisible(true);
             },
             className: "cursor-pointer hover:bg-blue-50 transition-colors",
@@ -377,6 +381,12 @@ export default function CustomerManagementPage() {
               <Descriptions.Item label="Biển số">
                 {selectedCustomer.licensePlate || "N/A"}
               </Descriptions.Item>
+              {selectedCustomer.tradeInModel && (
+                <Descriptions.Item label="Xe khách muốn đổi">
+                  {selectedCustomer.tradeInModel || "N/A"}
+                </Descriptions.Item>
+              )}
+
               {selectedCustomer.budget && (
                 <Descriptions.Item label="Ngân sách">
                   {selectedCustomer.budget}

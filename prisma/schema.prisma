@@ -151,6 +151,8 @@ model Customer {
   carModelId String?
   carModel   CarModel? @relation("InterestedModel", fields: [carModelId], references: [id])
 
+  tradeInModel String?
+
   licensePlate  String?
   carYear       String?
   expectedPrice String?

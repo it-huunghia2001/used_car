@@ -187,6 +187,7 @@ export async function createCustomerAction(rawData: any) {
             assignedAt: assignedStaffId ? now : null,
             note: data.note ? `${data.note}${stockNote}` : stockNote,
             branchId: referrer?.branchId,
+            tradeInModel: data.tradeInModel,
 
             // TỰ ĐỘNG TẠO LEADCAR TỪ XE TRONG KHO (Nếu có)
             // TẠO LEADCAR: Áp dữ liệu từ kho xe vào đây
