@@ -18,6 +18,7 @@ import {
   Avatar,
   Badge,
   App,
+  Tooltip,
 } from "antd";
 import {
   UserOutlined,
@@ -156,15 +157,45 @@ export default function MyReferralPage() {
       dataIndex: "assignedTo",
       render: (staff: any) =>
         staff ? (
-          <Badge
-            status="processing"
-            color="green"
-            text={
-              <Text className="text-xs font-medium text-slate-600">
-                {staff.fullName}
+          <div className="flex flex-col">
+            <Text strong className="text-slate-800 text-sm leading-tight">
+              {staff.fullName}
+            </Text>
+
+            <div className="flex items-center gap-2 mt-1 gap-2">
+              {/* Hiển thị số điện thoại */}
+              <Text className="text-[11px] text-slate-400 font-mono tracking-tighter">
+                {staff.phone}
               </Text>
-            }
-          />
+
+              <Space size={8}>
+                {/* Nút Gọi điện */}
+                <Tooltip title="Gọi điện">
+                  <a
+                    href={`tel:${staff.phone}`}
+                    className="text-green-600 hover:text-green-500 flex items-center"
+                  >
+                    <PhoneOutlined className="text-lg!" />
+                  </a>
+                </Tooltip>
+
+                {/* Nút Zalo */}
+                <Tooltip title="Chat Zalo">
+                  <a
+                    href={`https://zalo.me/${staff.phone}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 hover:text-blue-500 flex items-center"
+                  >
+                    {/* Dùng icon MessageOutlined hoặc một chữ Z cách điệu */}
+                    <div className="bg-blue-600 text-white text-[14px] font-bold w-6 h-6 flex items-center justify-center rounded-sm">
+                      Z
+                    </div>
+                  </a>
+                </Tooltip>
+              </Space>
+            </div>
+          </div>
         ) : (
           <Text italic className="text-[11px] text-slate-300">
             Đang chờ phân bổ

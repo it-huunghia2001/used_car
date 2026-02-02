@@ -592,7 +592,7 @@ export const purchaseResultEmailTemplate2 = (data: {
   customerName: string;
   decision: "APPROVE" | "REJECT";
   reason?: string;
-  stockCode?: string;
+  plateNumber?: string;
   carName: string;
   price: number;
 }) => {
@@ -631,8 +631,8 @@ export const purchaseResultEmailTemplate2 = (data: {
             isApprove
               ? `
           <tr>
-            <td style="padding: 8px 0; color: #94a3b8;">Mã kho (Stock):</td>
-            <td style="font-weight: bold; color: #f59e0b; font-family: monospace; font-size: 16px;">${data.stockCode}</td>
+            <td style="padding: 8px 0; color: #94a3b8;">Biển số xe:</td>
+            <td style="font-weight: bold; color: #f59e0b; font-family: monospace; font-size: 16px;">${data.plateNumber}</td>
           </tr>
           `
               : ""
@@ -827,7 +827,7 @@ export const purchaseResultEmailTemplate = (data: {
   customerName: string;
   decision: "APPROVE" | "REJECT";
   reason?: string;
-  stockCode?: string;
+  plateNumber?: string;
   carName: string;
   price: number;
 }) => {
@@ -867,8 +867,8 @@ export const purchaseResultEmailTemplate = (data: {
             isApprove
               ? `
           <tr>
-            <td style="padding: 8px 0; color: #94a3b8;">Mã kho (Stock):</td>
-            <td style="font-weight: bold; color: #f59e0b; font-family: monospace; font-size: 16px;">${data.stockCode}</td>
+            <td style="padding: 8px 0; color: #94a3b8;">Biển số xe:</td>
+            <td style="font-weight: bold; color: #f59e0b; font-family: monospace; font-size: 16px;">${data.plateNumber}</td>
           </tr>
           `
               : ""
@@ -972,6 +972,95 @@ export const saleApprovalRequestEmailTemplate = (data: {
            XEM CHI TIẾT & PHÊ DUYỆT
         </a>
       </div>
+    </div>
+  </div>
+  `;
+};
+
+export const overdueCustomerReminderEmailTemplate = (data: {
+  customerName: string;
+  customerPhone: string;
+  staffName: string;
+  referrerName: string;
+  createdAt: string;
+  daysPending: number;
+  typeLabel: string;
+  branchName: string;
+}) => {
+  const now = new Date().toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+
+  return `
+  <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #ffe58f; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    
+    <div style="background-color: #faad14; padding: 30px 20px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0; font-size: 14px;">Thông báo rà soát hồ sơ tồn đọng</p>
+    </div>
+
+    <div style="padding: 40px 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <span style="background-color: #fffbe6; color: #d46b08; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #ffe58f;">
+          CẢNH BÁO QUÁ HẠN 60 NGÀY
+        </span>
+        <h2 style="color: #1f1f1f; margin: 15px 0 5px 0; font-size: 22px;">Hồ Sơ Cần Xử Lý Gấp</h2>
+        <p style="color: #8c8c8c; font-size: 14px; margin: 0;">Ngày rà soát: ${now}</p>
+      </div>
+
+      <p style="color: #595959; font-size: 16px;">Kính gửi <strong>Bộ phận liên quan</strong>,</p>
+      <p style="color: #595959; font-size: 15px; line-height: 1.6;">Hệ thống CRM ghi nhận hồ sơ khách hàng dưới đây đã tồn tại <strong>${data.daysPending} ngày</strong> mà chưa hoàn tất giao dịch. Vui lòng kiểm tra và cập nhật trạng thái mới nhất hoặc tiến hành đóng hồ sơ nếu không còn khả năng thực hiện.</p>
+
+      <div style="margin: 30px 0; border: 1px solid #f0f0f0; border-radius: 8px; overflow: hidden; background-color: #fafafa;">
+        <div style="background-color: #fff1f0; color: #cf1322; padding: 10px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid #ffa39e;">
+          THỜI GIAN CHỜ: ${data.daysPending} NGÀY (Từ ${data.createdAt})
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #8c8c8c; width: 40%;">Khách hàng</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #1f1f1f; font-weight: 600;">${data.customerName.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #8c8c8c;">Số điện thoại</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0;">
+                <a href="tel:${data.customerPhone}" style="color: #1890ff; font-weight: bold; text-decoration: none;">${data.customerPhone}</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #8c8c8c;">Nhu cầu ban đầu</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #1f1f1f;">${data.typeLabel}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #8c8c8c;">Nhân viên phụ trách</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #1f1f1f; font-weight: bold;">${data.staffName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #8c8c8c;">Người giới thiệu</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #1f1f1f;">${data.referrerName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 15px; color: #8c8c8c;">Chi nhánh</td>
+            <td style="padding: 12px 15px; color: #1f1f1f;">${data.branchName}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background-color: #f5f5f5; border-radius: 8px; padding: 15px; margin-bottom: 30px;">
+        <p style="margin: 0; font-size: 13px; color: #64748b;">
+          <strong>Yêu cầu hành động:</strong> Nhân viên phụ trách vui lòng liên hệ lại khách hàng để xác minh nhu cầu hiện tại. Nếu quá 72h kể từ email này không có cập nhật mới, Admin sẽ tiến hành <strong>Đóng băng (Frozen)</strong> hồ sơ để tối ưu dữ liệu.
+        </p>
+      </div>
+
+      <div style="text-align: center;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/assigned-tasks" 
+           style="background-color: #1f1f1f; color: #ffffff; padding: 15px 35px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
+           CẬP NHẬT TRẠNG THÁI NGAY
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f5f5f5; padding: 25px; text-align: center; border-top: 1px solid #e8e8e8;">
+      <p style="margin: 0; font-size: 13px; color: #8c8c8c;">Hệ thống CRM Toyota Bình Dương -Used Car Division</p>
     </div>
   </div>
   `;

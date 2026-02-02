@@ -26,7 +26,6 @@ import {
   loseApprovalRequestEmailTemplate,
   loseResultEmailTemplate,
   purchaseResultEmailTemplate,
-  purchaseResultEmailTemplate2,
   saleApprovalRequestEmailTemplate,
   unfreezeAssignmentEmailTemplate,
 } from "@/lib/mail-templates";
@@ -490,7 +489,7 @@ export async function approveCarPurchase(
           customerName: activity.customer.fullName,
           decision,
           reason,
-          stockCode: (result as any).stockCode,
+          plateNumber: adminUpdatedData.licensePlate,
           carName: (result as any).carName || "Xe thu mua",
           price: Number(result.price),
         }),

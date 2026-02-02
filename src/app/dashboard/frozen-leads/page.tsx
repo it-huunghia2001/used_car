@@ -108,10 +108,10 @@ export default function FrozenLeadsPage() {
           <Space orientation="vertical" size={0}>
             {/* Ưu tiên hiển thị content từ bảng LeadReason */}
             <Text strong className="text-red-500">
-              {lastAct?.reason?.content || "Chưa xác định"}
+              {lastAct?.reason?.content || "Lý do đóng băng quá hạn"}
             </Text>
             <Text type="secondary" className="text-[10px]">
-              ID: {lastAct?.reasonId || "N/A"}
+              ID: {lastAct?.reasonId || "ADMIN FROZEN"}
             </Text>
           </Space>
         );

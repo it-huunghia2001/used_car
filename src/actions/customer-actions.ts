@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import {
+  overdueCustomerReminderEmailTemplate,
   referralEmailTemplate,
   staffAssignmentEmailTemplate,
 } from "@/lib/mail-templates";
@@ -740,4 +742,132 @@ export async function getLeadsAction(params: {
   // const serializedData = JSON.parse(JSON.stringify(data));
 
   return { data: serializedData, total };
+}
+
+export async function getOverdueCustomersAction() {
+  const auth = await getCurrentUser();
+  if (!auth) throw new Error("Unauthorized");
+  const sixtyDaysAgo = dayjs().subtract(60, "day").toDate();
+
+  return await db.customer.findMany({
+    where: {
+      createdAt: { lt: sixtyDaysAgo },
+      status: { notIn: ["DEAL_DONE", "CANCELLED", "LOSE", "FROZEN"] },
+    },
+    include: {
+      referrer: { select: { fullName: true, email: true } },
+      assignedTo: { select: { fullName: true, email: true } },
+      carModel: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+// 2. Gửi Email nhắc nhở (Mockup logic gửi mail)
+export async function sendReminderEmailAction(customerIds: string[]) {
+  try {
+    const auth = await getCurrentUser();
+    if (!auth) throw new Error("Bạn cần đăng nhập để thực hiện thao tác này");
+    // 1. Lấy thông tin chi tiết khách hàng và người liên quan
+    const customers = await db.customer.findMany({
+      where: { id: { in: customerIds } },
+      include: {
+        referrer: true,
+        assignedTo: true,
+        branch: true,
+      },
+    });
+
+    if (customers.length === 0) {
+      return { success: false, error: "Không tìm thấy dữ liệu khách hàng" };
+    }
+
+    // 2. Duyệt qua từng khách hàng để tạo mail và gửi
+    for (const cust of customers) {
+      const daysPending = dayjs().diff(dayjs(cust.createdAt), "day");
+
+      // Tạo nội dung HTML từ template chuyên nghiệp
+      const htmlBody = overdueCustomerReminderEmailTemplate({
+        customerName: cust.fullName,
+        customerPhone: cust.phone,
+        staffName: cust.assignedTo?.fullName || "Chưa phân bổ",
+        referrerName: cust.referrer?.fullName || "Hệ thống",
+        createdAt: dayjs(cust.createdAt).format("DD/MM/YYYY"),
+        daysPending: daysPending,
+        typeLabel: cust.type === "SELL" ? "THU MUA" : "BÁN XE", // Bạn có thể thêm logic map type chi tiết hơn ở đây
+        branchName: cust.branch?.name || "Tổng công ty",
+      });
+
+      const subject = `[CẢNH BÁO QUÁ HẠN] Hồ sơ khách hàng: ${cust.fullName.toUpperCase()} (${daysPending} ngày)`;
+
+      // 3. Thực hiện gửi mail đồng thời cho cả Nhân viên và Người giới thiệu
+      const recipients = [];
+      if (cust.assignedTo?.email) recipients.push(cust.assignedTo.email);
+      if (cust.referrer?.email) recipients.push(cust.referrer.email);
+
+      if (recipients.length > 0) {
+        // Gửi mail (Dùng Promise.all nếu muốn gửi song song cho nhanh)
+        await Promise.all(
+          recipients.map((email) =>
+            sendMail({
+              to: email,
+              subject: subject,
+              html: htmlBody,
+            }),
+          ),
+        );
+      }
+
+      // 4. Ghi nhận vào nhật ký hệ thống (Activity Log) để biết đã gửi mail nhắc nhở
+      await db.leadActivity.create({
+        data: {
+          customerId: cust.id,
+          status: cust.status,
+          note: `[HỆ THỐNG]: Đã gửi email cảnh báo quá hạn.`,
+          createdById: auth.id, // Hoặc lấy ID của admin đang thực hiện
+        },
+      });
+    }
+
+    return {
+      success: true,
+      message: `Đã gửi thành công ${customers.length} thông báo.`,
+    };
+  } catch (error: any) {
+    console.error("Lỗi gửi mail nhắc nhở:", error);
+    return {
+      success: false,
+      error: error.message || "Lỗi hệ thống khi gửi mail",
+    };
+  }
+}
+
+// 3. Đóng băng khách hàng hàng loạt
+export async function freezeOverdueCustomersAction(customerIds: string[]) {
+  const auth = await getCurrentUser();
+  if (!auth) throw new Error("Unauthorized");
+  try {
+    await db.$transaction(async (tx) => {
+      // Cập nhật trạng thái
+      await tx.customer.updateMany({
+        where: { id: { in: customerIds } },
+        data: { status: "FROZEN" },
+      });
+
+      // Tạo lịch sử cho từng khách
+      const logs = customerIds.map((id) => ({
+        customerId: id,
+        createdById: auth.id,
+        status: "FROZEN",
+        note: "[HỆ THỐNG]: Tự động đóng băng do hồ sơ quá hạn 60 ngày chưa phát sinh giao dịch thành công.",
+      }));
+
+      await tx.leadActivity.createMany({ data: logs as any });
+    });
+
+    revalidatePath("/dashboard/leads");
+    return { success: true };
+  } catch (error) {
+    return { success: false };
+  }
 }

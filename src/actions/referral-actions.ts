@@ -55,7 +55,7 @@ export async function getMyReferralHistory(params: {
       },
       include: {
         carModel: { select: { name: true, grade: true } },
-        assignedTo: { select: { fullName: true } },
+        assignedTo: { select: { fullName: true, phone: true } },
         leadCar: { select: { licensePlate: true, modelName: true } },
       },
       orderBy: {
