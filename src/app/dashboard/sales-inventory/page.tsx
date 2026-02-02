@@ -62,6 +62,7 @@ import ModalApproveSales from "@/components/assigned-tasks/ModalApproveSales";
 import { UrgencyBadge } from "@/lib/urgencyBadge";
 import { log } from "console";
 import { getMeAction } from "@/actions/user-actions";
+import { getLeadStatusHelper } from "@/lib/status-helper";
 
 const { Title, Text } = Typography;
 
@@ -245,7 +246,7 @@ export default function SalesTasksPage() {
       return (
         <Card
           key={item.id}
-          className={`mb-4 rounded-3xl shadow-sm border-none overflow-hidden ${record.isOverdue ? "bg-red-50/50" : "bg-white"}`}
+          className={`mb-4! rounded-3xl shadow-sm border-none overflow-hidden ${record.isOverdue ? "bg-red-50/50" : "bg-white"}`}
           onClick={() => {
             setSelectedLead(item);
             setIsDetailModalOpen(true);
@@ -566,14 +567,18 @@ export default function SalesTasksPage() {
                   {
                     title: "TRẠNG THÁI",
                     dataIndex: "status",
-                    render: (s) => (
-                      <Tag
-                        color="blue"
-                        className="rounded-full border-none font-black text-[10px] px-3"
-                      >
-                        {s}
-                      </Tag>
-                    ),
+                    render: (s) => {
+                      const { label, color, icon } = getLeadStatusHelper(s);
+                      return (
+                        <Tag
+                          icon={icon}
+                          color={color}
+                          className="rounded-full border-none font-black text-[10px] px-3"
+                        >
+                          {label}
+                        </Tag>
+                      );
+                    },
                   },
                   {
                     title: "THAO TÁC",

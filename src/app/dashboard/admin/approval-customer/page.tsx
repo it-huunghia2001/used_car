@@ -59,6 +59,8 @@ export default function ApprovalsPage() {
 
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
+  const [customerHistory, setCustomerHistory] = useState<any>(null);
 
   // --- LOGIC TẢI DỮ LIỆU ---
   const loadData = async () => {
@@ -89,21 +91,34 @@ export default function ApprovalsPage() {
   };
 
   // --- ĐIỀU KIỆN MỞ MODAL THEO NGHIỆP VỤ ---
-  const openApprovalModal = (record: any) => {
+  const openApprovalModal = async (record: any) => {
     setSelectedActivity(record);
+    setHistoryLoading(true);
 
-    // 1. Nếu là yêu cầu chốt Deal (Mua hoặc Bán)
-    if (record.status === "PENDING_DEAL_APPROVAL") {
-      // Dựa vào type của khách hàng để mở modal tương ứng
-      if (record.customer?.type === "BUY") {
-        setIsSalesDealModalOpen(true); // Modal chốt BÁN xe trong kho
-      } else {
-        setIsPurchaseModalOpen(true); // Modal chốt THU MUA xe khách
+    setLoading(true);
+
+    try {
+      // Gọi action lấy lịch sử chăm sóc dựa trên customerId của yêu cầu phê duyệt
+      const historyRes = await getCustomerHistoryAction(record.customer.id);
+      setCustomerHistory(historyRes);
+
+      console.log(historyRes);
+
+      // Sau khi có lịch sử mới mở Modal tương ứng
+      if (record.status === "PENDING_DEAL_APPROVAL") {
+        if (record.customer?.type === "BUY") {
+          setIsSalesDealModalOpen(true);
+        } else {
+          setIsPurchaseModalOpen(true);
+        }
+      } else if (record.status === "PENDING_LOSE_APPROVAL") {
+        setIsLoseModalOpen(true);
       }
-    }
-    // 2. Nếu là các yêu cầu đóng hồ sơ (Lose, Frozen...)
-    else if (record.status === "PENDING_LOSE_APPROVAL") {
-      setIsLoseModalOpen(true);
+    } catch (error) {
+      messageApi.error("Không thể tải lịch sử chăm sóc khách hàng");
+    } finally {
+      setHistoryLoading(false);
+      setLoading(false);
     }
   };
 
@@ -399,8 +414,9 @@ export default function ApprovalsPage() {
           isOpen={isLoseModalOpen}
           onClose={handleCloseModals}
           selectedActivity={selectedActivity}
-          loading={loading}
+          loading={loading || historyLoading}
           onConfirm={handleAdminDecisionLose}
+          history={customerHistory.data}
         />
       )}
 

@@ -15,6 +15,8 @@ import {
   Tabs,
   Timeline,
   Empty,
+  Avatar,
+  Badge,
 } from "antd";
 import {
   CheckCircleFilled,
@@ -24,6 +26,7 @@ import {
   UserOutlined,
   HistoryOutlined,
   FileTextOutlined,
+  SyncOutlined,
 } from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
 import { getLeadStatusHelper } from "@/lib/status-helper";
@@ -148,41 +151,114 @@ export default function ModalApproveLose({
     </div>
   );
 
-  // Tab 2: Dòng thời gian tương tác
+  // Tab 2: Dòng thời gian tương tác (Bản nâng cấp dựa trên dữ liệu thật)
   const renderHistoryTimeline = (
-    <div className="max-h-[450px] overflow-y-auto px-2 py-4 custom-scrollbar">
+    <div className="max-h-[500px] overflow-y-auto px-4 py-6 custom-scrollbar bg-slate-50/50 rounded-2xl">
       {historyLoading ? (
-        <div className="py-10 text-center text-slate-400">
-          Đang tải lịch sử...
+        <div className="py-20 text-center">
+          <SyncOutlined spin className="text-3xl text-indigo-500 mb-2" />
+          <div className="text-slate-400">Đang truy xuất lịch sử hồ sơ...</div>
         </div>
       ) : history.length > 0 ? (
         <Timeline
           mode="left"
-          items={history.map((item) => ({
-            label: (
-              <Text type="secondary" className="text-[11px]">
-                {dayjs(item.createdAt).format("DD/MM HH:mm")}
-              </Text>
-            ),
-            color: item.status === "PENDING_LOSE_APPROVAL" ? "orange" : "blue",
-            children: (
-              <div className="mb-4">
-                <Tag className="text-[10px] mb-1 rounded-md">{item.status}</Tag>
-                <div className="text-sm text-slate-700 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                  {item.note || "Cập nhật trạng thái"}
+          items={history.map((item) => {
+            // Helper lấy cấu hình status của từng dòng lịch sử
+            const statusCfg = getLeadStatusHelper(item.status);
+
+            // Xác định màu sắc Timeline Dot
+            let dotColor = "#3b82f6"; // Blue mặc định
+            if (item.status === "PENDING_LOSE_APPROVAL") dotColor = "#f59e0b"; // Orange
+            if (item.status === "LOSE" || item.status === "CANCELLED")
+              dotColor = "#ef4444"; // Red
+            if (item.status === "DEAL_DONE" || item.status === "FROZEN")
+              dotColor = "#10b981"; // Green
+
+            return {
+              label: (
+                <div className="flex flex-col items-end pr-2">
+                  <Text strong className="text-[12px] text-slate-700">
+                    {dayjs(item.createdAt).format("DD/MM")}
+                  </Text>
+                  <Text type="secondary" className="text-[10px] font-mono">
+                    {dayjs(item.createdAt).format("HH:mm")}
+                  </Text>
                 </div>
-                <div className="text-[10px] text-gray-400 mt-1 pl-1">
-                  <UserOutlined className="mr-1" /> {item.user?.fullName}
+              ),
+              dot: (
+                <div
+                  style={{ background: dotColor }}
+                  className="w-2 h-2 rounded-full ring-4 ring-white shadow-sm"
+                />
+              ),
+              children: (
+                <div className="mb-6 group">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag
+                      color={statusCfg.color}
+                      icon={statusCfg.icon}
+                      className="text-[10px] font-bold gap-1 items-center m-0 flex! border-none px-2 rounded-md uppercase"
+                    >
+                      {statusCfg.label}
+                    </Tag>
+                    {item.isLate && (
+                      <Badge
+                        count="Trễ hạn"
+                        style={{ backgroundColor: "#f5222d", fontSize: "10px" }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm transition-all group-hover:border-indigo-300 group-hover:shadow-md relative">
+                    {/* Nội dung ghi chú */}
+                    <div className="text-[13px] text-slate-700 leading-relaxed mb-3">
+                      {item.note}
+                    </div>
+
+                    {/* Hiển thị Lý do nếu có (Dữ liệu từ JSON: item.reason.content) */}
+                    {item.reason && (
+                      <div className="mb-3 p-2 bg-indigo-50 rounded-lg border border-indigo-100 flex items-start gap-2">
+                        <InfoCircleFilled className="text-indigo-400 mt-0.5" />
+                        <div>
+                          <Text className="text-[11px] font-bold text-indigo-600 block uppercase">
+                            Lý do hệ thống:
+                          </Text>
+                          <Text className="text-xs text-indigo-800">
+                            {item.reason.content}
+                          </Text>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Thông tin nhân viên thực hiện */}
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-50">
+                      <Space size={4}>
+                        <Avatar
+                          size={18}
+                          icon={<UserOutlined />}
+                          className="bg-slate-200 text-slate-500"
+                        />
+                        <Text className="text-[11px] font-semibold text-slate-500">
+                          {item.user?.fullName}
+                        </Text>
+                        <Tag className="text-[9px] m-0 bg-slate-100 border-none text-slate-400 font-bold">
+                          {item.user?.role}
+                        </Tag>
+                      </Space>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ),
-          }))}
+              ),
+            };
+          })}
         />
       ) : (
-        <Empty description="Không có lịch sử tương tác" className="py-10" />
+        <Empty description="Không có lịch sử tương tác" className="py-20" />
       )}
     </div>
   );
+  console.log("==================================");
+  console.log(history);
 
   return (
     <Modal

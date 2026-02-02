@@ -27,10 +27,11 @@ export const VehicleFormFields = ({
   notSeenReasons, // Từ bảng NotSeenCarModel
   sellReasons, // Từ bảng reasonBuyCar
   users, // Danh sách nhân viên làm giám định
+  type,
 }: any) => {
   // Watcher để ẩn hiện lý do chưa xem xe
   const inspectStatus = Form.useWatch("inspectStatus");
-
+  const isBuyType = type === "BUY";
   return (
     <div className="animate-fadeIn pb-4">
       {/* SECTION 1: PHÂN LOẠI & TRẠNG THÁI */}
@@ -54,11 +55,7 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={24} sm={8}>
-          <Form.Item
-            name="urgencyLevel"
-            label="Mức độ tiềm năng"
-            rules={[{ required: true, message: "Vui lòng chọn mức độ!" }]}
-          >
+          <Form.Item name="urgencyLevel" label="Mức độ tiềm năng">
             <Select
               placeholder="Chọn độ nóng"
               options={[
@@ -72,99 +69,111 @@ export const VehicleFormFields = ({
       </Row>
 
       {/* SECTION 2: CÔNG TÁC GIÁM ĐỊNH & NHU CẦU */}
-      <Divider className="mb-4!">
-        <Text
-          type="secondary"
-          className="text-[11px] uppercase font-bold flex items-center gap-2"
-        >
-          <FileSearchOutlined /> Chi tiết giám định & Nhu cầu bán
-        </Text>
-      </Divider>
-      <Row gutter={[16, 0]}>
-        <Col xs={24} md={6}>
-          <Form.Item name="inspectStatus" label="Tình trạng xem xe">
-            <Select placeholder="Chọn tình trạng">
-              <Select.Option value="NOT_INSPECTED">Chưa xem xe</Select.Option>
-              <Select.Option value="APPOINTED">Hẹn xem xe</Select.Option>
-              <Select.Option value="INSPECTED">Đã xem xe</Select.Option>
-            </Select>
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={6}>
-          <Form.Item name="inspectorId" label="Nhân viên giám định">
-            <Select
-              showSearch
-              placeholder="Chọn nhân viên"
-              optionFilterProp="label"
-              options={users?.map((u: any) => ({
-                value: u.id,
-                label: u.fullName || u.username,
-              }))}
-            />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={6}>
-          <Form.Item name="inspectDoneDate" label="Ngày đã giám định xong">
-            <DatePicker className="w-full" showTime format="DD/MM/YYYY HH:mm" />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={6}>
-          <Form.Item name="buyReasonId" label="Lý do bán/Nhu cầu mua">
-            <Select
-              placeholder="Chọn lý do hệ thống"
-              showSearch
-              optionFilterProp="label"
-              options={sellReasons?.map((r: any) => ({
-                value: r.id,
-                label: r.name,
-              }))}
-            />
-          </Form.Item>
-        </Col>
-        <Col xs={24}>
-          <Form.Item name="inspectLocation" label="Địa điểm giám định">
-            <Input
-              prefix={<EnvironmentOutlined />}
-              placeholder="Nhập địa chỉ xem xe..."
-            />
-          </Form.Item>
-        </Col>
+      {!isBuyType && (
+        <>
+          <Divider className="mb-4!">
+            <Text
+              type="secondary"
+              className="text-[11px] uppercase font-bold flex items-center gap-2"
+            >
+              <FileSearchOutlined /> Chi tiết giám định & Nhu cầu bán
+            </Text>
+          </Divider>
 
-        {/* NGUYÊN NHÂN CHƯA XEM XE (Chỉ hiện khi trạng thái là chưa xem) */}
-        {inspectStatus === "NOT_INSPECTED" && (
-          <Col span={24}>
-            <div className="p-4 bg-red-50 rounded-xl border border-red-100 mb-4">
-              <Form.Item
-                name="notSeenReasonId"
-                label={
-                  <Text strong className="text-red-700">
-                    Nguyên nhân hệ thống (Admin set)
-                  </Text>
-                }
-                rules={[{ required: true, message: "Chọn lý do chưa xem!" }]}
-              >
+          <Row gutter={[16, 0]}>
+            <Col xs={24} md={6}>
+              <Form.Item name="inspectStatus" label="Tình trạng xem xe">
+                <Select placeholder="Chọn tình trạng">
+                  <Select.Option value="NOT_INSPECTED">
+                    Chưa xem xe
+                  </Select.Option>
+                  <Select.Option value="APPOINTED">Hẹn xem xe</Select.Option>
+                  <Select.Option value="INSPECTED">Đã xem xe</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6}>
+              <Form.Item name="inspectorId" label="Nhân viên giám định">
                 <Select
-                  placeholder="Chọn từ danh mục Admin"
-                  options={notSeenReasons?.map((r: any) => ({
+                  showSearch
+                  placeholder="Chọn nhân viên"
+                  optionFilterProp="label"
+                  options={users?.map((u: any) => ({
+                    value: u.id,
+                    label: u.fullName || u.username,
+                  }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6}>
+              <Form.Item name="inspectDoneDate" label="Ngày đã giám định xong">
+                <DatePicker
+                  className="w-full"
+                  showTime
+                  format="DD/MM/YYYY HH:mm"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6}>
+              <Form.Item name="buyReasonId" label="Lý do bán/Nhu cầu mua">
+                <Select
+                  placeholder="Chọn lý do hệ thống"
+                  showSearch
+                  optionFilterProp="label"
+                  options={sellReasons?.map((r: any) => ({
                     value: r.id,
                     label: r.name,
                   }))}
                 />
               </Form.Item>
-              <Form.Item
-                name="notSeenReason"
-                label="Ghi chú thêm về nguyên nhân"
-              >
-                <Input.TextArea
-                  rows={2}
-                  placeholder="Nhập cụ thể tình huống chưa xem được xe (nếu cần)..."
+            </Col>
+            <Col xs={24}>
+              <Form.Item name="inspectLocation" label="Địa điểm giám định">
+                <Input
+                  prefix={<EnvironmentOutlined />}
+                  placeholder="Nhập địa chỉ xem xe..."
                 />
               </Form.Item>
-            </div>
-          </Col>
-        )}
-      </Row>
+            </Col>
 
+            {/* NGUYÊN NHÂN CHƯA XEM XE (Chỉ hiện khi trạng thái là chưa xem) */}
+            {inspectStatus === "NOT_INSPECTED" && (
+              <Col span={24}>
+                <div className="p-4 bg-red-50 rounded-xl border border-red-100 mb-4">
+                  <Form.Item
+                    name="notSeenReasonId"
+                    label={
+                      <Text strong className="text-red-700">
+                        Nguyên nhân hệ thống (Admin set)
+                      </Text>
+                    }
+                    rules={[
+                      { required: true, message: "Chọn lý do chưa xem!" },
+                    ]}
+                  >
+                    <Select
+                      placeholder="Chọn từ danh mục Admin"
+                      options={notSeenReasons?.map((r: any) => ({
+                        value: r.id,
+                        label: r.name,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="notSeenReason"
+                    label="Ghi chú thêm về nguyên nhân"
+                  >
+                    <Input.TextArea
+                      rows={2}
+                      placeholder="Nhập cụ thể tình huống chưa xem được xe (nếu cần)..."
+                    />
+                  </Form.Item>
+                </div>
+              </Col>
+            )}
+          </Row>
+        </>
+      )}
       {/* SECTION 3: THÔNG SỐ KỸ THUẬT XE */}
       <Divider className="mb-4!">
         <Text
@@ -176,11 +185,7 @@ export const VehicleFormFields = ({
       </Divider>
       <Row gutter={[16, 0]}>
         <Col xs={24} md={8}>
-          <Form.Item
-            name="carModelId"
-            label="Dòng xe"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="carModelId" label="Dòng xe">
             <Select
               showSearch
               placeholder="Chọn dòng xe"
@@ -197,39 +202,34 @@ export const VehicleFormFields = ({
             <Input placeholder="Vios G, Cross V..." />
           </Form.Item>
         </Col>
-        <Col xs={12} md={8}>
-          <Form.Item
-            name="licensePlate"
-            label="Biển số"
-            getValueFromEvent={(e) =>
-              e.target.value
-                .toUpperCase()
-                .replace(/[^A-Z0-9]/g, "")
-                .slice(0, 9)
-            }
-            rules={[
-              { required: true, message: "Nhập biển số" },
-              { min: 5, message: "Không hợp lệ" },
-            ]}
-          >
-            <Input
-              className="uppercase font-bold w-full"
-              placeholder="30H-12345"
-            />
-          </Form.Item>
-        </Col>
+        {!isBuyType && (
+          <Col xs={12} md={8}>
+            <Form.Item
+              name="licensePlate"
+              label="Biển số"
+              getValueFromEvent={(e) =>
+                e.target.value
+                  .toUpperCase()
+                  .replace(/[^A-Z0-9]/g, "")
+                  .slice(0, 9)
+              }
+              rules={[{ min: 5, max: 9, message: "Không hợp lệ" }]}
+            >
+              <Input
+                className="uppercase font-bold w-full"
+                placeholder="30H-12345"
+              />
+            </Form.Item>
+          </Col>
+        )}
 
         <Col xs={12} md={6}>
-          <Form.Item name="year" label="Năm SX" rules={[{ required: true }]}>
+          <Form.Item name="year" label="Năm SX">
             <InputNumber className="w-full" placeholder="2022" />
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item
-            name="odo"
-            label="Số ODO (km)"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="odo" label="Số ODO (km)">
             <InputNumber
               className="w-full"
               formatter={(val) =>
@@ -240,11 +240,7 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item
-            name="transmission"
-            label="Hộp số"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="transmission" label="Hộp số">
             <Select
               options={[
                 { value: "AUTOMATIC", label: "Số tự động" },
@@ -254,11 +250,7 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item
-            name="fuelType"
-            label="Nhiên liệu"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="fuelType" label="Nhiên liệu">
             <Select
               options={[
                 { value: "GASOLINE", label: "Xăng" },
@@ -281,20 +273,12 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item
-            name="seats"
-            label="Số chỗ ngồi"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="seats" label="Số chỗ ngồi">
             <InputNumber className="w-full" />
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item
-            name="color"
-            label="Màu ngoại thất"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="color" label="Màu ngoại thất">
             <Input placeholder="Trắng, Đen, Đỏ..." />
           </Form.Item>
         </Col>
@@ -309,11 +293,7 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item
-            name="carType"
-            label="Kiểu dáng"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="carType" label="Kiểu dáng">
             <Select placeholder="Chọn kiểu dáng">
               <Select.Option value="SEDAN">Sedan</Select.Option>
               <Select.Option value="SUV">SUV</Select.Option>
@@ -368,11 +348,7 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={24} sm={8}>
-          <Form.Item
-            name="ownerType"
-            label="Hình thức sở hữu"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="ownerType" label="Hình thức sở hữu">
             <Select
               options={[
                 { label: "Chính chủ", value: "PERSONAL" },
@@ -416,11 +392,7 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={24}>
-          <Form.Item
-            name="note"
-            label="Ghi chú tổng quát"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="note" label="Ghi chú tổng quát">
             <Input.TextArea
               rows={3}
               placeholder="Ghi chú chi tiết về tình trạng xe..."

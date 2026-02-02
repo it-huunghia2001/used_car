@@ -67,7 +67,11 @@ export const CustomerBanner = ({
       <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-600/10 rounded-full -mr-24 -mt-24 blur-[80px]"></div>
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/5 rounded-full -ml-20 -mb-20 blur-[60px]"></div>
 
-      <Row gutter={[32, 24]} align="top" className="relative z-10">
+      <Row
+        gutter={[32, 24]}
+        align="top"
+        className="relative z-10 justify-between"
+      >
         {/* CỘT 1: KHÁCH HÀNG & NGƯỜI GIỚI THIỆU */}
         <Col xs={24} md={9} lg={9}>
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
@@ -160,69 +164,70 @@ export const CustomerBanner = ({
           </div>
         </Col>
 
-        {/* CỘT 2: CHI TIẾT GIÁM ĐỊNH */}
-        <Col
-          xs={24}
-          md={8}
-          lg={8}
-          className="border-l border-slate-800/60 px-6"
-        >
-          <div className="space-y-5">
-            <div>
-              <Text className="text-[10px] uppercase tracking-[0.2em] text-slate-300! font-black block mb-2">
-                Công tác giám định
-              </Text>
-              <div className="flex items-center gap-2 text-slate-500!">
-                {getInspectStatusTag(customerData.inspectStatus)}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 text-[13px]">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
-                  <SafetyOutlined />
-                </div>
-                <div>
-                  <Text className="text-slate-300! block text-[10px] uppercase font-bold tracking-wider">
-                    Giám định viên
-                  </Text>
-                  <Text className="font-semibold text-slate-200!">
-                    {customerData.inspectorRef?.fullName || "Chưa bàn giao"}
-                  </Text>
+        {customerData.type !== "BUY" && (
+          <Col
+            xs={24}
+            md={8}
+            lg={8}
+            className="border-l border-slate-800/60 px-6"
+          >
+            <div className="space-y-5">
+              <div>
+                <Text className="text-[10px] uppercase tracking-[0.2em] text-slate-300! font-black block mb-2">
+                  Công tác giám định
+                </Text>
+                <div className="flex items-center gap-2 text-slate-500!">
+                  {getInspectStatusTag(customerData.inspectStatus)}
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
-                  <EnvironmentOutlined />
+              <div className="grid grid-cols-1 gap-4 text-[13px]">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
+                    <SafetyOutlined />
+                  </div>
+                  <div>
+                    <Text className="text-slate-300! block text-[10px] uppercase font-bold tracking-wider">
+                      Giám định viên
+                    </Text>
+                    <Text className="font-semibold text-slate-200!">
+                      {customerData.inspectorRef?.fullName || "Chưa bàn giao"}
+                    </Text>
+                  </div>
                 </div>
-                <div>
-                  <Text className="text-slate-300! block text-[10px] uppercase font-bold tracking-wider">
-                    Địa điểm
-                  </Text>
-                  <Text className="font-semibold text-slate-200! italic leading-snug">
-                    {customerData.inspectLocation || "Chưa có địa chỉ"}
-                  </Text>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
+                    <EnvironmentOutlined />
+                  </div>
+                  <div>
+                    <Text className="text-slate-300! block text-[10px] uppercase font-bold tracking-wider">
+                      Địa điểm
+                    </Text>
+                    <Text className="font-semibold text-slate-200! italic leading-snug">
+                      {customerData.inspectLocation || "Chưa có địa chỉ"}
+                    </Text>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {customerData.inspectStatus === "NOT_INSPECTED" && (
-              <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-2xl">
-                <div className="flex items-center gap-2 text-red-400 mb-1">
-                  <InfoCircleOutlined className="text-[10px]" />
-                  <span className="text-[9px] uppercase font-black tracking-widest">
-                    Nguyên nhân chưa xem
+              {customerData.inspectStatus === "NOT_INSPECTED" && (
+                <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-2xl">
+                  <div className="flex items-center gap-2 text-red-400 mb-1">
+                    <InfoCircleOutlined className="text-[10px]" />
+                    <span className="text-[9px] uppercase font-black tracking-widest">
+                      Nguyên nhân chưa xem
+                    </span>
+                  </div>
+                  <span className="text-[13px] text-red-200! leading-relaxed font-medium">
+                    {customerData?.notSeenReasonRef?.name ||
+                      "Chưa ghi nhận lý do"}
                   </span>
                 </div>
-                <span className="text-[13px] text-red-200! leading-relaxed font-medium">
-                  {customerData?.notSeenReasonRef?.name ||
-                    "Chưa ghi nhận lý do"}
-                </span>
-              </div>
-            )}
-          </div>
-        </Col>
+              )}
+            </div>
+          </Col>
+        )}
 
         {/* CỘT 3: KẾ HOẠCH TƯƠNG TÁC */}
         <Col xs={24} md={7} lg={7}>

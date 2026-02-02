@@ -246,6 +246,7 @@ export default function ModalDetailCustomer({
                     notSeenReasons={notSeenReasons}
                     sellReasons={sellReasons}
                     users={users}
+                    type={customerData.type}
                   />
                 ) : (
                   <VehicleView
