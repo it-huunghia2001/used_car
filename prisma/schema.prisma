@@ -117,6 +117,7 @@ model User {
   updatedAt      DateTime   @updatedAt
   cars           Car[]
   customers      Customer[]
+  contracts      Contract[]
 
   @@index([branchId])
 }
@@ -198,8 +199,9 @@ model Customer {
   updatedAt DateTime @updatedAt
 
   // Quan hệ ngược từ User (nếu cần)
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id])
+  contracts Contract[]
 
   @@index([status])
   @@index([phone])
@@ -331,8 +333,9 @@ model Car {
   soldById String? // ID nhân viên chốt sale
   soldBy   User?     @relation("CarSeller", fields: [soldById], references: [id])
 
-  user   User?   @relation(fields: [userId], references: [id])
-  userId String?
+  user      User?      @relation(fields: [userId], references: [id])
+  userId    String?
+  contracts Contract[]
 
   @@index([soldById]) // Thêm index để báo cáo chạy nhanh hơn
   @@index([vin])
@@ -417,9 +420,51 @@ model Task {
   updatedAt DateTime @updatedAt
 }
 
+model Contract {
+  id             String         @id @default(cuid())
+  contractNumber String         @unique // Ví dụ: TBD/2026/001
+  type           ContractType
+  status         ContractStatus @default(DRAFT)
+
+  // Quan hệ dữ liệu
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  carId      String
+  car        Car      @relation(fields: [carId], references: [id])
+  staffId    String
+  staff      User     @relation(fields: [staffId], references: [id])
+
+  // Chi tiết tài chính
+  totalAmount   Decimal @db.Decimal(15, 2)
+  depositAmount Decimal @default(0) @db.Decimal(15, 2) // Tiền cọc
+  paymentMethod String? // Chuyển khoản / Tiền mặt
+
+  // File đính kèm (Lưu link Cloudinary/S3)
+  contractFile String?
+
+  signedAt  DateTime?
+  expiredAt DateTime?
+  note      String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // ==========================================
 // 8. DANH MỤC CỐ ĐỊNH (ENUMS)
 // ==========================================
+enum ContractType {
+  PURCHASE // Hợp đồng thu mua (Công ty mua xe của khách)
+  SALE // Hợp đồng bán lẻ (Công ty bán xe cho khách)
+}
+
+enum ContractStatus {
+  DRAFT // Bản nháp
+  PENDING // Chờ ký duyệt
+  SIGNED // Đã ký kết
+  COMPLETED // Đã thanh toán & hoàn tất bàn giao
+  CANCELLED // Đã hủy
+}
 
 enum TaskType {
   SALES // Tư vấn bán hàng

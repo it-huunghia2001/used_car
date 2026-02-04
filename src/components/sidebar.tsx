@@ -3,23 +3,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { Layout, Menu, Drawer, Button, Typography, Space, Tag } from "antd";
+import { Layout, Menu, Drawer, Button, Typography, Tag } from "antd";
 import {
   DashboardOutlined,
-  CarOutlined,
-  TeamOutlined,
-  SolutionOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-  AppstoreAddOutlined,
-  UserAddOutlined,
   HomeOutlined,
-  MenuOutlined,
-  PhoneOutlined,
-  HistoryOutlined,
+  UserAddOutlined,
+  SolutionOutlined,
+  TeamOutlined,
+  CarOutlined,
   CheckCircleOutlined,
   ScheduleOutlined,
+  SettingOutlined,
+  HistoryOutlined,
+  LogoutOutlined,
   AccountBookOutlined,
+  MenuOutlined,
+  BarChartOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -29,7 +29,13 @@ import { useState } from "react";
 const { Sider } = Layout;
 const { Text } = Typography;
 
-type Role = "ADMIN" | "MANAGER" | "PURCHASE_STAFF" | "SALES_STAFF" | "REFERRER";
+type Role =
+  | "ADMIN"
+  | "MANAGER"
+  | "PURCHASE_STAFF"
+  | "SALES_STAFF"
+  | "REFERRER"
+  | "APPRAISER";
 
 interface SidebarProps {
   role: Role;
@@ -58,11 +64,21 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
     PURCHASE_STAFF: { label: "NV Thu mua", color: "#faad14" },
     SALES_STAFF: { label: "NV Bán hàng", color: "#52c41a" },
     REFERRER: { label: "Người giới thiệu", color: "#8c8c8c" },
+    APPRAISER: { label: "Định giá viên", color: "#722ed1" },
   };
 
-  // --- CẤU CẤU TRÚC MENU ITEM ---
+  // Helper check quyền
+  const hasAccess = (allowedRoles: Role[]) => allowedRoles.includes(role);
+
   const menuItems: any[] = [
-    {
+    // 1. TỔNG QUAN (Dành cho mọi nhân sự nội bộ)
+    hasAccess([
+      "ADMIN",
+      "MANAGER",
+      "PURCHASE_STAFF",
+      "SALES_STAFF",
+      "APPRAISER",
+    ]) && {
       key: "/",
       icon: <DashboardOutlined />,
       label: <Link href="/">Bảng điều khiển</Link>,
@@ -73,7 +89,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
       label: <Link href="/dashboard/showroom">Showroom</Link>,
     },
 
-    // --- NGHIỆP VỤ CỐT LÕI ---
+    // 2. NGHIỆP VỤ CỐT LÕI
     {
       type: "group",
       label: !collapsed ? "NGHIỆP VỤ CHÍNH" : "",
@@ -97,29 +113,43 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
             },
           ],
         },
-        (role === "ADMIN" || role === "SALES_STAFF") && {
+        hasAccess(["ADMIN", "SALES_STAFF"]) && {
           key: "sales-ops",
           icon: <SolutionOutlined />,
           label: "Nghiệp vụ Sale",
           children: [
             {
               key: "/dashboard/sales-inventory",
-              label: <Link href="/dashboard/sales-inventory">Xử lý</Link>,
+              label: (
+                <Link href="/dashboard/sales-inventory">Xử lý khách hàng</Link>
+              ),
+            },
+            {
+              key: "/dashboard/contract-sales",
+              label: <Link href="/dashboard/contract">Hợp đồng bán</Link>,
             },
             {
               key: "/dashboard/sales/history",
-              label: <Link href="/dashboard/sales/history">Lịch sử </Link>,
+              label: (
+                <Link href="/dashboard/sales/history">Lịch sử giao dịch</Link>
+              ),
             },
           ],
         },
-        (role === "ADMIN" || role === "PURCHASE_STAFF") && {
+        hasAccess(["ADMIN", "PURCHASE_STAFF", "APPRAISER"]) && {
           key: "purchase-ops",
-          icon: <SolutionOutlined />,
+          icon: <AccountBookOutlined />,
           label: "Nghiệp vụ Thu mua",
           children: [
             {
               key: "/dashboard/assigned-tasks",
-              label: <Link href="/dashboard/assigned-tasks">Xử lý</Link>,
+              label: (
+                <Link href="/dashboard/assigned-tasks">Định giá & Thu mua</Link>
+              ),
+            },
+            hasAccess(["ADMIN", "PURCHASE_STAFF"]) && {
+              key: "/dashboard/contract-purchase",
+              label: <Link href="/dashboard/contract">Hợp đồng mua</Link>,
             },
             {
               key: "/dashboard/purchase/history",
@@ -127,13 +157,13 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
                 <Link href="/dashboard/purchase/history">Lịch sử thu mua</Link>
               ),
             },
-          ],
+          ].filter(Boolean),
         },
       ].filter(Boolean),
     },
 
-    // --- QUẢN LÝ (MANAGER/ADMIN) ---
-    (role === "ADMIN" || role === "MANAGER") && {
+    // 3. QUẢN TRỊ (Manager & Admin)
+    hasAccess(["ADMIN", "MANAGER"]) && {
       type: "group",
       label: !collapsed ? "QUẢN TRỊ VẬN HÀNH" : "",
       children: [
@@ -144,20 +174,15 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
           children: [
             {
               key: "/dashboard/customers",
-              label: <Link href="/dashboard/customers">Phân bổ</Link>,
+              label: <Link href="/dashboard/customers">Phân bổ khách</Link>,
             },
             {
               key: "/dashboard/lead",
               label: <Link href="/dashboard/lead">Danh sách tổng</Link>,
             },
             {
-              key: "/dashboard/frozen-leads",
-              label: (
-                <Link href="/dashboard/frozen-leads">Khách hàng đóng băng</Link>
-              ),
-            },
-            {
               key: "/dashboard/late-kpi-report",
+              icon: <BarChartOutlined />,
               label: (
                 <Link href="/dashboard/late-kpi-report">Báo cáo trễ KPI</Link>
               ),
@@ -189,26 +214,19 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
               ),
             },
             {
-              key: "/dashboard/cars/refurbishing",
-              label: (
-                <Link href="/dashboard/cars/refurbishing">
-                  Xe đang tân trang
-                </Link>
-              ),
-            },
-            {
               key: "/dashboard/inventory-report",
+              icon: <FileTextOutlined />,
               label: (
                 <Link href="/dashboard/inventory-report">Báo cáo xuất kho</Link>
               ),
             },
           ],
         },
-      ].filter(Boolean),
+      ],
     },
 
-    // --- HỆ THỐNG & NHÂN SỰ ---
-    (role === "ADMIN" || role === "MANAGER") && {
+    // 4. HỆ THỐNG
+    hasAccess(["ADMIN", "MANAGER"]) && {
       type: "group",
       label: !collapsed ? "HỆ THỐNG" : "",
       children: [
@@ -220,7 +238,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         {
           key: "/dashboard/schedules",
           icon: <ScheduleOutlined />,
-          label: <Link href="/dashboard/schedules">Lịch trực Showroom</Link>,
+          label: <Link href="/dashboard/schedules">Lịch trực</Link>,
         },
         (role === "ADMIN" || isGobal) && {
           key: "settings",
@@ -232,28 +250,6 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
               label: <Link href="/dashboard/settings/car-setup">Mẫu xe</Link>,
             },
             {
-              key: "/dashboard/settings/reasons",
-              label: (
-                <Link href="/dashboard/settings/reasons">Lý do thất bại</Link>
-              ),
-            },
-            {
-              key: "/dashboard/settings/reasons/not-seen-car",
-              label: (
-                <Link href="/dashboard/settings/reasons/not-seen-car/">
-                  Lý do chưa xem xe
-                </Link>
-              ),
-            },
-            {
-              key: "/dashboard/settings/reasons/sell-car",
-              label: (
-                <Link href="/dashboard/settings/reasons/sell-car">
-                  Lý do bán xe
-                </Link>
-              ),
-            },
-            {
               key: "/dashboard/settings/branches",
               label: <Link href="/dashboard/settings/branches">Chi nhánh</Link>,
             },
@@ -262,14 +258,15 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
       ].filter(Boolean),
     },
 
+    // 5. CÁ NHÂN
     {
       key: "account-group",
-      label: !collapsed ? "CÁ NHÂN" : "",
+      label: !collapsed ? "TÀI KHOẢN" : "",
       type: "group",
       children: [
         {
           key: "/dashboard/profile",
-          icon: <UserAddOutlined />,
+          icon: <HistoryOutlined />,
           label: <Link href="/dashboard/profile">Hồ sơ của tôi</Link>,
         },
         {
@@ -283,23 +280,23 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
   ].filter(Boolean);
 
   const SidebarContent = (isMobile: boolean) => (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[#001529]">
       <div className="flex flex-col items-center py-8 px-4 border-b border-gray-800">
-        <div className="w-14 h-14 bg-white rounded-2xl p-1 shadow-lg mb-3 shrink-0 transition-all hover:scale-105">
+        <div className="w-14 h-14 bg-white rounded-2xl p-1 shadow-lg mb-3 shrink-0">
           <img
             src="/storage/images/logo.jpg"
-            alt="Toyota Logo"
+            alt="Logo"
             className="w-full h-full object-contain rounded-xl"
           />
         </div>
         {(!collapsed || isMobile) && (
-          <div className="text-center animate-in fade-in slide-in-from-top-2 duration-500">
-            <div className="text-white font-black text-sm tracking-tighter leading-none">
+          <div className="text-center">
+            <div className="text-white font-black text-sm uppercase">
               TOYOTA BÌNH DƯƠNG
             </div>
             <Tag
               color={ROLE_LABELS[role]?.color}
-              className="mt-2 border-none rounded-md font-bold text-[9px] uppercase"
+              className="mt-2 font-bold text-[9px] uppercase border-none"
             >
               {ROLE_LABELS[role]?.label}
             </Tag>
@@ -314,7 +311,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         defaultOpenKeys={menuItems.filter((i) => i.children).map((i) => i.key)}
         items={menuItems}
         onClick={() => setVisible(false)}
-        className="font-medium h-[calc(100vh-100px)] overflow-y-scroll grow py-4 custom-sidebar-menu"
+        className="font-medium h-[calc(100vh-160px)] overflow-y-auto grow py-4 custom-sidebar-menu"
         style={{ background: "transparent" }}
       />
     </div>
@@ -323,7 +320,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
   return (
     <>
       <Button
-        className="lg:hidden! fixed! top-4 left-4 z-100 bg-red-600 border-none text-white shadow-lg hover:bg-red-700 h-10 w-10 flex items-center justify-center rounded-xl"
+        className="lg:hidden! fixed! top-4 left-4 z-[100] bg-red-600 border-none text-white h-10 w-10 flex items-center justify-center rounded-xl"
         icon={<MenuOutlined />}
         onClick={() => setVisible(true)}
       />
@@ -332,8 +329,8 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         placement="left"
         onClose={() => setVisible(false)}
         open={visible}
-        className="absolute left-0"
-        style={{ padding: 0, background: "#001529", width: "100%" }}
+        styles={{ body: { padding: 0 } }}
+        width={280}
         closable={false}
       >
         {SidebarContent(true)}
@@ -343,26 +340,22 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         width={260}
         collapsible
         collapsed={collapsed}
-        onCollapse={(v) => setCollapsed(v)}
+        onCollapse={setCollapsed}
         breakpoint="lg"
         collapsedWidth={80}
         theme="dark"
-        className="hidden lg:block h-screen sticky top-0 left-0 shadow-2xl z-40 select-none overflow-hidden"
-        style={{ background: "#001529" }}
+        className="hidden lg:block h-screen sticky top-0 left-0 shadow-2xl z-40 overflow-hidden"
       >
         {SidebarContent(false)}
       </Sider>
 
       <style jsx global>{`
-        .custom-sidebar-menu.ant-menu-dark {
-          background: transparent !important;
-        }
         .ant-menu-item-group-title {
           font-size: 10px !important;
           color: #4a5568 !important;
           font-weight: 800 !important;
-          padding-top: 20px !important;
-          letter-spacing: 0.5px;
+          padding-top: 24px !important;
+          text-transform: uppercase;
         }
         .ant-menu-item-selected {
           background-color: #ff4d4f20 !important;

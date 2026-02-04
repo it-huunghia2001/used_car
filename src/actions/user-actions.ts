@@ -158,103 +158,51 @@ export async function getEligibleStaffAction() {
  */
 export async function upsertUserAction(data: any) {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) throw new Error("Unauthorized");
+    const { id, email, ...rest } = data;
 
-    const {
-      id,
-      password,
-      username,
-      email,
-      role,
-      isGlobalManager,
-      branchId,
-      departmentId,
-      positionId,
-      // extension và extensionPwd sẽ được lấy trực tiếp từ data bên dưới
-    } = data;
+    // 1. KIỂM TRA TRÙNG EMAIL TRƯỚC KHI THỰC HIỆN
+    const existingUser = await db.user.findFirst({
+      where: {
+        email: email,
+        // Nếu là update (có id), thì tìm email trùng nhưng phải khác cái ID hiện tại
+        NOT: id ? { id: id } : undefined,
+      },
+    });
 
-    // --- 1. KIỂM TRA QUYỀN HẠN ---
-    const isGlobalPower =
-      currentUser.role === "ADMIN" || currentUser.isGlobalManager;
-
-    // --- 2. BẢO VỆ PHÂN QUYỀN (Logic giữ nguyên) ---
-    const finalRole = role;
-    let finalIsGlobalManager = Boolean(isGlobalManager);
-    let finalBranchId;
-
-    if (!isGlobalPower) {
-      if (role === "ADMIN")
-        throw new Error("Bạn không có quyền gán vai trò ADMIN.");
-      finalIsGlobalManager = false;
-      finalBranchId = currentUser.branchId;
-    } else {
-      finalBranchId = branchId;
+    if (existingUser) {
+      // Quăng lỗi cụ thể để catch ở phía giao diện
+      throw new Error(
+        `Email "${email}" đã được sử dụng. Vui lòng kiểm tra lại.`,
+      );
     }
 
-    // --- 3. KIỂM TRA KHI CẬP NHẬT (Update check) ---
-    if (id) {
-      const targetUser = await db.user.findUnique({
-        where: { id },
-        select: { role: true, branchId: true, isGlobalManager: true },
-      });
-      if (!targetUser) throw new Error("Không tìm thấy người dùng");
-      if (!isGlobalPower) {
-        if (targetUser.branchId !== currentUser.branchId)
-          throw new Error("Khác chi nhánh");
-        if (targetUser.role === "ADMIN" || targetUser.isGlobalManager)
-          throw new Error("Cấp cao không được sửa");
-      }
-    }
-
-    // --- 4. CHUẨN BỊ DỮ LIỆU (Sửa lỗi mapping extension tại đây) ---
-    const userData: any = {
-      fullName: data.fullName,
-      phone: data.phone,
-      active: data.active ?? true,
-
-      // FIX: Map đúng tên trường từ Payload gửi lên
-      extension: data.extension ? String(data.extension).trim() : null,
-      extensionPwd: data.extensionPwd ? String(data.extensionPwd).trim() : null,
-
-      username: username?.trim(),
-      email: email?.trim().toLowerCase(),
-      role: finalRole,
-      isGlobalManager: finalIsGlobalManager,
-      status: data.status || "APPROVED",
-    };
-
-    // Kết nối các quan hệ (Relations)
-    if (finalBranchId) userData.branchId = finalBranchId;
-    if (departmentId) userData.departmentId = departmentId;
-    if (positionId) userData.positionId = positionId;
-
-    // Xử lý mật khẩu
-    if (password) {
-      userData.password = await bcrypt.hash(password, 10);
-    }
-
-    // --- 5. THỰC THI LƯU TRỮ ---
-    if (id) {
-      await db.user.update({
-        where: { id },
-        data: userData,
+    if (!id) {
+      // TRƯỜNG HỢP TẠO MỚI
+      const hashedPassword = await bcrypt.hash("Toyota@123", 10);
+      return await db.user.create({
+        data: {
+          ...rest,
+          email,
+          password: hashedPassword,
+        },
       });
     } else {
-      // Khi tạo mới nếu không có pass thì đặt mặc định
-      if (!userData.password) {
-        userData.password = await bcrypt.hash("Toyota@123", 10);
-      }
-      await db.user.create({
-        data: userData,
+      // TRƯỜNG HỢP CẬP NHẬT
+      return await db.user.update({
+        where: { id: id },
+        data: { ...rest, email },
       });
     }
-
-    revalidatePath("/dashboard/users");
-    return { success: true };
   } catch (error: any) {
-    console.error("Upsert user error:", error);
-    return { success: false, error: error.message };
+    // Nếu là lỗi do mình throw ở trên (Email đã sử dụng)
+    if (error.message.includes("đã được sử dụng")) {
+      throw error;
+    }
+    // Nếu là lỗi DB khác (P2002) mà mình sót
+    if (error.code === "P2002") {
+      throw new Error("Dữ liệu bị trùng lặp (Email hoặc Username đã tồn tại).");
+    }
+    throw new Error("Lỗi hệ thống khi lưu nhân sự.");
   }
 }
 /**

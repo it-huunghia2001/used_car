@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { Row, Col, Badge, Avatar, Tag, Divider, Typography } from "antd";
+import { Row, Col, Tag, Divider, Typography } from "antd";
 import {
-  UserOutlined,
   PhoneOutlined,
   CalendarOutlined,
   MessageOutlined,
@@ -75,19 +74,6 @@ export const CustomerBanner = ({
         {/* CỘT 1: KHÁCH HÀNG & NGƯỜI GIỚI THIỆU */}
         <Col xs={24} md={9} lg={9}>
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-            <Badge
-              count={
-                <div className="bg-emerald-500 w-4 h-4 rounded-full border-2 border-[#0f172a]" />
-              }
-              offset={[-10, 80]}
-            >
-              <Avatar
-                size={{ xs: 80, sm: 90, md: 100, lg: 110 }}
-                icon={<UserOutlined />}
-                className="bg-gradient-to-br from-indigo-500 to-blue-600 border-4 border-slate-800 shadow-2xl"
-              />
-            </Badge>
-
             <div className="flex-1 text-center sm:text-left">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-2">
                 <span className="text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
@@ -145,6 +131,15 @@ export const CustomerBanner = ({
                     {customerData.licensePlate || "---"}
                   </Tag>
                 </div>
+                {customerData.tradeInModel && (
+                  <div className="flex items-center justify-center sm:justify-start gap-2 text-slate-400 font-medium pt-1">
+                    <CarOutlined className="text-indigo-400" />
+                    <span>
+                      Xe muốn đổi: {customerData.tradeInModel || "KĐ"}
+                    </span>
+                  </div>
+                )}
+
                 {customerData.inspectStatus === "NOT_INSPECTED" && (
                   <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl">
                     <div className="flex items-center gap-2 text-blue-400 mb-1">

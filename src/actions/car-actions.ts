@@ -61,7 +61,10 @@ export async function updateCarAction(id: string, data: any) {
   }
 }
 
-export async function getInventory() {
+export async function getInventory(filters?: {
+  status?: string;
+  search?: string;
+}) {
   try {
     const user = await getCurrentUser();
     if (!user) return [];
@@ -69,9 +72,27 @@ export async function getInventory() {
     const { role, isGlobalManager, branchId } = user;
     const isHighLevel = role === "ADMIN" || isGlobalManager;
 
+    // Khởi tạo điều kiện lọc
     const whereCondition: any = {};
+
+    // 1. Phân quyền chi nhánh
     if (!isHighLevel) {
       whereCondition.branchId = branchId;
+    }
+
+    // 2. Lọc theo trạng thái xe (nếu có)
+    if (filters?.status && filters.status !== "ALL") {
+      whereCondition.status = filters.status;
+    }
+
+    // 3. Lọc theo từ khóa tìm kiếm (nếu có)
+    if (filters?.search) {
+      whereCondition.OR = [
+        { modelName: { contains: filters.search } },
+        { vin: { contains: filters.search } },
+        { stockCode: { contains: filters.search } },
+        { licensePlate: { contains: filters.search } },
+      ];
     }
 
     const cars = await db.car.findMany({
@@ -81,34 +102,17 @@ export async function getInventory() {
         purchaser: { select: { fullName: true } },
         soldBy: { select: { fullName: true } },
         carModel: { select: { name: true, grade: true } },
-        // Lấy toàn bộ lịch sử chủ xe và thông tin khách hàng liên quan
         ownerHistory: {
           include: {
-            customer: {
-              select: { fullName: true, phone: true, address: true },
-            },
+            customer: { select: { fullName: true, phone: true } },
           },
           orderBy: { date: "desc" },
         },
       },
       orderBy: { createdAt: "desc" },
     });
-    // Xử lý dữ liệu để trả về cho Frontend
-    const processedCars = cars.map((car: any) => {
-      // Ưu tiên lấy contractNumber ở bảng Car, nếu ko có thì lấy ở History
-      const displayContract =
-        car.contractNumber || car.ownerHistory[0]?.contractNo || "---";
 
-      return {
-        ...car,
-        displayContract,
-        // Ép kiểu Decimal sang Number để ko bị lỗi Plain Object
-        sellingPrice: car.sellingPrice ? Number(car.sellingPrice) : 0,
-        costPrice: car.costPrice ? Number(car.costPrice) : 0,
-      };
-    });
-
-    return JSON.parse(JSON.stringify(processedCars));
+    return JSON.parse(JSON.stringify(cars));
   } catch (error) {
     console.error("Inventory Fetch Error:", error);
     return [];

@@ -59,7 +59,8 @@ export default function UserManagementPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isApproveOpen, setIsApproveOpen] = useState(false);
 
-  // LOGIC LẤY DỮ LIỆU
+  // ✅ 1. Tách logic load data và bỏ dependency searchText khỏi useCallback nếu dùng search cứng
+  // Hoặc giữ lại nhưng phải xử lý useEffect cẩn thận.
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -77,10 +78,11 @@ export default function UserManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchText]);
+  }, [searchText]); // Chỉ re-create hàm khi searchText đổi
 
+  // ✅ 2. Tách useEffect khởi tạo (Chỉ chạy 1 lần)
   useEffect(() => {
-    const init = async () => {
+    const initCategories = async () => {
       try {
         const [d, b] = await Promise.all([
           getDepartmentsAction(),
@@ -89,12 +91,20 @@ export default function UserManagementPage() {
         setDepartments(d);
         setBranches(b);
       } catch (err) {
-        console.error(err);
+        console.error("Lỗi tải danh mục:", err);
       }
     };
-    init();
-    loadData();
-  }, [loadData]);
+    initCategories();
+  }, []); // [] Chạy duy nhất 1 lần khi mount
+
+  // ✅ 3. useEffect theo dõi loadData (Sử dụng Debounce tự chế hoặc gọi trực tiếp)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadData();
+    }, 500); // Debounce 500ms để tránh gọi API liên tục khi gõ search
+
+    return () => clearTimeout(timer);
+  }, [loadData]); // Chỉ chạy khi hàm loadData thay đổi (do searchText đổi)
 
   const handleDeptChange = (deptId: string) => {
     const selected = departments.find((d) => d.id === deptId);
@@ -124,15 +134,17 @@ export default function UserManagementPage() {
 
   const onFinish = async (vals: any) => {
     setLoading(true);
-    console.log(vals);
-
     try {
-      await upsertUserAction({ ...vals, id: editingUser?.id });
-      message.success("Đã lưu thông tin nhân sự");
+      // Gọi Action và đợi kết quả
+      const res = await upsertUserAction({ ...vals, id: editingUser?.id });
+
+      // Nếu thành công (không nhảy xuống catch)
+      message.success("Đã lưu thông tin nhân sự thành công");
       setIsEditOpen(false);
-      loadData();
+      loadData(); // Tải lại danh sách
     } catch (err: any) {
-      message.error(err.message);
+      // Hiển thị chính xác nội dung "Email này đã được sử dụng..." từ Server
+      message.error(err.message || "Có lỗi xảy ra khi lưu dữ liệu");
     } finally {
       setLoading(false);
     }
@@ -140,8 +152,9 @@ export default function UserManagementPage() {
 
   return (
     <div className="p-3 sm:p-6 md:p-8 bg-[#f8fafc] min-h-screen">
+      {/* ... Giữ nguyên phần JSX bên dưới ... */}
       <div className="max-w-[1500px] mx-auto">
-        {/* HEADER SECTION - RESPONSIVE STACK */}
+        {/* UI Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 md:mb-8 gap-4">
           <div>
             <Title
@@ -188,7 +201,6 @@ export default function UserManagementPage() {
           </div>
         </div>
 
-        {/* TAB & TABLE SECTION */}
         <Card className="rounded-2xl md:rounded-[2rem] shadow-sm border-none overflow-hidden bg-white">
           <div className="px-4 md:px-6 pt-4 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-50 gap-4">
             <Tabs
@@ -221,9 +233,7 @@ export default function UserManagementPage() {
                 prefix={<SearchOutlined className="text-slate-400" />}
                 className="rounded-xl h-10 bg-slate-50 border-none w-full"
                 allowClear
-                onChange={(e: {
-                  target: { value: React.SetStateAction<string> };
-                }) => setSearchText(e.target.value)}
+                onChange={(e) => setSearchText(e.target.value)}
               />
             </div>
           </div>
@@ -246,7 +256,6 @@ export default function UserManagementPage() {
         </Card>
       </div>
 
-      {/* MODALS */}
       <ApprovalModal
         open={isApproveOpen}
         onCancel={() => setIsApproveOpen(false)}
@@ -267,28 +276,6 @@ export default function UserManagementPage() {
         onFinish={onFinish}
         loading={loading}
       />
-
-      {/* MOBILE CSS OVERRIDES */}
-      <style jsx global>{`
-        @media (max-width: 768px) {
-          .custom-manage-tabs .ant-tabs-nav-list {
-            width: 100%;
-            justify-content: space-between;
-          }
-          .custom-manage-tabs .ant-tabs-tab {
-            margin: 0 !important;
-            padding: 8px 4px !important;
-          }
-          .ant-card-body {
-            padding: 0 !important;
-          }
-        }
-
-        .ant-tabs-ink-bar {
-          height: 3px !important;
-          border-radius: 3px 3px 0 0;
-        }
-      `}</style>
     </div>
   );
 }

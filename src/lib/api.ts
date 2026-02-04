@@ -9,7 +9,7 @@ export type ApiResponse<T> = {
 
 export async function apiRequest<T>(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<ApiResponse<T>> {
   try {
     const res = await fetch(url, {

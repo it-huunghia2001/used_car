@@ -4,20 +4,32 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Modal, Button, Space, Form, Row, Col, Card, message } from "antd";
+import {
+  Modal,
+  Button,
+  Space,
+  Form,
+  Row,
+  Col,
+  Card,
+  message,
+  Skeleton,
+  Divider,
+} from "antd";
 import {
   IdcardOutlined,
   PhoneOutlined,
   CarOutlined,
   SaveOutlined,
   EditOutlined,
+  HistoryOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getLeadDetail } from "@/actions/profile-actions";
 import { updateFullLeadDetail } from "@/actions/lead-actions";
 import { useRouter } from "next/navigation";
 
-// Import các component con đã tách
+// Import các component con
 import { CustomerBanner } from "./CustomerBanner";
 import { VehicleFormFields } from "./VehicleFormFields";
 import { ActivityTimeline } from "./ActivityTimeline";
@@ -30,9 +42,9 @@ export default function ModalDetailCustomer({
   onContactClick,
   UrgencyBadge,
   carModels = [],
-  notSeenReasons = [], // Danh mục từ bảng NotSeenCarModel
-  sellReasons = [], // Danh mục từ bảng reasonBuyCar (dùng cho lý do bán)
-  users = [], // Danh sách nhân viên để chọn giám định viên
+  notSeenReasons = [],
+  sellReasons = [],
+  users = [],
   onUpdateSuccess,
 }: any) {
   const [form] = Form.useForm();
@@ -46,7 +58,7 @@ export default function ModalDetailCustomer({
     setHasMounted(true);
   }, []);
 
-  // Dữ liệu hiển thị
+  // Dữ liệu hiển thị ưu tiên fullDetail từ API
   const customerData =
     fullDetail || selectedLead?.customer || selectedLead || {};
   const leadCar = customerData.leadCar || {};
@@ -61,26 +73,10 @@ export default function ModalDetailCustomer({
       setFullDetail(res);
 
       if (res) {
-        // PHẲNG HÓA DỮ LIỆU ĐỂ FILL VÀO FORM
+        // Fill dữ liệu vào Form
         const formValues = {
-          // 1. Thông tin khách hàng & Phân loại
-          fullName: res.fullName,
-          phone: res.phone,
-          urgencyLevel: res.urgencyLevel,
-          status: res.status,
-
-          // 2. Thông tin giám định & Nhu cầu
-          inspectStatus: res.inspectStatus,
-          inspectorId: res.inspectorId,
-          inspectLocation: res.inspectLocation,
-          notSeenReasonId: res.notSeenReasonId,
-          notSeenReason: res.notSeenReason,
-          buyReasonId: res.buyReasonId, // Liên kết lý do bán/mua
-
-          // 3. Thông số xe từ leadCar
+          ...res,
           ...res.leadCar,
-
-          // 4. Xử lý các trường ngày tháng
           inspectDoneDate: res.inspectDoneDate
             ? dayjs(res.inspectDoneDate)
             : null,
@@ -98,7 +94,6 @@ export default function ModalDetailCustomer({
             ? dayjs(res.leadCar.insuranceDeadline)
             : null,
         };
-
         form.setFieldsValue(formValues);
       }
     } catch (error) {
@@ -125,10 +120,8 @@ export default function ModalDetailCustomer({
 
       const cleanedValues = {
         ...values,
-        // Chuyển đổi tất cả các mốc thời gian sang ISO String cho Prisma
         inspectDoneDate: values.inspectDoneDate?.toISOString() || null,
         inspectDate: values.inspectDate?.toISOString() || null,
-        nextContactAt: values.nextContactAt?.toISOString() || null, // Nếu có dùng lịch hẹn
         registrationDeadline:
           values.registrationDeadline?.toISOString() || null,
         insuranceVCDeadline: values.insuranceVCDeadline?.toISOString() || null,
@@ -154,6 +147,7 @@ export default function ModalDetailCustomer({
       setLoading(false);
     }
   };
+
   if (!selectedLead) return null;
 
   return (
@@ -163,7 +157,7 @@ export default function ModalDetailCustomer({
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
             <IdcardOutlined />
           </div>
-          <span className="font-bold text-slate-800 uppercase">
+          <span className="font-bold text-slate-800 uppercase tracking-tight">
             Hồ sơ khách hàng chi tiết
           </span>
         </Space>
@@ -173,7 +167,12 @@ export default function ModalDetailCustomer({
       width={1300}
       centered
       footer={[
-        <Button key="close" onClick={onClose} size="large">
+        <Button
+          key="close"
+          onClick={onClose}
+          size="large"
+          className="rounded-xl"
+        >
           Đóng
         </Button>,
         <Button
@@ -182,42 +181,56 @@ export default function ModalDetailCustomer({
           size="large"
           icon={<PhoneOutlined />}
           onClick={onContactClick}
-          className="bg-indigo-600"
+          className="bg-indigo-600 rounded-xl shadow-md"
         >
           Ghi nhận tương tác
         </Button>,
       ]}
     >
-      <div className="max-h-[78vh] overflow-y-auto px-1 custom-scrollbar overflow-x-hidden">
-        <CustomerBanner
-          customerData={customerData}
-          UrgencyBadge={UrgencyBadge}
-          renderTime={(date: any) =>
-            hasMounted && date
-              ? dayjs(date).format("DD/MM/YYYY | HH:mm")
-              : "---"
-          }
-        />
+      <div className="max-h-[78vh] overflow-y-auto px-1 custom-scrollbar overflow-x-hidden pt-2">
+        {/* Banner Loading State */}
+        {loading && !fullDetail ? (
+          <Card className="mb-6 rounded-3xl bg-slate-900 border-none">
+            <Skeleton
+              avatar
+              active
+              paragraph={{ rows: 2 }}
+              title={{ width: "40%" }}
+            />
+          </Card>
+        ) : (
+          <CustomerBanner
+            customerData={customerData}
+            UrgencyBadge={UrgencyBadge}
+            renderTime={(date: any) =>
+              hasMounted && date
+                ? dayjs(date).format("DD/MM/YYYY | HH:mm")
+                : "---"
+            }
+          />
+        )}
 
         <Form form={form} layout="vertical">
           <Row gutter={[24, 24]}>
+            {/* Cột trái: Thông tin xe */}
             <Col lg={17} md={24} span={24}>
               <Card
-                className="shadow-sm rounded-2xl border-slate-100"
+                className="shadow-sm rounded-[2rem] border-slate-100 overflow-hidden"
                 title={
                   <Space>
                     <CarOutlined className="text-indigo-600" />
-                    <span className="font-bold uppercase text-[14px]">
+                    <span className="font-bold uppercase text-[13px] tracking-wider text-slate-600">
                       Thông tin phương tiện & Giám định
                     </span>
                   </Space>
                 }
                 extra={
-                  isEditing ? (
+                  !loading &&
+                  (isEditing ? (
                     <Space>
                       <Button
                         onClick={() => setIsEditing(false)}
-                        disabled={loading}
+                        className="rounded-lg"
                       >
                         Hủy
                       </Button>
@@ -226,6 +239,7 @@ export default function ModalDetailCustomer({
                         icon={<SaveOutlined />}
                         onClick={handleSave}
                         loading={loading}
+                        className="rounded-lg bg-indigo-600"
                       >
                         Lưu thay đổi
                       </Button>
@@ -234,32 +248,58 @@ export default function ModalDetailCustomer({
                     <Button
                       icon={<EditOutlined />}
                       onClick={() => setIsEditing(true)}
+                      className="rounded-lg border-indigo-200 text-indigo-600"
                     >
-                      Chỉnh sửa hồ sơ
+                      Chỉnh sửa
                     </Button>
-                  )
+                  ))
                 }
               >
-                {isEditing ? (
-                  <VehicleFormFields
-                    carModels={carModels}
-                    notSeenReasons={notSeenReasons}
-                    sellReasons={sellReasons}
-                    users={users}
-                    type={customerData.type}
-                  />
+                {loading && !fullDetail ? (
+                  <div className="p-4">
+                    <Skeleton active paragraph={{ rows: 12 }} />
+                  </div>
+                ) : isEditing ? (
+                  <div className="animate-in fade-in duration-500">
+                    <VehicleFormFields
+                      carModels={carModels}
+                      notSeenReasons={notSeenReasons}
+                      sellReasons={sellReasons}
+                      users={users}
+                      type={customerData.type}
+                    />
+                  </div>
                 ) : (
-                  <VehicleView
-                    lc={leadCar}
-                    carModels={carModels}
-                    customerData={customerData}
-                  />
+                  <div className="animate-in fade-in duration-500">
+                    <VehicleView
+                      lc={leadCar}
+                      carModels={carModels}
+                      customerData={customerData}
+                    />
+                  </div>
                 )}
               </Card>
             </Col>
 
+            {/* Cột phải: Timeline */}
             <Col lg={7} md={24} span={24}>
-              <ActivityTimeline activities={customerData.activities} />
+              <Card
+                className="shadow-sm rounded-[2rem] border-slate-100 min-h-[400px]"
+                title={
+                  <Space>
+                    <HistoryOutlined className="text-indigo-600" />
+                    <span className="font-bold uppercase text-[13px] tracking-wider text-slate-600">
+                      Lịch sử tương tác
+                    </span>
+                  </Space>
+                }
+              >
+                {loading && !fullDetail ? (
+                  <Skeleton active paragraph={{ rows: 10 }} />
+                ) : (
+                  <ActivityTimeline activities={customerData.activities} />
+                )}
+              </Card>
             </Col>
           </Row>
         </Form>

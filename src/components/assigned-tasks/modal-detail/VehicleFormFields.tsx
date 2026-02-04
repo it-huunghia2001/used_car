@@ -66,6 +66,21 @@ export const VehicleFormFields = ({
             />
           </Form.Item>
         </Col>
+        {(type === "SELL_TRADE_NEW" || type === "SELL_TRADE_USED") && (
+          <Col xs={24} md={8}>
+            <Form.Item name="tradeInModel" label="Xe khách muốn đổi">
+              <Select
+                showSearch
+                placeholder="Chọn dòng xe"
+                optionFilterProp="label"
+                options={carModels.map((m: any) => ({
+                  value: m.name,
+                  label: m.name,
+                }))}
+              />
+            </Form.Item>
+          </Col>
+        )}
       </Row>
 
       {/* SECTION 2: CÔNG TÁC GIÁM ĐỊNH & NHU CẦU */}

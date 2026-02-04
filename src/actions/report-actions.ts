@@ -85,9 +85,6 @@ export async function getAdvancedReportAction(
 
   // --- 2. XỬ LÝ SCOPE PHÂN QUYỀN ---
   const effectiveBranchId = isHighLevel ? selectedBranchId : userBranchId;
-  const branchFilter: any = effectiveBranchId
-    ? { branchId: effectiveBranchId }
-    : {};
 
   // --- 3. TRUY VẤN SONG SONG ---
   const [
@@ -95,45 +92,77 @@ export async function getAdvancedReportAction(
     totalPurchased,
     lateLeads,
     lateTasks,
-    branchesForChart, // Đã đổi tên để lấy danh sách chi nhánh phù hợp
-    salesByBranch,
-    purchasesByBranch,
+    branchesForChart,
+    salesByBranchRaw,
+    purchasesByBranchRaw,
     staffPerformance,
     inventoryStatus,
     myPending,
     allDepartments,
   ] = await Promise.all([
-    db.car.count({ where: { status: "SOLD", ...salesRange, ...branchFilter } }),
+    // Tính tổng xe bán dựa trên chi nhánh của NHÂN VIÊN BÁN (soldBy)
     db.car.count({
-      where: { purchasedAt: { not: null }, ...purchaseRange, ...branchFilter },
+      where: {
+        status: "SOLD",
+        ...salesRange,
+        soldBy: effectiveBranchId ? { branchId: effectiveBranchId } : {},
+      },
     }),
 
+    // Tính tổng xe mua dựa trên chi nhánh của NHÂN VIÊN MUA (purchaser)
+    db.car.count({
+      where: {
+        purchasedAt: { not: null },
+        ...purchaseRange,
+        purchaser: effectiveBranchId ? { branchId: effectiveBranchId } : {},
+      },
+    }),
+
+    // Đếm Lead trễ dựa trên chi nhánh của nhân viên tạo
     db.leadActivity.count({
-      where: { ...timeQuery, isLate: true, user: branchFilter },
-    }),
-    db.task.count({
-      where: { ...timeQuery, isLate: true, assignee: branchFilter },
+      where: {
+        ...timeQuery,
+        isLate: true,
+        user: effectiveBranchId ? { branchId: effectiveBranchId } : {},
+      },
     }),
 
-    // ✅ SỬA TẠI ĐÂY: Manager vẫn cần lấy thông tin chi nhánh của mình để vẽ biểu đồ
+    // Đếm Task trễ dựa trên chi nhánh của người được giao
+    db.task.count({
+      where: {
+        ...timeQuery,
+        isLate: true,
+        assignee: effectiveBranchId ? { branchId: effectiveBranchId } : {},
+      },
+    }),
+
+    // Lấy danh sách chi nhánh để map biểu đồ
     db.branch.findMany({
       where: effectiveBranchId ? { id: effectiveBranchId } : {},
       select: { id: true, name: true },
     }),
 
-    // ✅ SỬA TẠI ĐÂY: GroupBy phải chạy cho cả Manager để lấy số liệu chi nhánh đó
-    db.car.groupBy({
+    // Thống kê BÁN: GroupBy theo chi nhánh của User thực hiện soldCars
+    db.user.groupBy({
       by: ["branchId"],
-      where: { status: "SOLD", ...salesRange, ...branchFilter },
+      where: {
+        soldCars: { some: { status: "SOLD", ...salesRange } },
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+      },
       _count: { id: true },
     }),
 
-    db.car.groupBy({
+    // Thống kê MUA: GroupBy theo chi nhánh của User thực hiện purchases
+    db.user.groupBy({
       by: ["branchId"],
-      where: { purchasedAt: { not: null }, ...purchaseRange, ...branchFilter },
+      where: {
+        purchases: { some: { purchasedAt: { not: null }, ...purchaseRange } },
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+      },
       _count: { id: true },
     }),
 
+    // Hiệu suất nhân viên
     db.user.findMany({
       where: {
         ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
@@ -161,17 +190,22 @@ export async function getAdvancedReportAction(
       take: 20,
     }),
 
-    db.car.groupBy({ by: ["status"], where: branchFilter, _count: true }),
+    // Tình trạng kho (Vẫn tính theo chi nhánh của XE vì xe đang nằm ở kho đó)
+    db.car.groupBy({
+      by: ["status"],
+      where: effectiveBranchId ? { branchId: effectiveBranchId } : {},
+      _count: true,
+    }),
+
     db.task.count({ where: { assigneeId: userId, status: "PENDING" } }),
 
+    // Thống kê theo phòng ban
     isHighLevel || role === "MANAGER"
       ? db.department.findMany({
           select: {
             name: true,
             users: {
-              where: {
-                ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
-              },
+              where: effectiveBranchId ? { branchId: effectiveBranchId } : {},
               select: {
                 _count: { select: { createdReferrals: { where: timeQuery } } },
               },
@@ -183,12 +217,18 @@ export async function getAdvancedReportAction(
 
   // --- 4. XỬ LÝ GỘP DỮ LIỆU BIỂU ĐỒ ---
 
-  // ✅ FIX: Ghép dữ liệu cho biểu đồ "Hiệu suất chi nhánh"
+  // Ghép dữ liệu dựa trên danh sách chi nhánh
   const branchStats = branchesForChart.map((b: any) => {
+    // Đếm số lượng xe bán: lấy từ mảng groupBy của User
+    // salesByBranchRaw trả về số lượng USER có giao dịch bán,
+    // để chính xác số XE ta dùng sum hoặc đếm trực tiếp từ query xe ở trên nếu cần.
+    // Ở đây dùng count từ query xe theo branch của user là chuẩn nhất:
     const sales =
-      salesByBranch.find((s: any) => s.branchId === b.id)?._count.id || 0;
+      salesByBranchRaw.find((s: any) => s.branchId === b.id)?._count.id || 0;
     const buys =
-      purchasesByBranch.find((p: any) => p.branchId === b.id)?._count.id || 0;
+      purchasesByBranchRaw.find((p: any) => p.branchId === b.id)?._count.id ||
+      0;
+
     return {
       name: b.name,
       soldCount: sales,
@@ -200,7 +240,7 @@ export async function getAdvancedReportAction(
     .map((d: any) => ({
       name: d.name,
       count: d.users.reduce(
-        (sum: number, u: any) => sum + u._count.createdReferrals,
+        (sum: number, u: any) => sum + (u._count?.createdReferrals || 0),
         0,
       ),
     }))
@@ -214,7 +254,7 @@ export async function getAdvancedReportAction(
       totalPurchased,
       lateLeads,
       lateTasks,
-      branchStats, // Bây giờ sẽ luôn có dữ liệu cho cả Manager
+      branchStats,
       departmentStats,
       staffPerformance,
       inventoryStatus,

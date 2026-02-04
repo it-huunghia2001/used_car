@@ -44,6 +44,8 @@ export async function createBranchAction(data: {
   name: string;
   address: string;
 }) {
+  const auth = await getCurrentUser();
+  if (!auth) throw new Error("Chưa đăng nhập");
   const branch = await db.branch.create({ data });
   revalidatePath("/admin/branch-setup");
   return branch;
@@ -53,6 +55,8 @@ export async function updateBranchAction(
   id: string,
   data: { name: string; address?: string },
 ) {
+  const auth = await getCurrentUser();
+  if (!auth) throw new Error("Chưa đăng nhập");
   const branch = await db.branch.update({
     where: { id },
     data,
@@ -63,6 +67,8 @@ export async function updateBranchAction(
 
 export async function deleteBranchAction(id: string) {
   try {
+    const auth = await getCurrentUser();
+    if (!auth) throw new Error("Chưa đăng nhập");
     await db.branch.delete({ where: { id } });
     revalidatePath("/admin/branch-setup");
     return { success: true };
@@ -74,6 +80,8 @@ export async function deleteBranchAction(id: string) {
 // ✅ API MỚI: Chỉ dùng cho trang Đăng ký (Public)
 export async function getBranchesForRegisterAction() {
   try {
+    const auth = await getCurrentUser();
+    if (!auth) throw new Error("Chưa đăng nhập");
     // Không check auth ở đây vì người dùng chưa có tài khoản
     return await db.branch.findMany({
       select: {

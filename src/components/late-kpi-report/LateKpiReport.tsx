@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Thêm useCallback
 import {
   Table,
   DatePicker,
@@ -20,7 +20,6 @@ import {
   WarningOutlined,
   UserOutlined,
   ArrowRightOutlined,
-  FilterOutlined,
   EnvironmentOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -32,7 +31,7 @@ export default function LateKpiReport({
   currentUser,
   initialStaff,
   initialBranches,
-  initialData, // Nhận dữ liệu ban đầu từ Server
+  initialData,
 }: {
   currentUser: any;
   initialStaff: any;
@@ -42,7 +41,6 @@ export default function LateKpiReport({
   const [data, setData] = useState<any[]>(initialData);
   const [loading, setLoading] = useState(false);
 
-  // Quyền hạn
   const isSuperAdmin =
     currentUser?.role === "ADMIN" || currentUser?.isGlobalManager;
 
@@ -51,19 +49,24 @@ export default function LateKpiReport({
     userId: string | undefined;
     branchId: string | undefined;
   }>({
-    dates: [dayjs().startOf("month"), dayjs().endOf("month")],
+    dates: null,
     userId: undefined,
     branchId: undefined,
   });
 
-  // Hàm tải lại dữ liệu khi thay đổi Filter
-  const loadData = async () => {
+  // 1. Dùng useCallback để hàm loadData không bị khởi tạo lại vô ích
+  const loadData = useCallback(async () => {
     setLoading(true);
-    const fromDate = filter.dates[0].startOf("day").toDate();
-    const toDate = filter.dates[1].endOf("day").toDate();
-
     try {
-      // IMPORT ĐỘNG để tránh kéo logic Server vào Bundle Client lúc Build
+      let fromDate = undefined;
+      let toDate = undefined;
+
+      // Xử lý lấy ngày tháng nếu có chọn trong RangePicker
+      if (filter.dates && filter.dates.length === 2) {
+        fromDate = filter.dates[0].startOf("day").toDate();
+        toDate = filter.dates[1].endOf("day").toDate();
+      }
+
       const { getLateReportAction } = await import("@/actions/report-actions");
       const res = await getLateReportAction({
         fromDate,
@@ -77,7 +80,19 @@ export default function LateKpiReport({
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter.userId, filter.branchId, filter.dates]); // Chỉ định nghĩa lại hàm nếu filter thay đổi
+
+  // 2. useEffect chỉ kích hoạt khi bộ lọc thực sự có sự thay đổi (tránh loadData lần đầu vì đã có initialData)
+  useEffect(() => {
+    const isFilterActive =
+      filter.dates !== null ||
+      filter.userId !== undefined ||
+      filter.branchId !== undefined;
+
+    if (isFilterActive) {
+      loadData();
+    }
+  }, [loadData]); // Bây giờ đưa loadData vào đây là an toàn
 
   const totalLateMinutes = data.reduce(
     (sum, item) => sum + (item.lateMinutes || 0),
@@ -162,11 +177,6 @@ export default function LateKpiReport({
     },
   ];
 
-  // Theo dõi filter: Chỉ cần filter thay đổi là chạy lại loadData
-  useEffect(() => {
-    loadData();
-  }, [filter.branchId, filter.userId, filter.dates]);
-
   return (
     <div className="p-8 bg-[#f8fafc] min-h-screen">
       <div className="max-w-7xl mx-auto">
@@ -200,20 +210,14 @@ export default function LateKpiReport({
                     placeholder="Tất cả chi nhánh"
                     allowClear
                     className="w-full md:w-45"
-                    // Đảm bảo value được liên kết với state filter
                     value={filter.branchId}
                     options={initialBranches?.map((b: any) => ({
                       label: b.name,
                       value: b.id,
                     }))}
-                    onChange={(val) => {
-                      // Khi clear, val sẽ là undefined
-                      setFilter({
-                        ...filter,
-                        branchId: val,
-                        userId: undefined,
-                      });
-                    }}
+                    onChange={(val) =>
+                      setFilter({ ...filter, branchId: val, userId: undefined })
+                    }
                   />
                 </div>
               )}
@@ -226,28 +230,24 @@ export default function LateKpiReport({
                   placeholder="Chọn nhân viên"
                   allowClear
                   className="w-full md:w-[200px]"
-                  suffixIcon={<FilterOutlined />}
                   value={filter.userId}
                   options={initialStaff
-                    ?.filter((s: any) => {
-                      // Nếu không chọn chi nhánh (hoặc bấm clear) -> Hiện tất cả nhân viên
-                      if (!filter.branchId) return true;
-                      // Nếu có chọn chi nhánh -> Chỉ hiện người thuộc chi nhánh đó
-                      return s.branchId === filter.branchId;
-                    })
-                    .map((s: any) => ({
-                      label: s.fullName,
-                      value: s.id,
-                    }))}
+                    ?.filter(
+                      (s: any) =>
+                        !filter.branchId || s.branchId === filter.branchId,
+                    )
+                    .map((s: any) => ({ label: s.fullName, value: s.id }))}
                   onChange={(val) => setFilter({ ...filter, userId: val })}
                 />
               </div>
+
               <div className="px-2">
                 <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">
                   Thời gian
                 </div>
                 <RangePicker
-                  dropdownClassName="mobile-center-picker"
+                  placeholder={["Bắt đầu", "Kết thúc"]}
+                  allowClear
                   value={filter.dates}
                   onChange={(val) => setFilter({ ...filter, dates: val })}
                   className="border-none bg-slate-50 w-full"
@@ -257,9 +257,10 @@ export default function LateKpiReport({
           </Card>
         </header>
 
+        {/* STATISTICS SECTION */}
         <Row gutter={[24, 24]} className="mb-8">
           <Col xs={24} sm={8}>
-            <Card className="rounded-2xl shadow-sm bg-linear-to-br from-white to-red-50">
+            <Card className="rounded-2xl shadow-sm bg-gradient-to-br from-white to-red-50">
               <Statistic
                 title="SỐ LẦN TRỄ"
                 value={data.length}
@@ -269,7 +270,7 @@ export default function LateKpiReport({
             </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Card className="rounded-2xl shadow-sm bg-linear-to-br from-white to-orange-50">
+            <Card className="rounded-2xl shadow-sm bg-gradient-to-br from-white to-orange-50">
               <Statistic
                 title="TỔNG THỜI GIAN"
                 value={totalLateMinutes}
@@ -280,10 +281,7 @@ export default function LateKpiReport({
             </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Card
-              bordered={false}
-              className="rounded-2xl shadow-sm bg-linear-to-br from-white to-blue-50"
-            >
+            <Card className="rounded-2xl shadow-sm bg-gradient-to-br from-white to-blue-50">
               <Statistic
                 title="TRUNG BÌNH/CA"
                 value={

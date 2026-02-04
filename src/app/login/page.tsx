@@ -46,10 +46,21 @@ export default function LoginPage() {
       const res = await login(username, password); // Gọi API trả về JSON
 
       if (res.status === 0) {
+        console.log((res?.data as any)?.role);
+
         // Đợi một chút (khoảng 100ms) để chắc chắn Cookie đã được set
-        setTimeout(() => {
-          window.location.href = "/"; // Dùng cái này sẽ ép trình duyệt load lại hoàn toàn, an toàn hơn router.push
-        }, 100);
+        if (
+          (res?.data as any)?.role === "REFERRER" ||
+          (res?.data as any)?.role === "APPRAISER"
+        ) {
+          setTimeout(() => {
+            window.location.href = "/dashboard/referrals/new"; // Dùng cái này sẽ ép trình duyệt load lại hoàn toàn, an toàn hơn router.push
+          }, 100);
+        } else {
+          setTimeout(() => {
+            window.location.href = "/"; // Dùng cái này sẽ ép trình duyệt load lại hoàn toàn, an toàn hơn router.push
+          }, 100);
+        }
       } else {
         setErrors({ password: res.message });
       }

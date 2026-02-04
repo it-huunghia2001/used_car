@@ -4,7 +4,6 @@ import { getLateReportAction } from "@/actions/report-actions";
 import { getEligibleStaffAction } from "@/actions/user-actions";
 import LateKpiReport from "@/components/late-kpi-report/LateKpiReport";
 import { getCurrentUser } from "@/lib/session-server";
-import dayjs from "dayjs";
 
 export default async function Page() {
   // 1. Lấy thông tin user và metadata
@@ -15,10 +14,7 @@ export default async function Page() {
   ]);
   console.log(staff);
   // 2. Lấy dữ liệu báo cáo mặc định (tháng hiện tại)
-  const initialData = await getLateReportAction({
-    fromDate: dayjs().startOf("month").toDate(),
-    toDate: dayjs().endOf("month").toDate(),
-  });
+  const initialData = await getLateReportAction({});
 
   return (
     <LateKpiReport

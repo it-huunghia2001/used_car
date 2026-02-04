@@ -53,7 +53,7 @@ import { getCarModelsAction } from "@/actions/car-actions";
 import { getMeAction } from "@/actions/user-actions";
 import dayjs from "@/lib/dayjs";
 import { UrgencyBadge } from "@/lib/urgencyBadge";
-import { getLeadStatusHelper } from "@/lib/status-helper";
+import { getLeadStatusHelper, getReferralTypeTag } from "@/lib/status-helper";
 
 // Sub-components
 import ModalApproveTransaction from "@/components/assigned-tasks/ModalApproveTransaction";
@@ -274,7 +274,10 @@ export default function AssignedTasksPage() {
                 <div className="text-slate-500 text-sm">
                   <PhoneOutlined className="mr-1" /> {customer?.phone}
                 </div>
-                <UrgencyBadge type={customer?.urgencyLevel} />
+                <Space>
+                  <UrgencyBadge type={customer?.urgencyLevel} />
+                  {getReferralTypeTag(customer.type)}
+                </Space>
               </div>
             </Space>
           </Col>

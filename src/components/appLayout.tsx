@@ -6,7 +6,13 @@ import { Layout } from "antd";
 import { usePathname } from "next/navigation";
 
 const { Content } = Layout;
-type Role = "ADMIN" | "MANAGER" | "PURCHASE_STAFF" | "SALES_STAFF" | "REFERRER";
+type Role =
+  | "ADMIN"
+  | "MANAGER"
+  | "PURCHASE_STAFF"
+  | "SALES_STAFF"
+  | "REFERRER"
+  | "APPRAISER";
 interface AppLayoutProps {
   children: React.ReactNode;
   role: Role;

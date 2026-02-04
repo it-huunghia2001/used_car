@@ -58,7 +58,12 @@ export async function POST(req: NextRequest) {
 
     // Thay vì redirect, ta trả về JSON
     const response = NextResponse.json(
-      { message: "Đăng nhập thành công", status: 0 },
+      {
+        message: "Đăng nhập thành công",
+        status: 0,
+
+        role: user.role,
+      },
       { status: 200 },
     );
 

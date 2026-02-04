@@ -19,6 +19,7 @@ import {
   Avatar,
   message,
   Tooltip,
+  Select,
 } from "antd";
 import {
   CarOutlined,
@@ -33,6 +34,7 @@ import {
   BgColorsOutlined,
   FileTextOutlined,
   ToolOutlined,
+  FilterOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -44,8 +46,10 @@ import { getBranchesAction } from "@/actions/branch-actions";
 // Components
 import EditCarModal from "@/components/cars/EditCarModal";
 import CarDetailModal from "@/components/cars/CarDetailModal";
+import { useDebounce } from "@/hooks/use-debounce";
 
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 export default function InventoryPage() {
   // Hook xử lý thông báo chuẩn AntD v5
@@ -56,11 +60,12 @@ export default function InventoryPage() {
   const [cars, setCars] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCar, setSelectedCar] = useState<any>(null);
-  const [searchText, setSearchText] = useState("");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const [staffList, setStaffList] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
+  const [searchText, setSearchText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   // 1. Định nghĩa trạng thái xe
   const statusMap: any = {
@@ -106,30 +111,31 @@ export default function InventoryPage() {
     };
   }, [cars]);
 
+  const debouncedSearch = useDebounce(searchText, 500);
   // 3. Load dữ liệu
   const loadData = async () => {
     setLoading(true);
     try {
+      // Truyền filters trực tiếp vào API
       const [resCars, resStaff, resBranches] = await Promise.all([
-        getInventory(),
+        getInventory({ status: statusFilter, search: debouncedSearch }),
         getEligibleStaffAction(),
         getBranchesAction(),
       ]);
       setCars(resCars);
-      console.log(resCars);
-
       setStaffList(resStaff as any[]);
       setBranches(resBranches as any[]);
     } catch (err) {
-      messageApi.error("Không thể tải dữ liệu hệ thống");
+      messageApi.error("Lỗi tải dữ liệu");
     } finally {
       setLoading(false);
     }
   };
 
+  // Gọi lại API khi Trạng thái hoặc Từ khóa tìm kiếm thay đổi
   useEffect(() => {
     loadData();
-  }, []);
+  }, [statusFilter, debouncedSearch]);
 
   // 4. Xử lý cập nhật
   const onFinish = async (values: any) => {
@@ -216,6 +222,20 @@ export default function InventoryPage() {
             </Title>
           </div>
           <Space wrap>
+            <Select
+              defaultValue="ALL"
+              className="w-64 h-11"
+              onChange={(val) => setStatusFilter(val)}
+              suffixIcon={<FilterOutlined />}
+            >
+              <Option value="ALL">TẤT CẢ TRẠNG THÁI</Option>
+              <Option value="NEW">MỚI VỀ (NEW)</Option>
+              <Option value="PENDING">CHỜ DUYỆT (PENDING)</Option>
+              <Option value="REFURBISHING">TÂN TRANG (REFURBISHING)</Option>
+              <Option value="READY_FOR_SALE">ĐANG BÁN (READY)</Option>
+              <Option value="BOOKED">ĐÃ CỌC (BOOKED)</Option>
+              <Option value="SOLD">ĐÃ BÁN (SOLD)</Option>
+            </Select>
             <Input
               placeholder="Tìm tên xe, VIN, Mã kho..."
               prefix={<SearchOutlined className="text-slate-400" />}
