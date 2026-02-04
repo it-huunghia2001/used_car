@@ -1065,3 +1065,106 @@ export const overdueCustomerReminderEmailTemplate = (data: {
   </div>
   `;
 };
+
+export const lateReferralLossEmailTemplate = (data: {
+  customerName: string;
+  referrerName: string;
+  typeLabel: string;
+  reason: string;
+}) => {
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #f0f0f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+    <div style="background-color: #595959; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Thông báo thay đổi trạng thái giới thiệu</p>
+    </div>
+
+    <div style="padding: 35px 30px; background-color: #ffffff;">
+      <p style="color: #595959; font-size: 16px;">Chào <strong>${data.referrerName}</strong>,</p>
+      <p style="color: #595959; font-size: 16px; line-height: 1.6;">Hệ thống CRM thông báo về khách hàng bạn đã giới thiệu trước đây:</p>
+
+      <div style="margin: 25px 0; padding: 20px; background-color: #fafafa; border-radius: 8px; border-left: 5px solid #d9d9d9;">
+        <table style="width: 100%; font-size: 15px;">
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c; width: 40%;">Khách hàng:</td>
+            <td style="font-weight: bold; color: #1f1f1f;">${data.customerName.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c;">Nhu cầu:</td>
+            <td style="color: #1f1f1f;">${data.typeLabel}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #8c8c8c; vertical-align: top;">Tình trạng:</td>
+            <td style="color: #ff4d4f; font-weight: bold;">Hết hạn bảo hộ ưu tiên</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background-color: #fff7e6; border: 1px solid #ffd591; padding: 15px; border-radius: 6px; margin-top: 20px;">
+        <p style="color: #d46b08; margin: 0; font-size: 14px; line-height: 1.5;">
+          <strong>Lý do:</strong> ${data.reason || "Hồ sơ quá hạn xử lý và đã được hệ thống giải phóng để tái phân bổ cho nhân sự mới."}
+        </p>
+      </div>
+
+      <p style="color: #8c8c8c; font-size: 13px; margin-top: 25px; font-style: italic;">
+        * Lưu ý: Khi hồ sơ bị giải phóng (isLate), người giới thiệu khác có quyền ghi nhận lại thông tin khách hàng này để đảm bảo quyền lợi phục vụ khách hàng nhanh nhất.
+      </p>
+    </div>
+
+    <div style="background-color: #f5f5f5; padding: 20px; text-align: center; font-size: 12px; color: #bfbfbf;">
+      Hệ thống CRM Toyota Bình Dương - Used Car Division
+    </div>
+  </div>
+  `;
+};
+
+export const lateLeadRecallEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  lateMinutes: number;
+  typeLabel: string;
+}) => {
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #ffa39e; border-radius: 12px; overflow: hidden;">
+    <div style="background-color: #ff4d4f; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0; font-size: 14px;">Thông báo thu hồi hồ sơ khách hàng</p>
+    </div>
+
+    <div style="padding: 35px 30px; background-color: #ffffff;">
+      <p style="color: #595959; font-size: 16px;">Chào <strong>${data.staffName}</strong>,</p>
+      <p style="color: #595959; font-size: 16px; line-height: 1.6;">Hệ thống đã thực hiện <strong>thu hồi quyền xử lý</strong> đối với hồ sơ khách hàng sau đây do vi phạm KPI:</p>
+
+      <div style="margin: 25px 0; border: 1px solid #f0f0f0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #fff1f0; color: #cf1322; padding: 10px 15px; font-weight: bold; text-align: center;">
+          VI PHẠM THỜI GIAN PHẢN HỒI: ${data.lateMinutes} PHÚT
+        </div>
+        <table style="width: 100%; font-size: 15px; background-color: #fafafa;">
+          <tr>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #8c8c8c; width: 40%;">Khách hàng:</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-weight: bold;">${data.customerName.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 15px; color: #8c8c8c;">Nghiệp vụ:</td>
+            <td style="padding: 12px 15px;">${data.typeLabel}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="border-left: 4px solid #ff4d4f; padding-left: 15px; margin: 25px 0;">
+        <p style="color: #595959; font-size: 14px; margin: 0;">
+          <strong>Hậu quả:</strong> Hồ sơ đã được chuyển trạng thái ĐÓNG BĂNG và gỡ bỏ nhân viên phụ trách. Dữ liệu vi phạm này đã được ghi nhận vào báo cáo KPI.
+        </p>
+      </div>
+
+      <p style="color: #cf1322; font-size: 14px; font-weight: bold; text-align: center;">
+        VUI LÒNG TUÂN THỦ THỜI GIAN PHẢN HỒI ĐỂ TRÁNH MẤT KHÁCH HÀNG TIỀM NĂNG!
+      </p>
+    </div>
+
+    <div style="background-color: #fafafa; padding: 20px; text-align: center; font-size: 11px; color: #bfbfbf; border-top: 1px solid #f0f0f0;">
+      Thông báo tự động từ Hệ thống CRM Toyota Bình Dương
+    </div>
+  </div>
+  `;
+};

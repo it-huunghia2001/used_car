@@ -130,6 +130,9 @@ model Customer {
   status LeadStatus   @default(NEW)
   type   ReferralType @default(SELL)
 
+  isLate       Boolean   @default(false) // Đánh dấu nếu Sale xử lý trễ dẫn đến bị đóng băng
+  lastFrozenAt DateTime? // Ngày khách bị đưa vào danh sách đóng băng
+
   referrerId   String
   referrer     User     @relation("CreatedReferrals", fields: [referrerId], references: [id])
   referralDate DateTime @default(now())
