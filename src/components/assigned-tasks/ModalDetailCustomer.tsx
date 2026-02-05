@@ -622,7 +622,11 @@ export default function ModalDetailCustomer({
                           label="Hạn đăng kiểm"
                         >
                           <DatePicker
-                            dropdownClassName="mobile-center-picker"
+                            classNames={{
+                              popup: {
+                                root: "mobile-center-picker", // Thay cho dropdownClassName
+                              },
+                            }}
                             className="w-full"
                             format="DD/MM/YYYY"
                           />
@@ -634,7 +638,11 @@ export default function ModalDetailCustomer({
                           label="Hạn bảo hiểm VC"
                         >
                           <DatePicker
-                            dropdownClassName="mobile-center-picker"
+                            classNames={{
+                              popup: {
+                                root: "mobile-center-picker", // Thay cho dropdownClassName
+                              },
+                            }}
                             className="w-full"
                             format="DD/MM/YYYY"
                           />
@@ -646,7 +654,11 @@ export default function ModalDetailCustomer({
                           label="Hạn bảo hiểm DS"
                         >
                           <DatePicker
-                            dropdownClassName="mobile-center-picker"
+                            classNames={{
+                              popup: {
+                                root: "mobile-center-picker", // Thay cho dropdownClassName
+                              },
+                            }}
                             className="w-full"
                             format="DD/MM/YYYY"
                           />

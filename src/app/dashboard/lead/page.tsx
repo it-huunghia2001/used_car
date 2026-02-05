@@ -43,6 +43,7 @@ import {
   ManOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
+  FileExcelOutlined,
 } from "@ant-design/icons";
 import {
   getLeadsAction,
@@ -52,6 +53,8 @@ import {
 } from "@/actions/customer-actions";
 import dayjs from "@/lib/dayjs";
 import { getLeadStatusHelper } from "@/lib/status-helper";
+import { getExportCustomerData } from "@/actions/export-actions";
+import { handleExportFullCustomerExcel } from "@/utils/excel-helper";
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -72,6 +75,7 @@ export default function LeadsPage() {
   const [selectedOverdueKeys, setSelectedOverdueKeys] = useState<React.Key[]>(
     [],
   );
+  const [exportLoading, setExportLoading] = useState(false);
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -80,6 +84,19 @@ export default function LeadsPage() {
     status: "ALL",
   });
 
+  const onExportExcel = async () => {
+    setExportLoading(true);
+    try {
+      const exportData = await getExportCustomerData();
+      await handleExportFullCustomerExcel(exportData);
+      message.success("Xuất file Excel thành công!");
+    } catch (error: any) {
+      message.error("Lỗi xuất file: " + error.message);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   // --- TẢI DỮ LIỆU CHÍNH ---
   const loadData = async () => {
     setLoading(true);
@@ -87,6 +104,7 @@ export default function LeadsPage() {
       const res = await getLeadsAction(filters);
       setData(res.data);
       setTotal(res.total);
+      console.log(res.data);
 
       // Tải kèm danh sách quá hạn để hiện Badge thông báo
       const overdueRes = await getOverdueCustomersAction();
@@ -284,7 +302,7 @@ export default function LeadsPage() {
             color="processing"
             className="border-none bg-blue-50 text-blue-700 px-3 rounded-full"
           >
-            <SyncOutlined spin className="mr-1" /> {r.assignedTo.fullName}
+            {r.assignedTo.fullName}
           </Tag>
         ) : (
           <Tag className="border-dashed text-slate-400">Đang chờ...</Tag>
@@ -378,6 +396,14 @@ export default function LeadsPage() {
                   <Option value="DEAL_DONE">Chốt đơn</Option>
                   <Option value="FROZEN">Đóng băng</Option>
                 </Select>
+                <Button
+                  icon={<FileExcelOutlined />}
+                  loading={exportLoading}
+                  className="h-12 rounded-2xl font-bold bg-green-600 text-white hover:bg-green-700 border-none"
+                  onClick={onExportExcel}
+                >
+                  XUẤT EXCEL
+                </Button>
                 <Button
                   icon={<ReloadOutlined />}
                   className="h-12 rounded-2xl font-bold"

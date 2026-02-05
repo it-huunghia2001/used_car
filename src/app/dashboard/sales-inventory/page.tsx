@@ -507,7 +507,7 @@ export default function SalesTasksPage() {
         {/* SECTION 2: KHO KHÁCH */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 px-2">
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Title
                 level={5}
                 className="!m-0 text-slate-500 uppercase tracking-widest text-[12px]"

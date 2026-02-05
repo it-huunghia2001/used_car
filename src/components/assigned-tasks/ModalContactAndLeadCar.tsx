@@ -225,7 +225,11 @@ export default function ModalContactAndLeadCar({
               <DatePicker
                 // 3. TUYỆT CHIÊU CĂN GIỮA:
                 getPopupContainer={() => document.body} // Thoát khỏi Modal
-                dropdownClassName="mobile-center-picker" // Class để CSS xử lý vị trí
+                classNames={{
+                  popup: {
+                    root: "mobile-center-picker", // Thay cho dropdownClassName
+                  },
+                }}
                 showTime={{ format: "HH:mm", minuteStep: 15 }}
                 format="YYYY-MM-DD HH:mm"
                 size="large"

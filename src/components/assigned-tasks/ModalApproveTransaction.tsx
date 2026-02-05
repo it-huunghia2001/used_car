@@ -436,7 +436,11 @@ export default function ModalApproveTransaction({
                     rules={[{ required: true }]}
                   >
                     <DatePicker
-                      dropdownClassName="mobile-center-picker"
+                      classNames={{
+                        popup: {
+                          root: "mobile-center-picker", // Thay cho dropdownClassName
+                        },
+                      }}
                       className="w-full!"
                       placeholder="Chọn ngày"
                       format="DD/MM/YYYY"
@@ -450,7 +454,11 @@ export default function ModalApproveTransaction({
                     rules={[{ required: true }]}
                   >
                     <DatePicker
-                      dropdownClassName="mobile-center-picker"
+                      classNames={{
+                        popup: {
+                          root: "mobile-center-picker", // Thay cho dropdownClassName
+                        },
+                      }}
                       className="w-full!"
                       placeholder="Chọn ngày"
                       format="DD/MM/YYYY"
@@ -464,7 +472,11 @@ export default function ModalApproveTransaction({
                     rules={[{ required: true }]}
                   >
                     <DatePicker
-                      dropdownClassName="mobile-center-picker"
+                      classNames={{
+                        popup: {
+                          root: "mobile-center-picker", // Thay cho dropdownClassName
+                        },
+                      }}
                       className="w-full!"
                       placeholder="Chọn ngày"
                       format="DD/MM/YYYY"
@@ -478,7 +490,11 @@ export default function ModalApproveTransaction({
                     rules={[{ required: true }]}
                   >
                     <DatePicker
-                      dropdownClassName="mobile-center-picker"
+                      classNames={{
+                        popup: {
+                          root: "mobile-center-picker", // Thay cho dropdownClassName
+                        },
+                      }}
                       className="w-full!"
                       placeholder="Đến ngày"
                       format="DD/MM/YYYY"

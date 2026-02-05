@@ -124,7 +124,7 @@ export default function CarDetailModal({
           <Card size="small" className="bg-slate-50 border-none rounded-2xl">
             <Row gutter={16}>
               <Col span={12}>
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   <Text
                     type="secondary"
                     className="text-[10px] uppercase font-bold"
@@ -140,7 +140,7 @@ export default function CarDetailModal({
                 </Space>
               </Col>
               <Col span={12}>
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   <Text
                     type="secondary"
                     className="text-[10px] uppercase font-bold"

@@ -31,6 +31,11 @@ export const getRoleTag = (role: string) => {
       color: "orange",
       icon: <UsergroupAddOutlined />,
     },
+    APPRAISER: {
+      label: "Nhân viên giám định",
+      color: "orange",
+      icon: <UsergroupAddOutlined />,
+    },
   };
 
   const config = roleConfig[role] || {

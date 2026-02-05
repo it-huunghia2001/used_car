@@ -233,8 +233,7 @@ export default function ModalSelfAddCustomer({
             >
               <Select
                 size="large"
-                className="w-full"
-                dropdownClassName="rounded-xl"
+                className="w-full rounded-xl"
                 options={[
                   { value: "SELL", label: "🤝 Thu mua xe (Khách bán)" },
                   { value: "SELL_TRADE_NEW", label: "♻️ Thu cũ - Đổi xe mới" },

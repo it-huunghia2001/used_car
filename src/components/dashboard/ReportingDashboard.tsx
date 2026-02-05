@@ -187,7 +187,11 @@ export default function ReportingDashboard({
           >
             {/* Bộ lọc Ngày Tháng */}
             <DatePicker
-              dropdownClassName="mobile-center-picker"
+              classNames={{
+                popup: {
+                  root: "mobile-center-picker", // Thay cho dropdownClassName
+                },
+              }}
               picker="month"
               placeholder="Tất cả thời gian"
               value={filters.date}

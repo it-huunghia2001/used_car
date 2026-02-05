@@ -332,7 +332,11 @@ export default function ModalApprovalDetail({
                       label="Hạn đăng kiểm"
                     >
                       <DatePicker
-                        dropdownClassName="mobile-center-picker" // Class để CSS xử lý vị trí
+                        classNames={{
+                          popup: {
+                            root: "mobile-center-picker", // Thay cho dropdownClassName
+                          },
+                        }}
                         className="w-full"
                         format="DD/MM/YYYY"
                       />
@@ -341,7 +345,11 @@ export default function ModalApprovalDetail({
                   <Col xs={12} md={6}>
                     <Form.Item name="insuranceTNDSDeadline" label="Hạn BHDS">
                       <DatePicker
-                        dropdownClassName="mobile-center-picker" // Class để CSS xử lý vị trí
+                        classNames={{
+                          popup: {
+                            root: "mobile-center-picker", // Thay cho dropdownClassName
+                          },
+                        }}
                         className="w-full"
                         format="DD/MM/YYYY"
                       />
@@ -350,7 +358,11 @@ export default function ModalApprovalDetail({
                   <Col xs={12} md={6}>
                     <Form.Item name="insuranceVCDeadline" label="Hạn BHVC">
                       <DatePicker
-                        dropdownClassName="mobile-center-picker"
+                        classNames={{
+                          popup: {
+                            root: "mobile-center-picker", // Thay cho dropdownClassName
+                          },
+                        }}
                         className="w-full"
                         format="DD/MM/YYYY"
                       />
@@ -362,7 +374,11 @@ export default function ModalApprovalDetail({
                       label="Thời hạn bảo hành"
                     >
                       <DatePicker
-                        dropdownClassName="mobile-center-picker"
+                        classNames={{
+                          popup: {
+                            root: "mobile-center-picker", // Thay cho dropdownClassName
+                          },
+                        }}
                         className="w-full"
                         format="DD/MM/YYYY"
                       />

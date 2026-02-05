@@ -987,6 +987,7 @@ export async function updateCustomerStatusAction(
               firstContactAt: customer.firstContactAt ? undefined : now,
               nextContactAt: nextContactAt,
               nextContactNote: payload?.nextNote || null,
+              lastContactResult: note || null,
               contactCount: { increment: 1 },
             },
           }),

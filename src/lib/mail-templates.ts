@@ -1009,7 +1009,7 @@ export const overdueCustomerReminderEmailTemplate = (data: {
       </div>
 
       <p style="color: #595959; font-size: 16px;">Kính gửi <strong>Bộ phận liên quan</strong>,</p>
-      <p style="color: #595959; font-size: 15px; line-height: 1.6;">Hệ thống CRM ghi nhận hồ sơ khách hàng dưới đây đã tồn tại <strong>${data.daysPending} ngày</strong> mà chưa hoàn tất giao dịch. Vui lòng kiểm tra và cập nhật trạng thái mới nhất hoặc tiến hành đóng hồ sơ nếu không còn khả năng thực hiện.</p>
+      <p style="color: #595959; font-size: 15px; line-height: 1.6;">Hệ thống CRM ghi nhận hồ sơ khách hàng dưới đây đã tồn tại <strong>${data.daysPending} ngày</strong> nhưng chưa thành công. Vui lòng kiểm tra và cập nhật trạng thái mới nhất.</p>
 
       <div style="margin: 30px 0; border: 1px solid #f0f0f0; border-radius: 8px; overflow: hidden; background-color: #fafafa;">
         <div style="background-color: #fff1f0; color: #cf1322; padding: 10px 15px; font-weight: bold; font-size: 13px; text-align: center; border-bottom: 1px solid #ffa39e;">
