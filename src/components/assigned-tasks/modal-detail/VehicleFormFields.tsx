@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 import {
@@ -10,6 +11,9 @@ import {
   DatePicker,
   Divider,
   Typography,
+  Card,
+  Upload,
+  Button,
 } from "antd";
 import {
   CarOutlined,
@@ -18,6 +22,9 @@ import {
   FileSearchOutlined,
   FireOutlined,
   EnvironmentOutlined,
+  PlusOutlined,
+  PictureOutlined,
+  FilePdfOutlined,
 } from "@ant-design/icons";
 
 const { Text } = Typography;
@@ -32,6 +39,47 @@ export const VehicleFormFields = ({
   // Watcher để ẩn hiện lý do chưa xem xe
   const inspectStatus = Form.useWatch("inspectStatus");
   const isBuyType = type === "BUY";
+
+  const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+  const handleCloudinaryUpload = async (options: any) => {
+    const { file, onSuccess, onError, onProgress } = options;
+
+    if (!CLOUD_NAME || !UPLOAD_PRESET) {
+      return onError("Missing config");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", UPLOAD_PRESET);
+
+    try {
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData },
+      );
+
+      const data = await res.json();
+
+      if (data.secure_url) {
+        // onSuccess nhận data để Ant Design biết file đã 'done'
+        // và lưu thông tin trả về vào file.response
+        onSuccess(data);
+      } else {
+        onError("Upload failed");
+      }
+    } catch (err) {
+      console.error("Cloudinary Error:", err);
+      onError(err);
+    }
+  };
+
+  const normFile = (e: any) => {
+    if (Array.isArray(e)) return e;
+    return e?.fileList;
+  };
+
   return (
     <div className="animate-fadeIn pb-4">
       {/* SECTION 1: PHÂN LOẠI & TRẠNG THÁI */}
@@ -415,6 +463,73 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
       </Row>
+      {!isBuyType && (
+        <>
+          <Divider className="!mb-6 !mt-8">
+            <Text
+              type="secondary"
+              className="text-[11px] uppercase font-bold flex items-center gap-2"
+            >
+              <PictureOutlined /> Hình ảnh & Hồ sơ giám định
+            </Text>
+          </Divider>
+
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <Card
+                size="small"
+                title="Hình ảnh xe thực tế (carImages)"
+                className="rounded-2xl border-dashed"
+              >
+                <Form.Item
+                  name="carImages"
+                  valuePropName="fileList"
+                  getValueFromEvent={normFile}
+                >
+                  <Upload
+                    customRequest={handleCloudinaryUpload}
+                    listType="picture-card"
+                    multiple
+                    accept="image/*"
+                  >
+                    <div>
+                      <PlusOutlined />
+                      <div style={{ marginTop: 8 }}>Tải ảnh</div>
+                    </div>
+                  </Upload>
+                </Form.Item>
+              </Card>
+            </Col>
+
+            <Col xs={24} md={12}>
+              <Card
+                size="small"
+                title="Tài liệu hồ sơ (documents)"
+                className="rounded-2xl border-dashed"
+              >
+                <Form.Item
+                  name="documents"
+                  valuePropName="fileList"
+                  getValueFromEvent={normFile}
+                >
+                  <Upload
+                    customRequest={handleCloudinaryUpload}
+                    listType="picture"
+                    multiple
+                  >
+                    <Button
+                      icon={<PlusOutlined />}
+                      className="w-full rounded-lg border-dashed h-10"
+                    >
+                      Tải lên tài liệu
+                    </Button>
+                  </Upload>
+                </Form.Item>
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
     </div>
   );
 };
