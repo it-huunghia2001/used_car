@@ -63,6 +63,16 @@ export default function ModalDetailCustomer({
     fullDetail || selectedLead?.customer || selectedLead || {};
   const leadCar = customerData.leadCar || {};
 
+  const mapUrlsToFiles = (urls: any) => {
+    if (!urls || !Array.isArray(urls)) return [];
+    return urls.map((url, index) => ({
+      uid: `${index}`, // ID duy nhất cho mỗi file
+      name: `File-${index + 1}`, // Tên hiển thị
+      status: "done", // Trạng thái đã hoàn thành
+      url: url, // Đường dẫn ảnh
+      thumbUrl: url, // Ảnh thu nhỏ
+    }));
+  };
   const fetchData = async () => {
     if (!selectedLead?.customer?.id && !selectedLead?.id) return;
     const targetId = selectedLead?.customer?.id || selectedLead?.id;
@@ -71,6 +81,8 @@ export default function ModalDetailCustomer({
     try {
       const res = await getLeadDetail(targetId);
       setFullDetail(res);
+      console.log(res);
+      console.log(customerData.documents);
 
       if (res) {
         // Fill dữ liệu vào Form
@@ -93,6 +105,8 @@ export default function ModalDetailCustomer({
           insuranceDeadline: res.leadCar?.insuranceDeadline
             ? dayjs(res.leadCar.insuranceDeadline)
             : null,
+          carImages: mapUrlsToFiles(customerData.carImages),
+          documents: mapUrlsToFiles(customerData.documents),
         };
         form.setFieldsValue(formValues);
       }
@@ -118,6 +132,29 @@ export default function ModalDetailCustomer({
       const values = await form.validateFields();
       setLoading(true);
 
+      // 🚀 CHỈ LẤY URL TỪ RESPONSE CỦA CLOUDINARY
+      const carImageUrls =
+        values.carImages
+          ?.map((file: any) => {
+            // Nếu là file mới upload (có response từ Cloudinary)
+            if (file.response && file.response.secure_url) {
+              return file.response.secure_url;
+            }
+            // Nếu là file cũ đã có sẵn URL (khi nhấn Sửa)
+            return file.url;
+          })
+          .filter(Boolean) || [];
+
+      const documentUrls =
+        values.documents
+          ?.map((file: any) => {
+            if (file.response && file.response.secure_url) {
+              return file.response.secure_url;
+            }
+            return file.url;
+          })
+          .filter(Boolean) || [];
+
       const cleanedValues = {
         ...values,
         inspectDoneDate: values.inspectDoneDate?.toISOString() || null,
@@ -128,6 +165,8 @@ export default function ModalDetailCustomer({
         insuranceTNDSDeadline:
           values.insuranceTNDSDeadline?.toISOString() || null,
         insuranceDeadline: values.insuranceDeadline?.toISOString() || null,
+        documents: carImageUrls,
+        carImages: documentUrls,
       };
 
       const res = await updateFullLeadDetail(customerData.id, cleanedValues);

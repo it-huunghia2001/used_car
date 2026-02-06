@@ -310,6 +310,8 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
           notSeenReasonId,
           buyReasonId,
           notSeenReason, // Ghi chú thêm
+          carImages: restValues.carImages || [],
+          documents: restValues.documents || [],
         },
       });
 

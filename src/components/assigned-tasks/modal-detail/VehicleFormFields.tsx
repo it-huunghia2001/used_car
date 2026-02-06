@@ -80,6 +80,17 @@ export const VehicleFormFields = ({
     return e?.fileList;
   };
 
+  const mapUrlsToFiles = (urls: any) => {
+    if (!urls || !Array.isArray(urls)) return [];
+    return urls.map((url, index) => ({
+      uid: `${index}`, // ID duy nhất cho mỗi file
+      name: `File-${index + 1}`, // Tên hiển thị
+      status: "done", // Trạng thái đã hoàn thành
+      url: url, // Đường dẫn ảnh
+      thumbUrl: url, // Ảnh thu nhỏ
+    }));
+  };
+
   return (
     <div className="animate-fadeIn pb-4">
       {/* SECTION 1: PHÂN LOẠI & TRẠNG THÁI */}
