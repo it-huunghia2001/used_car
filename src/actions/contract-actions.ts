@@ -113,7 +113,14 @@ export async function getContractDetailAction(id: string) {
   const contract = await db.contract.findUnique({
     where: { id },
     include: {
-      customer: true, // Lấy full thông tin khách hàng bao gồm ảnh/tài liệu
+      customer: {
+        include: {
+          inspectorRef: true,
+          leadCar: true,
+          referrer: true,
+          branch: true,
+        },
+      }, // Lấy full thông tin khách hàng bao gồm ảnh/tài liệu
       car: true, // Lấy full thông tin xe
       staff: {
         select: { fullName: true, username: true },

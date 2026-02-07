@@ -40,6 +40,8 @@ import {
   EnvironmentOutlined,
   SafetyCertificateOutlined,
   TeamOutlined,
+  InfoCircleOutlined,
+  ToolOutlined,
 } from "@ant-design/icons";
 import {
   getContractsAction,
@@ -180,6 +182,16 @@ export default function ContractPage() {
       ),
     },
     {
+      title: "GIÁ TRỊ",
+      dataIndex: "totalAmount",
+      align: "right" as any,
+      render: (val: any) => (
+        <Text strong className="text-rose-600">
+          {Number(val).toLocaleString()} đ
+        </Text>
+      ),
+    },
+    {
       title: "TRẠNG THÁI",
       dataIndex: "status",
       render: (status: string) => {
@@ -226,7 +238,8 @@ export default function ContractPage() {
               Quản lý Hợp đồng
             </Title>
             <Text type="secondary">
-              Đối soát thông tin khách hàng, xe và dữ liệu giám định thực tế
+              Đối soát thông tin khách hàng, chi tiết xe giám định và dữ liệu
+              nhập kho
             </Text>
           </div>
         </Space>
@@ -262,7 +275,7 @@ export default function ContractPage() {
           <Space>
             <Badge status="processing" />
             <span className="font-black uppercase tracking-tight">
-              Hồ sơ chi tiết hợp đồng
+              Hồ sơ chi tiết hợp đồng toàn diện
             </span>
           </Space>
         }
@@ -277,7 +290,7 @@ export default function ContractPage() {
             onClick={() => setIsDetailOpen(false)}
             className="rounded-xl h-11 px-8 font-bold"
           >
-            ĐÓNG
+            ĐÓNG HỒ SƠ
           </Button>,
           selectedContract?.status === "SIGNED" && (
             <Button
@@ -291,14 +304,14 @@ export default function ContractPage() {
                 )
               }
             >
-              HOÀN TẤT THANH TOÁN & XUẤT KHO
+              XÁC NHẬN THANH TOÁN & SOLD
             </Button>
           ),
         ]}
       >
         {selectedContract ? (
-          <div className="py-2 space-y-6 animate-fadeIn custom-scrollbar max-h-[80vh] overflow-y-auto px-4">
-            {/* 1. THÔNG TIN KHÁCH HÀNG & NHÂN VIÊN PHỤ TRÁCH */}
+          <div className="py-2 space-y-6 animate-fadeIn custom-scrollbar max-h-[80vh] overflow-y-auto px-4 overflow-x-hidden">
+            {/* 1. THÔNG TIN ĐỐI TÁC & NHÂN SỰ PHỤ TRÁCH */}
             <Row gutter={[20, 20]}>
               <Col xs={24} lg={16}>
                 <Card
@@ -306,8 +319,8 @@ export default function ContractPage() {
                   className="rounded-2xl border-slate-100 shadow-sm"
                   title={
                     <Space>
-                      <UserOutlined className="text-blue-500" /> THÔNG TIN KHÁCH
-                      HÀNG (BÊN A)
+                      <UserOutlined className="text-blue-500" /> THÔNG TIN BÊN A
+                      (KHÁCH HÀNG)
                     </Space>
                   }
                 >
@@ -326,25 +339,31 @@ export default function ContractPage() {
                           {selectedContract.customer?.address ||
                             "Chưa cập nhật"}
                         </Descriptions.Item>
+                        <Descriptions.Item label="Tỉnh/Thành">
+                          {selectedContract.customer?.province || "---"}
+                        </Descriptions.Item>
                       </Descriptions>
                     </Col>
                     <Col span={12} className="border-l border-slate-100 pl-6">
                       <Descriptions column={1} size="small">
                         <Descriptions.Item label="Loại yêu cầu">
-                          <Tag color="purple">
+                          <Tag color="purple" className="m-0">
                             {selectedContract.customer?.type}
                           </Tag>
                         </Descriptions.Item>
-                        <Descriptions.Item label="Ngày gửi yêu cầu">
+                        <Descriptions.Item label="Nguồn Lead">
+                          <Text italic className="text-slate-500">
+                            {selectedContract.customer?.referrer?.fullName ||
+                              "Hệ thống"}
+                          </Text>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Ngày tạo hồ sơ">
                           {dayjs(selectedContract.customer?.createdAt).format(
                             "DD/MM/YYYY HH:mm",
                           )}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Nguồn giới thiệu">
-                          <Text italic>
-                            {selectedContract.customer?.referrer?.fullName ||
-                              "Hệ thống"}
-                          </Text>
+                        <Descriptions.Item label="Chi nhánh">
+                          {selectedContract.customer?.branch?.name || "---"}
                         </Descriptions.Item>
                       </Descriptions>
                     </Col>
@@ -358,42 +377,42 @@ export default function ContractPage() {
                   className="rounded-2xl bg-blue-50 border-blue-100 shadow-sm h-full"
                   title={
                     <Space>
-                      <TeamOutlined className="text-blue-600" /> NHÂN SỰ XỬ LÝ
+                      <TeamOutlined className="text-blue-600" /> NHÂN SỰ PHỤ
+                      TRÁCH
                     </Space>
                   }
                 >
                   <div className="space-y-4 p-2">
                     <div className="flex items-center gap-3">
-                      <Badge status="success" offset={[0, 32]}>
-                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-blue-100">
-                          <UserOutlined />
-                        </div>
-                      </Badge>
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-blue-200">
+                        <UserOutlined className="text-blue-600" />
+                      </div>
                       <div>
                         <Text
                           type="secondary"
-                          className="text-[10px] block uppercase font-bold"
+                          className="text-[10px] block uppercase font-black"
                         >
-                          Người thu mua/Bán lẻ
+                          Chốt Hợp Đồng
                         </Text>
-                        <Text strong>{selectedContract.staff?.fullName}</Text>
+                        <Text strong className="text-slate-700">
+                          {selectedContract.staff?.fullName}
+                        </Text>
                       </div>
                     </div>
-                    <Divider className="m-0!" />
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-blue-100">
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-green-200">
                         <SafetyCertificateOutlined className="text-green-500" />
                       </div>
                       <div>
                         <Text
                           type="secondary"
-                          className="text-[10px] block uppercase font-bold"
+                          className="text-[10px] block uppercase font-black"
                         >
-                          Nhân viên giám định
+                          Giám định xe
                         </Text>
-                        <Text strong>
+                        <Text strong className="text-slate-700">
                           {selectedContract.customer?.inspectorRef?.fullName ||
-                            "Chưa có dữ liệu"}
+                            "Chưa xác định"}
                         </Text>
                       </div>
                     </div>
@@ -402,85 +421,113 @@ export default function ContractPage() {
               </Col>
             </Row>
 
-            {/* 2. CHI TIẾT PHƯƠNG TIỆN & KẾT QUẢ GIÁM ĐỊNH */}
+            {/* 2. THÔNG TIN KỸ THUẬT CHI TIẾT (LEADCAR) */}
             <Card
               size="small"
               className="rounded-2xl border-slate-100 shadow-sm"
               title={
                 <Space>
-                  <CarOutlined className="text-indigo-500" /> CHI TIẾT PHƯƠNG
-                  TIỆN & KẾT QUẢ GIÁM ĐỊNH
+                  <ToolOutlined className="text-indigo-500" /> CHI TIẾT THÔNG SỐ
+                  XE (HỒ SƠ GIÁM ĐỊNH GỐC)
                 </Space>
               }
             >
               <Row gutter={24} className="p-2">
                 <Col xs={24} md={12}>
-                  <Descriptions column={1} size="small" bordered>
-                    <Descriptions.Item label="Dòng xe (Model)">
-                      <Text strong>{selectedContract.car?.modelName}</Text>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Biển số">
-                      <Tag color="cyan" className="font-bold m-0">
-                        {selectedContract.car?.licensePlate || "CHƯA BIỂN"}
-                      </Tag>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Số khung (VIN)">
-                      <Text className="font-mono text-[12px]">
-                        {selectedContract.car?.vin || "---"}
+                  <Descriptions
+                    column={2}
+                    size="small"
+                    bordered
+                    className="bg-white"
+                  >
+                    <Descriptions.Item label="Model" span={2}>
+                      <Text strong className="text-indigo-600">
+                        {selectedContract.customer?.leadCar?.modelName ||
+                          selectedContract.car?.modelName}
                       </Text>
                     </Descriptions.Item>
-                    <Descriptions.Item label="Số ODO thực tế">
-                      <Text strong>
-                        {selectedContract.car?.odo?.toLocaleString()} km
+                    <Descriptions.Item label="Năm SX">
+                      {selectedContract.customer?.leadCar?.year || "---"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Số chỗ">
+                      {selectedContract.customer?.leadCar?.seats || "---"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Hộp số">
+                      {selectedContract.customer?.leadCar?.transmission ||
+                        "---"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Nhiên liệu">
+                      {selectedContract.customer?.leadCar?.fuelType || "---"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Số khung" span={2}>
+                      <Text className="font-mono text-[11px]">
+                        {selectedContract.customer?.leadCar?.vin ||
+                          selectedContract.car?.vin}
+                      </Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Số máy" span={2}>
+                      <Text className="font-mono text-[11px]">
+                        {selectedContract.customer?.leadCar?.engineNumber ||
+                          selectedContract.car?.engineNumber}
                       </Text>
                     </Descriptions.Item>
                   </Descriptions>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Descriptions column={1} size="small" bordered>
-                    <Descriptions.Item label="Ngày giám định xong">
+                  <Descriptions
+                    column={1}
+                    size="small"
+                    bordered
+                    className="bg-white"
+                  >
+                    <Descriptions.Item label="Số ODO lúc giám định">
+                      <Text strong className="text-rose-600">
+                        {selectedContract.customer?.leadCar?.odo?.toLocaleString()}{" "}
+                        km
+                      </Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Màu (Ngoại/Nội)">
+                      <Text>
+                        {selectedContract.customer?.leadCar?.color} /{" "}
+                        {selectedContract.customer?.leadCar?.interiorColor}
+                      </Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Địa điểm xem xe">
+                      <Text className="text-[11px]">
+                        <EnvironmentOutlined />{" "}
+                        {selectedContract.customer?.inspectLocation}
+                      </Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Ngày hoàn tất GĐ">
                       <Text strong>
-                        <CalendarOutlined />{" "}
                         {selectedContract.customer?.inspectDoneDate
                           ? dayjs(
                               selectedContract.customer.inspectDoneDate,
                             ).format("DD/MM/YYYY")
-                          : "Chưa cập nhật"}
-                      </Text>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Địa điểm giám định">
-                      <EnvironmentOutlined />{" "}
-                      {selectedContract.customer?.inspectLocation ||
-                        "Tại chi nhánh"}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Định giá T-Sure (Dự kiến)">
-                      <Text className="text-blue-600 font-bold">
-                        {selectedContract.customer?.leadCar?.tSurePrice
-                          ? Number(
-                              selectedContract.customer.leadCar.tSurePrice,
-                            ).toLocaleString() + " đ"
                           : "---"}
                       </Text>
                     </Descriptions.Item>
-                    <Descriptions.Item label="Tình trạng chung">
-                      <Badge
-                        status="success"
-                        text={selectedContract.car?.description || "Rất tốt"}
-                      />
+                    <Descriptions.Item label="Định giá T-Sure">
+                      <Text strong className="text-blue-600">
+                        {Number(
+                          selectedContract.customer?.leadCar?.tSurePrice || 0,
+                        ).toLocaleString()}{" "}
+                        đ
+                      </Text>
                     </Descriptions.Item>
                   </Descriptions>
                 </Col>
               </Row>
             </Card>
 
-            {/* 3. ALBUM HÌNH ẢNH (GIÁM ĐỊNH & HỒ SƠ) */}
+            {/* 3. BẰNG CHỨNG HÌNH ẢNH (CARIMAGES) */}
             <Card
               size="small"
               className="rounded-2xl border-orange-100 bg-orange-50/10 shadow-sm"
               title={
                 <Space>
-                  <CameraOutlined className="text-orange-500" /> BẰNG CHỨNG HÌNH
-                  ẢNH & CHỨNG TỪ GỐC
+                  <CameraOutlined className="text-orange-500" /> ALBUM GIÁM ĐỊNH
+                  & CHỨNG TỪ GỐC
                 </Space>
               }
             >
@@ -488,9 +535,9 @@ export default function ContractPage() {
                 <Col span={24} lg={12}>
                   <Text
                     strong
-                    className="block mb-3 text-slate-600 uppercase text-[11px] tracking-widest"
+                    className="block mb-3 text-slate-600 uppercase text-[10px] tracking-widest font-black"
                   >
-                    <CameraOutlined /> Album Giám định xe (
+                    Ảnh xe thực tế từ hiện trường (
                     {selectedContract.customer?.carImages?.length || 0})
                   </Text>
                   <div className="bg-white p-4 rounded-2xl border border-dashed border-slate-300 min-h-[140px]">
@@ -502,7 +549,7 @@ export default function ContractPage() {
                               <Image
                                 key={index}
                                 src={url}
-                                className="rounded-xl object-cover h-[100px] w-full border shadow-sm hover:opacity-80"
+                                className="rounded-xl object-cover h-[90px] w-full border shadow-sm hover:brightness-90 transition-all cursor-zoom-in"
                               />
                             ),
                           )}
@@ -511,7 +558,7 @@ export default function ContractPage() {
                     ) : (
                       <Empty
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description="Không có ảnh giám định"
+                        description="Không có ảnh xe"
                       />
                     )}
                   </div>
@@ -519,9 +566,9 @@ export default function ContractPage() {
                 <Col span={24} lg={12}>
                   <Text
                     strong
-                    className="block mb-3 text-slate-600 uppercase text-[11px] tracking-widest"
+                    className="block mb-3 text-slate-600 uppercase text-[10px] tracking-widest font-black"
                   >
-                    <FilePdfOutlined /> Hồ sơ khách hàng / Đăng kiểm (
+                    Giấy tờ pháp lý / Đăng kiểm (
                     {selectedContract.customer?.documents?.length || 0})
                   </Text>
                   <div className="bg-white p-4 rounded-2xl border border-dashed border-slate-300 min-h-[140px]">
@@ -533,7 +580,7 @@ export default function ContractPage() {
                               <Image
                                 key={index}
                                 src={url}
-                                className="rounded-xl object-cover h-[100px] w-full border shadow-sm hover:opacity-80"
+                                className="rounded-xl object-cover h-[90px] w-full border shadow-sm hover:brightness-90 transition-all cursor-zoom-in"
                               />
                             ),
                           )}
@@ -542,7 +589,7 @@ export default function ContractPage() {
                     ) : (
                       <Empty
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description="Không có ảnh tài liệu"
+                        description="Không có tài liệu"
                       />
                     )}
                   </div>
@@ -550,96 +597,105 @@ export default function ContractPage() {
               </Row>
             </Card>
 
-            {/* 4. ĐỐI SOÁT TÀI CHÍNH & HỢP ĐỒNG SCAN */}
-            <Row gutter={16}>
-              <Col span={24} lg={14}>
+            {/* 4. TÀI CHÍNH & FILE HỢP ĐỒNG SCAN */}
+            <Row gutter={20}>
+              <Col span={24} lg={15}>
                 <Card
-                  className="rounded-3xl bg-slate-900 text-white shadow-xl border-none h-full"
+                  className="rounded-[2.5rem] bg-slate-900 text-white shadow-2xl border-none overflow-hidden"
                   title={
-                    <Space className="text-white">
-                      <DollarOutlined /> CHI TIẾT THANH TOÁN
+                    <Space className="text-white font-black uppercase text-[12px] tracking-widest">
+                      <DollarOutlined /> Tình trạng thanh toán
                     </Space>
                   }
                 >
-                  <div className="flex flex-col h-full justify-around py-4">
-                    <Row align="middle">
-                      <Col
-                        span={10}
-                        className="text-center border-r border-slate-700"
-                      >
-                        <Text className="text-slate-400 uppercase text-[10px] font-bold block">
-                          Tổng giá trị HĐ
-                        </Text>
-                        <div className="text-2xl font-black text-rose-400">
-                          {Number(
-                            selectedContract.totalAmount,
-                          ).toLocaleString()}{" "}
-                          đ
-                        </div>
-                      </Col>
-                      <Col
-                        span={4}
-                        className="text-center text-slate-600 text-2xl"
-                      >
-                        -
-                      </Col>
-                      <Col span={10} className="text-center">
-                        <Text className="text-slate-400 uppercase text-[10px] font-bold block">
-                          Đã đặt cọc
-                        </Text>
-                        <div className="text-2xl font-black text-emerald-400">
-                          {Number(
-                            selectedContract.depositAmount,
-                          ).toLocaleString()}{" "}
-                          đ
-                        </div>
-                      </Col>
-                    </Row>
-                    <Divider className="border-slate-800 m-4!" />
-                    <div className="text-center">
-                      <Text className="text-blue-400 uppercase text-[11px] font-black block mb-2 tracking-widest">
-                        SỐ TIỀN CÒN LẠI CẦN THU / TRẢ
+                  <Row align="middle" className="py-4">
+                    <Col
+                      span={11}
+                      className="text-center border-r border-slate-800"
+                    >
+                      <Text className="text-slate-500 uppercase text-[10px] font-black block mb-2">
+                        Giá trị giao dịch
                       </Text>
-                      <div className="text-5xl font-black text-blue-400 drop-shadow-lg">
-                        {(
-                          selectedContract.totalAmount -
-                          selectedContract.depositAmount
-                        ).toLocaleString()}{" "}
-                        <span className="text-xl">đ</span>
+                      <div className="text-3xl font-black text-rose-500">
+                        {Number(selectedContract.totalAmount).toLocaleString()}{" "}
+                        <span className="text-xs">đ</span>
                       </div>
+                    </Col>
+
+                    <Col span={11} className="text-center">
+                      <Text className="text-slate-500 uppercase text-[10px] font-black block mb-2">
+                        Đã thu cọc
+                      </Text>
+                      <div className="text-3xl font-black text-emerald-500">
+                        {Number(
+                          selectedContract.depositAmount,
+                        ).toLocaleString()}{" "}
+                        <span className="text-xs">đ</span>
+                      </div>
+                    </Col>
+                  </Row>
+                  <div className="bg-slate-100/50 p-6 text-center border-t border-slate-800">
+                    <Text className="text-blue-400 uppercase text-[12px] font-black block mb-2 tracking-[0.2em]">
+                      Số tiền còn lại cần quyết toán
+                    </Text>
+                    <div className="text-6xl font-black text-blue-400 tracking-tighter drop-shadow-[0_0_15px_rgba(96,165,250,0.3)]">
+                      {(
+                        selectedContract.totalAmount -
+                        selectedContract.depositAmount
+                      ).toLocaleString()}{" "}
+                      <span className="text-2xl">đ</span>
                     </div>
                   </div>
                 </Card>
               </Col>
-              <Col span={24} lg={10}>
+
+              <Col span={24} lg={9}>
                 <Card
                   size="small"
                   title={
                     <Space>
-                      <SolutionOutlined /> HỢP ĐỒNG PHÁP LÝ (BẢN DẤU ĐỎ)
+                      <SolutionOutlined /> HỢP ĐỒNG SCAN (BẢN KÝ TÊN)
                     </Space>
                   }
-                  className="rounded-2xl border-dashed border-blue-200 bg-blue-50/30 h-full"
+                  className="rounded-3xl border-dashed border-blue-200 bg-blue-50/20 h-full flex flex-col justify-center"
                 >
-                  <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                  <div className="flex flex-col items-center py-6">
                     {selectedContract.contractFile ? (
-                      <div className="text-center">
-                        <div className="w-20 h-24 bg-white rounded-lg shadow-md border border-blue-100 flex items-center justify-center mb-3 mx-auto">
-                          <FilePdfOutlined className="text-4xl text-rose-500" />
-                        </div>
-                        <Button
-                          type="primary"
-                          shape="round"
-                          size="large"
-                          icon={<EyeOutlined />}
-                          href={selectedContract.contractFile}
-                          target="_blank"
+                      <div className="mb-6 text-center">
+                        <Badge
+                          count={
+                            <CheckCircleOutlined className="text-green-500 bg-white rounded-full p-0.5" />
+                          }
+                          offset={[-10, 80]}
                         >
-                          XEM HỢP ĐỒNG
-                        </Button>
+                          <div className="w-24 h-32 bg-white rounded-xl shadow-xl border border-blue-100 flex flex-col items-center justify-center p-4">
+                            <FilePdfOutlined className="text-5xl text-rose-500 mb-2" />
+                            <Text className="text-[9px] font-black uppercase text-slate-400 truncate w-full">
+                              Contract_Signed
+                            </Text>
+                          </div>
+                        </Badge>
+                        <div className="mt-4">
+                          <Button
+                            type="primary"
+                            shape="round"
+                            size="large"
+                            icon={<EyeOutlined />}
+                            href={selectedContract.contractFile}
+                            target="_blank"
+                            className="bg-blue-600"
+                          >
+                            XEM BẢN SCAN
+                          </Button>
+                        </div>
                       </div>
                     ) : (
-                      <Empty description="Chưa có file scan" className="m-0" />
+                      <div className="text-center py-8">
+                        <InfoCircleOutlined className="text-4xl text-slate-300 mb-2" />
+                        <Text type="secondary" className="block italic">
+                          Chưa tải lên bản đối soát hợp đồng
+                        </Text>
+                      </div>
                     )}
 
                     <Upload
@@ -653,10 +709,11 @@ export default function ContractPage() {
                         shape="round"
                         icon={<UploadOutlined />}
                         loading={uploading}
+                        className="border-blue-300 text-blue-600 font-bold uppercase text-[10px] tracking-widest h-10"
                       >
                         {selectedContract.contractFile
-                          ? "CẬP NHẬT BẢN MỚI"
-                          : "TẢI LÊN FILE HỢP ĐỒNG"}
+                          ? "Tải lại bản khác"
+                          : "Tải lên hợp đồng dấu đỏ"}
                       </Button>
                     </Upload>
                   </div>
@@ -664,47 +721,60 @@ export default function ContractPage() {
               </Col>
             </Row>
 
-            {/* GHI CHÚ PHÊ DUYỆT */}
+            {/* SECTION 5: ĐÁNH GIÁ TỪ ADMIN */}
             {selectedContract.note && (
-              <div className="p-6 bg-amber-50 rounded-[2rem] border border-amber-100 italic text-slate-700 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-2 h-full bg-amber-400"></div>
-                <Text
-                  strong
-                  className="text-[11px] uppercase text-amber-700 block mb-2 tracking-widest"
-                >
-                  Lời nhắn từ Admin / Ghi chú phê duyệt:
-                </Text>
-                <span className="text-base">{selectedContract.note}</span>
+              <div className="p-8 bg-amber-50/50 rounded-[3rem] border-2 border-amber-100 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-3 h-full bg-amber-400"></div>
+                <div className="flex items-start gap-4">
+                  <Badge count="!" className="bg-amber-400 font-black" />
+                  <div>
+                    <Text
+                      strong
+                      className="text-[12px] uppercase text-amber-800 block mb-2 tracking-widest font-black"
+                    >
+                      Ghi chú từ cấp quản lý / Phê duyệt:
+                    </Text>
+                    <span className="text-lg text-slate-700 font-serif italic">
+                      {selectedContract.note}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="py-20 text-center">
-            <Empty description="Đang tải dữ liệu hồ sơ..." />
+          <div className="py-40 text-center">
+            <Empty description="Hệ thống đang trích xuất dữ liệu hồ sơ..." />
           </div>
         )}
       </Modal>
 
+      {/* --- CSS SYSTEM --- */}
       <style jsx global>{`
         .custom-contract-table .ant-table-thead > tr > th {
           background: #f8fafc !important;
-          color: #64748b !important;
+          color: #475569 !important;
           font-size: 11px !important;
           text-transform: uppercase !important;
-          letter-spacing: 1.5px !important;
-          font-weight: 800 !important;
+          letter-spacing: 2px !important;
+          font-weight: 900 !important;
+          border-bottom: 2px solid #e2e8f0 !important;
+          padding: 20px 16px !important;
         }
         .clickable-rows .ant-table-row:hover {
           cursor: pointer;
-          background-color: #f0f7ff !important;
-          transition: all 0.2s;
+          background-color: #f8fbff !important;
+          transition: all 0.3s ease;
         }
         .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
+          width: 8px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background: #cbd5e1;
           border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
         }
       `}</style>
     </div>
