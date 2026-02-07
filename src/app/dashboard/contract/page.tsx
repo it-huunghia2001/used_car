@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/alt-text */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -18,6 +19,9 @@ import {
   Col,
   Divider,
   Tooltip,
+  Badge,
+  Empty,
+  Image,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -29,13 +33,19 @@ import {
   CarOutlined,
   DollarOutlined,
   CalendarOutlined,
-  CreditCardOutlined,
+  ClockCircleOutlined,
+  ArrowRightOutlined,
+  CameraOutlined,
+  SolutionOutlined,
+  EnvironmentOutlined,
+  SafetyCertificateOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import {
   getContractsAction,
   completeContractAction,
   getContractDetailAction,
-  uploadContractFileAction, // Đảm bảo bạn đã export hàm này trong actions
+  uploadContractFileAction,
 } from "@/actions/contract-actions";
 import dayjs from "dayjs";
 
@@ -44,8 +54,6 @@ const { Title, Text } = Typography;
 export default function ContractPage() {
   const [loading, setLoading] = useState(false);
   const [contracts, setContracts] = useState<any[]>([]);
-
-  // Modal states
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -82,42 +90,47 @@ export default function ContractPage() {
   const handleComplete = (id: string, no: string) => {
     Modal.confirm({
       title: "Xác nhận hoàn tất thanh toán?",
-      content: `Hợp đồng ${no} sẽ chuyển sang trạng thái HOÀN TẤT. Xe sẽ chính thức xuất kho (SOLD) và hồ sơ khách hàng sẽ được đóng.`,
+      icon: <CheckCircleOutlined className="text-green-500" />,
+      content: (
+        <div>
+          <p>
+            Hợp đồng <b>{no}</b> sẽ được chuyển sang trạng thái <b>HOÀN TẤT</b>.
+          </p>
+          <p className="text-red-500 text-[12px]">
+            Xe sẽ chính thức xuất kho (SOLD) và hồ sơ khách hàng sẽ đóng lại.
+          </p>
+        </div>
+      ),
       okText: "Xác nhận chốt",
       cancelText: "Hủy",
+      okButtonProps: { className: "bg-green-600" },
       onOk: async () => {
         const res = await completeContractAction(id);
         if (res.success) {
-          message.success("Đã chốt hợp đồng thành công!");
+          message.success("Hợp đồng đã hoàn tất thành công!");
           loadData();
           setIsDetailOpen(false);
         } else {
-          message.error(res.error);
+          message.error(res.error || "Có lỗi xảy ra");
         }
       },
     });
   };
 
-  // Hàm xử lý Upload thực tế
   const handleFileUpload = async (file: File) => {
+    if (!selectedContract) return;
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
-
     try {
-      // 1. Gọi API Route để lưu file vào public/uploads hoặc Cloudinary
       const uploadRes = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
       const uploadData = await uploadRes.json();
-
       if (uploadData.url) {
-        // 2. Cập nhật URL vào Database thông qua Server Action
         await uploadContractFileAction(selectedContract.id, uploadData.url);
-        message.success("Tải lên bản scan hợp đồng thành công");
-
-        // Cập nhật lại UI local
+        message.success("Đã cập nhật file hợp đồng");
         setSelectedContract({
           ...selectedContract,
           contractFile: uploadData.url,
@@ -125,7 +138,7 @@ export default function ContractPage() {
         loadData();
       }
     } catch (error) {
-      message.error("Lỗi khi tải file lên");
+      message.error("Lỗi upload file");
     } finally {
       setUploading(false);
     }
@@ -137,7 +150,7 @@ export default function ContractPage() {
       dataIndex: "contractNumber",
       width: 180,
       render: (text: string) => (
-        <Text strong className="text-blue-600">
+        <Text strong className="text-blue-600 font-mono">
           {text}
         </Text>
       ),
@@ -145,47 +158,33 @@ export default function ContractPage() {
     {
       title: "LOẠI",
       dataIndex: "type",
-      width: 120,
+      width: 100,
       render: (type: string) => (
         <Tag
           color={type === "SALE" ? "green" : "volcano"}
-          className="font-bold"
+          className="font-bold border-none rounded-md"
         >
           {type === "SALE" ? "BÁN LẺ" : "THU MUA"}
         </Tag>
       ),
     },
     {
-      title: "KHÁCH HÀNG / XE",
+      title: "KHÁCH HÀNG",
       render: (r: any) => (
-        <div>
+        <div className="flex flex-col">
           <Text strong>{r.customer?.fullName}</Text>
           <Text type="secondary" className="text-[11px]">
-            {r.car?.modelName} -{" "}
-            <Tag className="m-0 text-[10px] px-1 leading-none">
-              {r.car?.stockCode}
-            </Tag>
+            {r.customer?.phone}
           </Text>
         </div>
       ),
     },
     {
-      title: "GIÁ TRỊ (VNĐ)",
-      dataIndex: "totalAmount",
-      align: "right" as any,
-      render: (val: any) => (
-        <Text strong className="text-rose-600">
-          {Number(val).toLocaleString()} đ
-        </Text>
-      ),
-    },
-    {
       title: "TRẠNG THÁI",
       dataIndex: "status",
-      width: 150,
       render: (status: string) => {
         const config: any = {
-          SIGNED: { color: "blue", text: "ĐÃ KÝ" },
+          SIGNED: { color: "blue", text: "ĐÃ KÝ KẾT" },
           COMPLETED: { color: "success", text: "HOÀN TẤT" },
           CANCELLED: { color: "error", text: "ĐÃ HỦY" },
           DRAFT: { color: "default", text: "NHÁP" },
@@ -193,7 +192,7 @@ export default function ContractPage() {
         return (
           <Tag
             color={config[status]?.color}
-            className="font-black border-none px-3 rounded-full"
+            className="font-bold border-none px-3 rounded-full"
           >
             {config[status]?.text}
           </Tag>
@@ -203,92 +202,88 @@ export default function ContractPage() {
     {
       title: "THAO TÁC",
       fixed: "right" as any,
-      width: 180,
+      width: 100,
       render: (r: any) => (
-        <Space>
-          <Tooltip title="Xem chi tiết & File">
-            <Button
-              icon={<EyeOutlined />}
-              onClick={() => handleOpenDetail(r.id)}
-            />
-          </Tooltip>
-          {r.status === "SIGNED" && (
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              onClick={() => handleComplete(r.id, r.contractNumber)}
-            >
-              Chốt
-            </Button>
-          )}
-        </Space>
+        <Button
+          shape="circle"
+          icon={<EyeOutlined />}
+          onClick={() => handleOpenDetail(r.id)}
+        />
       ),
     },
   ];
 
   return (
     <div className="p-4 md:p-8 bg-[#f4f7fe] min-h-screen">
-      {/* HEADER PAGE */}
-      <div className="max-w-[1400px] mx-auto mb-6 flex justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+      {/* HEADER */}
+      <div className="max-w-[1600px] mx-auto mb-6 flex justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
         <Space size={16}>
-          <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-            <FileProtectOutlined className="text-xl" />
+          <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+            <FileProtectOutlined className="text-2xl" />
           </div>
           <div>
-            <Title
-              level={3}
-              className="m-0! uppercase font-black tracking-tight"
-            >
-              Quản lý hợp đồng
+            <Title level={3} className="m-0!">
+              Quản lý Hợp đồng
             </Title>
             <Text type="secondary">
-              Đối soát tài chính và xác nhận xuất kho
+              Đối soát thông tin khách hàng, xe và dữ liệu giám định thực tế
             </Text>
           </div>
         </Space>
+        <Button
+          size="large"
+          icon={<ClockCircleOutlined />}
+          className="rounded-2xl font-bold"
+          onClick={loadData}
+        >
+          LÀM MỚI
+        </Button>
       </div>
 
-      <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white/70 backdrop-blur-md">
-        <Table
-          dataSource={contracts}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-          scroll={{ x: 1100 }}
-          className="custom-contract-table"
-        />
-      </Card>
+      {/* TABLE */}
+      <div className="max-w-[1600px] mx-auto">
+        <Card className="rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-white/80 backdrop-blur-lg">
+          <Table
+            dataSource={contracts}
+            columns={columns}
+            rowKey="id"
+            loading={loading}
+            pagination={{ pageSize: 10 }}
+            scroll={{ x: 1200 }}
+            className="custom-contract-table clickable-rows"
+            onRow={(record) => ({ onClick: () => handleOpenDetail(record.id) })}
+          />
+        </Card>
+      </div>
 
-      {/* MODAL CHI TIẾT HỢP ĐỒNG NÂNG CẤP */}
+      {/* DETAILED MODAL */}
       <Modal
         title={
           <Space>
-            <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
-              <FileProtectOutlined />
-            </div>
-            <span className="font-bold uppercase">
-              Hồ sơ Hợp đồng: {selectedContract?.contractNumber}
+            <Badge status="processing" />
+            <span className="font-black uppercase tracking-tight">
+              Hồ sơ chi tiết hợp đồng
             </span>
           </Space>
         }
         open={isDetailOpen}
         onCancel={() => setIsDetailOpen(false)}
-        width={1000}
+        width={1300}
         centered
+        destroyOnClose
         footer={[
           <Button
             key="back"
             onClick={() => setIsDetailOpen(false)}
-            className="rounded-xl h-10 px-6"
+            className="rounded-xl h-11 px-8 font-bold"
           >
-            Đóng
+            ĐÓNG
           </Button>,
           selectedContract?.status === "SIGNED" && (
             <Button
-              key="submit"
+              key="complete"
               type="primary"
-              className="rounded-xl h-10 px-6 bg-blue-600 shadow-lg"
+              className="rounded-xl h-11 px-8 bg-green-600 shadow-lg font-bold"
               onClick={() =>
                 handleComplete(
                   selectedContract.id,
@@ -296,197 +291,396 @@ export default function ContractPage() {
                 )
               }
             >
-              Xác nhận hoàn tất & Xuất kho (SOLD)
+              HOÀN TẤT THANH TOÁN & XUẤT KHO
             </Button>
           ),
         ]}
       >
-        {selectedContract && (
-          <div className="py-4 space-y-6">
-            <Row gutter={[24, 24]}>
-              {/* CỘT 1: THÔNG TIN HỢP ĐỒNG */}
-              <Col span={24}>
-                <Descriptions
-                  bordered
-                  size="small"
-                  column={{ xs: 1, sm: 2, md: 3 }}
-                >
-                  <Descriptions.Item
-                    label={
-                      <>
-                        <CalendarOutlined /> Ngày tạo
-                      </>
-                    }
-                  >
-                    {dayjs(selectedContract.createdAt).format(
-                      "DD/MM/YYYY HH:mm",
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Phương thức">
-                    {selectedContract.paymentMethod || "Chưa xác định"}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Nhân viên phụ trách">
-                    <Text strong>{selectedContract.staff?.fullName}</Text>
-                  </Descriptions.Item>
-                </Descriptions>
-              </Col>
-
-              <Col md={12} span={24}>
+        {selectedContract ? (
+          <div className="py-2 space-y-6 animate-fadeIn custom-scrollbar max-h-[80vh] overflow-y-auto px-4">
+            {/* 1. THÔNG TIN KHÁCH HÀNG & NHÂN VIÊN PHỤ TRÁCH */}
+            <Row gutter={[20, 20]}>
+              <Col xs={24} lg={16}>
                 <Card
                   size="small"
+                  className="rounded-2xl border-slate-100 shadow-sm"
                   title={
                     <Space>
-                      <UserOutlined className="text-blue-500" /> Bên A: Khách
-                      hàng
+                      <UserOutlined className="text-blue-500" /> THÔNG TIN KHÁCH
+                      HÀNG (BÊN A)
                     </Space>
                   }
-                  className="bg-slate-50/50 rounded-2xl h-full"
                 >
-                  <div className="p-2">
-                    <Text strong className="text-lg">
-                      {selectedContract.customer?.fullName?.toUpperCase()}
-                    </Text>
-                    <div className="mt-2">
-                      <Text type="secondary">SĐT: </Text>
-                      <Text strong>{selectedContract.customer?.phone}</Text>
-                    </div>
-                    <div className="mt-1">
-                      <Text type="secondary">Địa chỉ: </Text>
-                      {selectedContract.customer?.address || "---"}
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-
-              <Col md={12} span={24}>
-                <Card
-                  size="small"
-                  title={
-                    <Space>
-                      <CarOutlined className="text-indigo-500" /> Đối tượng:
-                      Phương tiện
-                    </Space>
-                  }
-                  className="bg-slate-50/50 rounded-2xl h-full"
-                >
-                  <div className="p-2">
-                    <Text strong className="text-base">
-                      {selectedContract.car?.modelName}
-                    </Text>
-                    <div className="mt-2 flex gap-4">
-                      <div>
-                        <Text type="secondary">Mã kho: </Text>
-                        <Tag color="blue" className="m-0">
-                          {selectedContract.car?.stockCode}
-                        </Tag>
-                      </div>
-                      <div>
-                        <Text type="secondary">Biển số: </Text>
-                        <Tag color="cyan" className="m-0">
-                          {selectedContract.car?.licensePlate || "Chưa có"}
-                        </Tag>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-
-              {/* PHẦN TÀI CHÍNH VÀ FILE */}
-              <Col span={24}>
-                <Card className="rounded-2xl border-indigo-100 bg-indigo-50/20 overflow-hidden shadow-inner">
-                  <Row align="middle" gutter={24}>
-                    <Col md={14} span={24}>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Text
-                            type="secondary"
-                            className="text-[11px] uppercase font-bold"
-                          >
-                            Giá trị hợp đồng
+                  <Row gutter={16} className="p-2">
+                    <Col span={12}>
+                      <Descriptions column={1} size="small">
+                        <Descriptions.Item label="Họ tên">
+                          <Text strong className="text-base text-blue-600">
+                            {selectedContract.customer?.fullName?.toUpperCase()}
                           </Text>
-                          <div className="text-2xl font-black text-rose-600">
-                            {Number(
-                              selectedContract.totalAmount,
-                            ).toLocaleString()}{" "}
-                            <span className="text-sm">VNĐ</span>
-                          </div>
-                        </div>
-                        <div>
-                          <Text
-                            type="secondary"
-                            className="text-[11px] uppercase font-bold"
-                          >
-                            Tiền cọc (Đã thu)
-                          </Text>
-                          <div className="text-2xl font-black text-emerald-600">
-                            {Number(
-                              selectedContract.depositAmount,
-                            ).toLocaleString()}{" "}
-                            <span className="text-sm">VNĐ</span>
-                          </div>
-                        </div>
-                      </div>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Điện thoại">
+                          <Text strong>{selectedContract.customer?.phone}</Text>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Địa chỉ">
+                          {selectedContract.customer?.address ||
+                            "Chưa cập nhật"}
+                        </Descriptions.Item>
+                      </Descriptions>
                     </Col>
-                    <Col
-                      md={10}
-                      span={24}
-                      className="border-l border-indigo-100 flex flex-col items-end"
-                    >
-                      <Text type="secondary" className="mb-2 block">
-                        Tài liệu đính kèm (Bản scan):
-                      </Text>
-                      <Space>
-                        {selectedContract.contractFile ? (
-                          <Button
-                            type="primary"
-                            ghost
-                            icon={<FilePdfOutlined />}
-                            href={selectedContract.contractFile}
-                            target="_blank"
-                            className="rounded-lg"
-                          >
-                            XEM HỢP ĐỒNG
-                          </Button>
-                        ) : (
-                          <Text italic type="secondary">
-                            Chưa tải lên...
+                    <Col span={12} className="border-l border-slate-100 pl-6">
+                      <Descriptions column={1} size="small">
+                        <Descriptions.Item label="Loại yêu cầu">
+                          <Tag color="purple">
+                            {selectedContract.customer?.type}
+                          </Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Ngày gửi yêu cầu">
+                          {dayjs(selectedContract.customer?.createdAt).format(
+                            "DD/MM/YYYY HH:mm",
+                          )}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Nguồn giới thiệu">
+                          <Text italic>
+                            {selectedContract.customer?.referrer?.fullName ||
+                              "Hệ thống"}
                           </Text>
-                        )}
-
-                        <Upload
-                          showUploadList={false}
-                          beforeUpload={(file) => {
-                            handleFileUpload(file);
-                            return false; // Ngăn upload tự động của antd
-                          }}
-                        >
-                          <Button
-                            icon={<UploadOutlined />}
-                            loading={uploading}
-                            className="rounded-lg h-9"
-                          >
-                            {selectedContract.contractFile
-                              ? "Thay đổi"
-                              : "Tải lên bản scan"}
-                          </Button>
-                        </Upload>
-                      </Space>
+                        </Descriptions.Item>
+                      </Descriptions>
                     </Col>
                   </Row>
                 </Card>
               </Col>
 
-              {selectedContract.note && (
-                <Col span={24}>
-                  <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 italic text-slate-600">
-                    <Text strong className="not-italic block mb-1">
-                      Ghi chú phê duyệt:
-                    </Text>
-                    {selectedContract.note}
+              <Col xs={24} lg={8}>
+                <Card
+                  size="small"
+                  className="rounded-2xl bg-blue-50 border-blue-100 shadow-sm h-full"
+                  title={
+                    <Space>
+                      <TeamOutlined className="text-blue-600" /> NHÂN SỰ XỬ LÝ
+                    </Space>
+                  }
+                >
+                  <div className="space-y-4 p-2">
+                    <div className="flex items-center gap-3">
+                      <Badge status="success" offset={[0, 32]}>
+                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-blue-100">
+                          <UserOutlined />
+                        </div>
+                      </Badge>
+                      <div>
+                        <Text
+                          type="secondary"
+                          className="text-[10px] block uppercase font-bold"
+                        >
+                          Người thu mua/Bán lẻ
+                        </Text>
+                        <Text strong>{selectedContract.staff?.fullName}</Text>
+                      </div>
+                    </div>
+                    <Divider className="m-0!" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-blue-100">
+                        <SafetyCertificateOutlined className="text-green-500" />
+                      </div>
+                      <div>
+                        <Text
+                          type="secondary"
+                          className="text-[10px] block uppercase font-bold"
+                        >
+                          Nhân viên giám định
+                        </Text>
+                        <Text strong>
+                          {selectedContract.customer?.inspectorRef?.fullName ||
+                            "Chưa có dữ liệu"}
+                        </Text>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+
+            {/* 2. CHI TIẾT PHƯƠNG TIỆN & KẾT QUẢ GIÁM ĐỊNH */}
+            <Card
+              size="small"
+              className="rounded-2xl border-slate-100 shadow-sm"
+              title={
+                <Space>
+                  <CarOutlined className="text-indigo-500" /> CHI TIẾT PHƯƠNG
+                  TIỆN & KẾT QUẢ GIÁM ĐỊNH
+                </Space>
+              }
+            >
+              <Row gutter={24} className="p-2">
+                <Col xs={24} md={12}>
+                  <Descriptions column={1} size="small" bordered>
+                    <Descriptions.Item label="Dòng xe (Model)">
+                      <Text strong>{selectedContract.car?.modelName}</Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Biển số">
+                      <Tag color="cyan" className="font-bold m-0">
+                        {selectedContract.car?.licensePlate || "CHƯA BIỂN"}
+                      </Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Số khung (VIN)">
+                      <Text className="font-mono text-[12px]">
+                        {selectedContract.car?.vin || "---"}
+                      </Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Số ODO thực tế">
+                      <Text strong>
+                        {selectedContract.car?.odo?.toLocaleString()} km
+                      </Text>
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Descriptions column={1} size="small" bordered>
+                    <Descriptions.Item label="Ngày giám định xong">
+                      <Text strong>
+                        <CalendarOutlined />{" "}
+                        {selectedContract.customer?.inspectDoneDate
+                          ? dayjs(
+                              selectedContract.customer.inspectDoneDate,
+                            ).format("DD/MM/YYYY")
+                          : "Chưa cập nhật"}
+                      </Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Địa điểm giám định">
+                      <EnvironmentOutlined />{" "}
+                      {selectedContract.customer?.inspectLocation ||
+                        "Tại chi nhánh"}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Định giá T-Sure (Dự kiến)">
+                      <Text className="text-blue-600 font-bold">
+                        {selectedContract.customer?.leadCar?.tSurePrice
+                          ? Number(
+                              selectedContract.customer.leadCar.tSurePrice,
+                            ).toLocaleString() + " đ"
+                          : "---"}
+                      </Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Tình trạng chung">
+                      <Badge
+                        status="success"
+                        text={selectedContract.car?.description || "Rất tốt"}
+                      />
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Col>
+              </Row>
+            </Card>
+
+            {/* 3. ALBUM HÌNH ẢNH (GIÁM ĐỊNH & HỒ SƠ) */}
+            <Card
+              size="small"
+              className="rounded-2xl border-orange-100 bg-orange-50/10 shadow-sm"
+              title={
+                <Space>
+                  <CameraOutlined className="text-orange-500" /> BẰNG CHỨNG HÌNH
+                  ẢNH & CHỨNG TỪ GỐC
+                </Space>
+              }
+            >
+              <Row gutter={[24, 24]}>
+                <Col span={24} lg={12}>
+                  <Text
+                    strong
+                    className="block mb-3 text-slate-600 uppercase text-[11px] tracking-widest"
+                  >
+                    <CameraOutlined /> Album Giám định xe (
+                    {selectedContract.customer?.carImages?.length || 0})
+                  </Text>
+                  <div className="bg-white p-4 rounded-2xl border border-dashed border-slate-300 min-h-[140px]">
+                    {selectedContract.customer?.carImages?.length > 0 ? (
+                      <Image.PreviewGroup>
+                        <div className="grid grid-cols-4 gap-3">
+                          {selectedContract.customer.carImages.map(
+                            (url: string, index: number) => (
+                              <Image
+                                key={index}
+                                src={url}
+                                className="rounded-xl object-cover h-[100px] w-full border shadow-sm hover:opacity-80"
+                              />
+                            ),
+                          )}
+                        </div>
+                      </Image.PreviewGroup>
+                    ) : (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="Không có ảnh giám định"
+                      />
+                    )}
                   </div>
                 </Col>
-              )}
+                <Col span={24} lg={12}>
+                  <Text
+                    strong
+                    className="block mb-3 text-slate-600 uppercase text-[11px] tracking-widest"
+                  >
+                    <FilePdfOutlined /> Hồ sơ khách hàng / Đăng kiểm (
+                    {selectedContract.customer?.documents?.length || 0})
+                  </Text>
+                  <div className="bg-white p-4 rounded-2xl border border-dashed border-slate-300 min-h-[140px]">
+                    {selectedContract.customer?.documents?.length > 0 ? (
+                      <Image.PreviewGroup>
+                        <div className="grid grid-cols-4 gap-3">
+                          {selectedContract.customer.documents.map(
+                            (url: string, index: number) => (
+                              <Image
+                                key={index}
+                                src={url}
+                                className="rounded-xl object-cover h-[100px] w-full border shadow-sm hover:opacity-80"
+                              />
+                            ),
+                          )}
+                        </div>
+                      </Image.PreviewGroup>
+                    ) : (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="Không có ảnh tài liệu"
+                      />
+                    )}
+                  </div>
+                </Col>
+              </Row>
+            </Card>
+
+            {/* 4. ĐỐI SOÁT TÀI CHÍNH & HỢP ĐỒNG SCAN */}
+            <Row gutter={16}>
+              <Col span={24} lg={14}>
+                <Card
+                  className="rounded-3xl bg-slate-900 text-white shadow-xl border-none h-full"
+                  title={
+                    <Space className="text-white">
+                      <DollarOutlined /> CHI TIẾT THANH TOÁN
+                    </Space>
+                  }
+                >
+                  <div className="flex flex-col h-full justify-around py-4">
+                    <Row align="middle">
+                      <Col
+                        span={10}
+                        className="text-center border-r border-slate-700"
+                      >
+                        <Text className="text-slate-400 uppercase text-[10px] font-bold block">
+                          Tổng giá trị HĐ
+                        </Text>
+                        <div className="text-2xl font-black text-rose-400">
+                          {Number(
+                            selectedContract.totalAmount,
+                          ).toLocaleString()}{" "}
+                          đ
+                        </div>
+                      </Col>
+                      <Col
+                        span={4}
+                        className="text-center text-slate-600 text-2xl"
+                      >
+                        -
+                      </Col>
+                      <Col span={10} className="text-center">
+                        <Text className="text-slate-400 uppercase text-[10px] font-bold block">
+                          Đã đặt cọc
+                        </Text>
+                        <div className="text-2xl font-black text-emerald-400">
+                          {Number(
+                            selectedContract.depositAmount,
+                          ).toLocaleString()}{" "}
+                          đ
+                        </div>
+                      </Col>
+                    </Row>
+                    <Divider className="border-slate-800 m-4!" />
+                    <div className="text-center">
+                      <Text className="text-blue-400 uppercase text-[11px] font-black block mb-2 tracking-widest">
+                        SỐ TIỀN CÒN LẠI CẦN THU / TRẢ
+                      </Text>
+                      <div className="text-5xl font-black text-blue-400 drop-shadow-lg">
+                        {(
+                          selectedContract.totalAmount -
+                          selectedContract.depositAmount
+                        ).toLocaleString()}{" "}
+                        <span className="text-xl">đ</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </Col>
+              <Col span={24} lg={10}>
+                <Card
+                  size="small"
+                  title={
+                    <Space>
+                      <SolutionOutlined /> HỢP ĐỒNG PHÁP LÝ (BẢN DẤU ĐỎ)
+                    </Space>
+                  }
+                  className="rounded-2xl border-dashed border-blue-200 bg-blue-50/30 h-full"
+                >
+                  <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                    {selectedContract.contractFile ? (
+                      <div className="text-center">
+                        <div className="w-20 h-24 bg-white rounded-lg shadow-md border border-blue-100 flex items-center justify-center mb-3 mx-auto">
+                          <FilePdfOutlined className="text-4xl text-rose-500" />
+                        </div>
+                        <Button
+                          type="primary"
+                          shape="round"
+                          size="large"
+                          icon={<EyeOutlined />}
+                          href={selectedContract.contractFile}
+                          target="_blank"
+                        >
+                          XEM HỢP ĐỒNG
+                        </Button>
+                      </div>
+                    ) : (
+                      <Empty description="Chưa có file scan" className="m-0" />
+                    )}
+
+                    <Upload
+                      showUploadList={false}
+                      beforeUpload={(file) => {
+                        handleFileUpload(file);
+                        return false;
+                      }}
+                    >
+                      <Button
+                        shape="round"
+                        icon={<UploadOutlined />}
+                        loading={uploading}
+                      >
+                        {selectedContract.contractFile
+                          ? "CẬP NHẬT BẢN MỚI"
+                          : "TẢI LÊN FILE HỢP ĐỒNG"}
+                      </Button>
+                    </Upload>
+                  </div>
+                </Card>
+              </Col>
             </Row>
+
+            {/* GHI CHÚ PHÊ DUYỆT */}
+            {selectedContract.note && (
+              <div className="p-6 bg-amber-50 rounded-[2rem] border border-amber-100 italic text-slate-700 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-2 h-full bg-amber-400"></div>
+                <Text
+                  strong
+                  className="text-[11px] uppercase text-amber-700 block mb-2 tracking-widest"
+                >
+                  Lời nhắn từ Admin / Ghi chú phê duyệt:
+                </Text>
+                <span className="text-base">{selectedContract.note}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-20 text-center">
+            <Empty description="Đang tải dữ liệu hồ sơ..." />
           </div>
         )}
       </Modal>
@@ -494,14 +688,23 @@ export default function ContractPage() {
       <style jsx global>{`
         .custom-contract-table .ant-table-thead > tr > th {
           background: #f8fafc !important;
-          color: #94a3b8 !important;
+          color: #64748b !important;
           font-size: 11px !important;
           text-transform: uppercase !important;
-          letter-spacing: 1px !important;
+          letter-spacing: 1.5px !important;
           font-weight: 800 !important;
         }
-        .custom-contract-table .ant-table-row:hover {
+        .clickable-rows .ant-table-row:hover {
           cursor: pointer;
+          background-color: #f0f7ff !important;
+          transition: all 0.2s;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
         }
       `}</style>
     </div>

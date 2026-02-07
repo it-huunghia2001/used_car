@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/alt-text */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -16,9 +17,19 @@ import {
   Checkbox,
   Space,
   DatePicker,
+  Upload,
+  Image,
+  Empty,
+  Typography,
 } from "antd";
-import { SafetyCertificateOutlined, UserOutlined } from "@ant-design/icons";
+import {
+  FilePdfOutlined,
+  PictureOutlined,
+  SafetyCertificateOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
+const { Text } = Typography;
 
 interface ModalApproveTransactionProps {
   isOpen: boolean;
@@ -40,6 +51,11 @@ export default function ModalApproveTransaction({
   carModels,
 }: ModalApproveTransactionProps) {
   const [form] = Form.useForm();
+
+  // 🔥 Quan trọng: Watcher để theo dõi giá trị ảnh và tài liệu trong Form
+  const carImagesWatcher = Form.useWatch("carImages", form);
+  const documentsWatcher = Form.useWatch("documents", form);
+
   const conditionOptions = [
     "Mức 5: Xuất sắc: gần như mới",
     "Mức 4: Rất tốt: Có thể trưng bày ngay",
@@ -50,6 +66,15 @@ export default function ModalApproveTransaction({
 
   // Hàm xử lý trước khi gửi dữ liệu lên Server
   const handleSubmit = (values: any) => {
+    // Trích xuất lại mảng string URL từ FileList trước khi gửi lên server
+    const carImageUrls =
+      values.carImages
+        ?.map((f: any) => f.url || f.response?.secure_url)
+        .filter(Boolean) || [];
+    const documentUrls =
+      values.documents
+        ?.map((f: any) => f.url || f.response?.secure_url)
+        .filter(Boolean) || [];
     // Tách biệt dữ liệu xe và dữ liệu hợp đồng
     const payload = {
       carData: {
@@ -72,6 +97,9 @@ export default function ModalApproveTransaction({
         ownerType: values.ownerType,
         description: values.description,
         features: values.features,
+
+        carImages: carImageUrls,
+        documents: documentUrls,
         // Xử lý Date
         registrationDeadline:
           values.registrationDeadline?.toISOString() || null,
@@ -90,7 +118,16 @@ export default function ModalApproveTransaction({
 
     onFinish(payload);
   };
-
+  const mapUrlsToFiles = (urls: any) => {
+    if (!urls || !Array.isArray(urls)) return [];
+    return urls.map((url, index) => ({
+      uid: `${index}`, // ID duy nhất cho mỗi file
+      name: `File-${index + 1}`, // Tên hiển thị
+      status: "done", // Trạng thái đã hoàn thành
+      url: url, // Đường dẫn ảnh
+      thumbUrl: url, // Ảnh thu nhỏ
+    }));
+  };
   // Thêm useEffect vào trong ModalApproveTransaction
   useEffect(() => {
     if (isOpen && selectedLead?.customer) {
@@ -115,6 +152,11 @@ export default function ModalApproveTransaction({
         interiorColor: leadCar?.interiorColor,
         engineSize: leadCar?.engineSize,
         ownerType: leadCar?.ownerType,
+
+        // Cập nhật ảnh và tài liệu vào Form
+        carImages: mapUrlsToFiles(customer.carImages || leadCar?.images),
+        documents: mapUrlsToFiles(customer.documents),
+
         registrationDeadline: leadCar?.registrationDeadline
           ? dayjs(leadCar.registrationDeadline)
           : null,
@@ -170,6 +212,8 @@ export default function ModalApproveTransaction({
         }}
         className="mt-4"
       >
+        <Form.Item name="carImages" noStyle />
+        <Form.Item name="documents" noStyle />
         {selectedLead?.type === "BUY" ? (
           <Form.Item
             name="carId"
@@ -503,7 +547,79 @@ export default function ModalApproveTransaction({
                 </Col>
               </Row>
             </Card>
+            {/* 2. HÌNH ẢNH & HỒ SƠ ĐÃ TẢI LÊN */}
+            <Card
+              size="small"
+              title="2. Hình ảnh & Hồ sơ đã tải lên"
+              className="mb-4 border-indigo-100 shadow-sm"
+            >
+              <Row gutter={[24, 24]}>
+                <Col span={24} lg={12}>
+                  <Text strong className="block mb-3 text-slate-600">
+                    <PictureOutlined className="mr-2" /> ẢNH XE THỰC TẾ
+                  </Text>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300 min-h-[160px] flex items-center justify-center">
+                    {/* Kiểm tra mảng có tồn tại và có phần tử không */}
+                    {carImagesWatcher && carImagesWatcher.length > 0 ? (
+                      <Image.PreviewGroup>
+                        <div className="grid grid-cols-3 gap-3 w-full">
+                          {carImagesWatcher.map((file: any, index: number) => (
+                            <Image
+                              key={index}
+                              width="100%"
+                              height={100}
+                              className="rounded-lg object-cover shadow-sm border-2 border-white hover:scale-105 transition-transform"
+                              src={file.url}
+                              fallback="/img/no-image.png"
+                            />
+                          ))}
+                        </div>
+                      </Image.PreviewGroup>
+                    ) : (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="Chưa có ảnh"
+                      />
+                    )}
+                  </div>
+                </Col>
 
+                <Col span={24} lg={12}>
+                  <Text strong className="block mb-3 text-slate-600">
+                    <FilePdfOutlined className="mr-2" /> TÀI LIỆU PHÁP LÝ
+                  </Text>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300 min-h-[160px] flex items-center justify-center">
+                    {documentsWatcher && documentsWatcher.length > 0 ? (
+                      <Image.PreviewGroup>
+                        <div className="grid grid-cols-3 gap-3 w-full">
+                          {documentsWatcher.map((file: any, index: number) => (
+                            <div
+                              key={index}
+                              className="flex flex-col items-center"
+                            >
+                              <Image
+                                width="100%"
+                                height={80}
+                                className="rounded-lg object-cover shadow-sm border-2 border-white"
+                                src={file.url}
+                              />
+                              <Text className="text-[10px] mt-1 text-slate-400 truncate w-full text-center">
+                                Tài liệu {index + 1}
+                              </Text>
+                            </div>
+                          ))}
+                        </div>
+                      </Image.PreviewGroup>
+                    ) : (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="Chưa có hồ sơ"
+                      />
+                    )}
+                  </div>
+                </Col>
+              </Row>
+            </Card>
             <Card
               size="small"
               title="2. Nội dung hiển thị (CMS)"

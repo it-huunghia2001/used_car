@@ -31,6 +31,8 @@ import {
   SafetyOutlined,
   CameraOutlined,
   FileTextOutlined,
+  PictureOutlined,
+  FilePdfOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -57,6 +59,10 @@ export default function ModalApprovalDetail({
 }: Props) {
   const [form] = Form.useForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 🔥 Watcher để hiển thị ảnh ngay lập tức khi Form được set giá trị
+  const carImagesWatcher = Form.useWatch("carImages", form);
+  const documentsWatcher = Form.useWatch("documents", form);
+  console.log(carImagesWatcher);
 
   const conditionOptions = [
     "Mức 5: Xuất sắc: gần như mới",
@@ -76,6 +82,7 @@ export default function ModalApprovalDetail({
         const parsed = JSON.parse(selectedActivity.note);
         const car = parsed.carData || parsed;
         const contract = parsed.contractData || {};
+        const realCustomer = selectedActivity.customer || {};
 
         form.setFieldsValue({
           ...car,
@@ -92,6 +99,8 @@ export default function ModalApprovalDetail({
           insuranceVCDeadline: car.insuranceVCDeadline
             ? dayjs(car.insuranceVCDeadline)
             : null,
+          carImages: realCustomer.carImages || car.carImages || [],
+          documents: realCustomer.documents || car.documents || [],
         });
       } catch (e) {
         console.error("Lỗi parse dữ liệu JSON", e);
@@ -176,6 +185,8 @@ export default function ModalApprovalDetail({
       ]}
     >
       <Form form={form} layout="vertical" disabled={isLoading}>
+        <Form.Item name="carImages" noStyle />
+        <Form.Item name="documents" noStyle />
         <div className="max-h-[75vh] overflow-y-auto px-1 custom-scrollbar overflow-x-hidden">
           <Row gutter={[24, 0]}>
             {/* --- CỘT TRÁI: THÔNG SỐ KỸ THUẬT & HÌNH ẢNH (2/3 chiều rộng trên desktop) --- */}
@@ -316,6 +327,83 @@ export default function ModalApprovalDetail({
                 </Row>
               </Card>
 
+              {/* ✅ PHẦN HIỂN THỊ HÌNH ẢNH & TÀI LIỆU (MỚI) */}
+              <Card
+                size="small"
+                title={
+                  <Space>
+                    <CameraOutlined /> HÌNH ẢNH & HỒ SƠ GIÁM ĐỊNH
+                  </Space>
+                }
+                className="mb-4 shadow-sm border-indigo-100"
+              >
+                <Row gutter={[16, 16]}>
+                  {/* Ảnh xe thực tế */}
+                  <Col span={24} xl={14}>
+                    <Text strong className="block mb-2 text-slate-600">
+                      <PictureOutlined className="mr-2" /> ẢNH XE CHI TIẾT
+                    </Text>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-dashed border-slate-300 min-h-[160px]">
+                      {carImagesWatcher && carImagesWatcher.length > 0 ? (
+                        <Image.PreviewGroup>
+                          <div className="grid grid-cols-4 gap-2">
+                            {carImagesWatcher.map((img: string, i: number) => (
+                              <Image
+                                key={i}
+                                src={img}
+                                height={80}
+                                className="rounded-lg object-cover border-2 border-white shadow-sm hover:scale-105 transition-transform"
+                              />
+                            ))}
+                          </div>
+                        </Image.PreviewGroup>
+                      ) : (
+                        <Empty
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          description="Không có ảnh xe"
+                        />
+                      )}
+                    </div>
+                  </Col>
+
+                  {/* Tài liệu pháp lý */}
+                  <Col span={24} xl={10}>
+                    <Text strong className="block mb-2 text-slate-600">
+                      <FilePdfOutlined className="mr-2" /> HỒ SƠ / TÀI LIỆU
+                    </Text>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-dashed border-slate-300 min-h-[160px]">
+                      {documentsWatcher && documentsWatcher.length > 0 ? (
+                        <Image.PreviewGroup>
+                          <Space wrap size={8}>
+                            {documentsWatcher.map((doc: string, i: number) => (
+                              <div
+                                key={i}
+                                className="flex flex-col items-center"
+                              >
+                                <Image
+                                  src={doc}
+                                  width={70}
+                                  height={70}
+                                  className="rounded border shadow-sm"
+                                />
+                                <Text className="text-[10px] mt-1 text-slate-400">
+                                  Hồ sơ {i + 1}
+                                </Text>
+                              </div>
+                            ))}
+                          </Space>
+                        </Image.PreviewGroup>
+                      ) : (
+                        <Empty
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          description="Không có tài liệu"
+                        />
+                      )}
+                    </div>
+                  </Col>
+                </Row>
+              </Card>
+
               <Card
                 size="small"
                 title={
@@ -397,37 +485,6 @@ export default function ModalApprovalDetail({
                     </Form.Item>
                   </Col>
                 </Row>
-              </Card>
-
-              <Card
-                size="small"
-                title={
-                  <Space>
-                    <CameraOutlined /> HÌNH ẢNH GIÁM ĐỊNH
-                  </Space>
-                }
-                className="mb-4 shadow-sm"
-              >
-                {images.length > 0 ? (
-                  <Image.PreviewGroup>
-                    <Space wrap size={8}>
-                      {images.map((img: string, i: number) => (
-                        <Image
-                          key={i}
-                          src={img}
-                          width={100}
-                          height={100}
-                          className="rounded-lg object-cover border"
-                        />
-                      ))}
-                    </Space>
-                  </Image.PreviewGroup>
-                ) : (
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="Không có ảnh"
-                  />
-                )}
               </Card>
             </Col>
 

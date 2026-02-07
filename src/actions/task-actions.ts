@@ -158,19 +158,39 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
   }
 
   try {
-    // Ép kiểu các trường số để tránh lỗi Prisma (Int/Decimal)
-    const formattedCarData = {
-      ...values.carData,
-      year: values.carData.year ? Number(values.carData.year) : null,
-      odo: values.carData.odo ? Number(values.carData.odo) : 0,
-      seats: values.carData.seats ? Number(values.carData.seats) : 5,
+    // 1. Tách carImages và documents ra khỏi dữ liệu kỹ thuật
+    // carImages và documents chỉ dành cho bảng Customer
+    const { carImages, documents, ...carTechnicalInfo } = values.carData;
+
+    // 2. Chuẩn hóa dữ liệu kỹ thuật xe (Cho bảng LeadCar) - LOẠI BỎ carImages khỏi đây
+    const formattedLeadCarData = {
+      ...carTechnicalInfo,
+      year: carTechnicalInfo.year ? Number(carTechnicalInfo.year) : null,
+      odo: carTechnicalInfo.odo ? Number(carTechnicalInfo.odo) : 0,
+      seats: carTechnicalInfo.seats ? Number(carTechnicalInfo.seats) : 5,
+      // Ép kiểu Date cho Prisma
+      registrationDeadline: carTechnicalInfo.registrationDeadline
+        ? new Date(carTechnicalInfo.registrationDeadline)
+        : null,
+      insuranceDeadline: carTechnicalInfo.insuranceDeadline
+        ? new Date(carTechnicalInfo.insuranceDeadline)
+        : null,
+      insuranceVCDeadline: carTechnicalInfo.insuranceVCDeadline
+        ? new Date(carTechnicalInfo.insuranceVCDeadline)
+        : null,
+      insuranceTNDSDeadline: carTechnicalInfo.insuranceTNDSDeadline
+        ? new Date(carTechnicalInfo.insuranceTNDSDeadline)
+        : null,
+      finalPrice: values.contractData.price
+        ? Number(values.contractData.price)
+        : 0,
     };
 
     const result = await db.$transaction(async (tx) => {
-      // 1. Lấy thông tin khách hàng và chi nhánh
+      // 1. Lấy thông tin khách hàng
       const customer = await tx.customer.findUnique({
         where: { id: leadId },
-        include: { branch: true }, // Lấy thêm thông tin chi nhánh
+        include: { branch: true },
       });
 
       if (!customer) throw new Error("Không tìm thấy khách hàng");
@@ -180,7 +200,7 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
 
       const now = new Date();
 
-      // 2. Cập nhật trạng thái Task (Hoàn thành task gọi điện/chăm sóc)
+      // 2. Cập nhật trạng thái Task
       await tx.task.updateMany({
         where: {
           customerId: leadId,
@@ -190,18 +210,18 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
         data: {
           status: "COMPLETED",
           completedAt: now,
-          content: `Đã gửi yêu cầu phê duyệt thu mua. Giá chốt: ${Number(
-            values.contractData.price,
-          ).toLocaleString()} VNĐ`,
+          content: `Đã gửi yêu cầu phê duyệt thu mua. Giá chốt: ${Number(values.contractData.price).toLocaleString()} VNĐ`,
         },
       });
 
-      // 3. Cập nhật trạng thái Customer
+      // 3. Cập nhật bảng Customer (Lưu carImages và documents vào ĐÚNG nơi)
       await tx.customer.update({
         where: { id: leadId },
         data: {
           status: LeadStatus.PENDING_DEAL_APPROVAL,
           nextContactAt: null,
+          carImages: carImages || [],
+          documents: documents || [],
         },
       });
 
@@ -212,7 +232,7 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
           status: LeadStatus.PENDING_DEAL_APPROVAL,
           note: JSON.stringify({
             requestType: "CAR_PURCHASE",
-            carData: formattedCarData,
+            carData: formattedLeadCarData, // Lưu bản snapshot đã sạch
             contractData: values.contractData,
             submittedAt: now.toISOString(),
           }),
@@ -220,17 +240,13 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
         },
       });
 
-      // 5. Đồng bộ vào LeadCar
+      // 5. Đồng bộ vào LeadCar (Sử dụng dữ liệu đã loại bỏ carImages/documents)
       await tx.leadCar.upsert({
         where: { customerId: leadId },
-        update: {
-          ...formattedCarData,
-          finalPrice: values.contractData.price,
-        },
+        update: formattedLeadCarData,
         create: {
           customerId: leadId,
-          ...formattedCarData,
-          finalPrice: values.contractData.price,
+          ...formattedLeadCarData,
         },
       });
 
@@ -242,19 +258,15 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
       };
     });
 
-    // 6. GỬI THÔNG BÁO EMAIL (Chạy ngoài transaction)
+    // 6. GỬI THÔNG BÁO EMAIL (Chạy nền)
     (async () => {
       try {
-        // Lấy danh sách quản lý: Manager của chi nhánh đó HOẶC Global Manager
         const managers = await db.user.findMany({
           where: {
             active: true,
             OR: [
               { isGlobalManager: true },
-              {
-                role: "MANAGER",
-                branchId: result.branchId,
-              },
+              { role: "MANAGER", branchId: result.branchId },
             ],
           },
           select: { email: true },
@@ -269,8 +281,8 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
             html: dealApprovalRequestEmailTemplate({
               staffName: auth.fullName || auth.username,
               customerName: result.customerName,
-              carName: formattedCarData.modelName,
-              licensePlate: formattedCarData.licensePlate,
+              carName: formattedLeadCarData.modelName,
+              licensePlate: formattedLeadCarData.licensePlate,
               dealPrice: Number(values.contractData.price),
               contractNo: values.contractData.contractNo,
               type: "PURCHASE",
@@ -283,7 +295,6 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
       }
     })();
 
-    // 7. Revalidate
     revalidatePath("/dashboard/assigned-tasks");
     revalidatePath("/dashboard/approvals");
     revalidatePath(`/dashboard/customers/${leadId}`);
@@ -391,6 +402,8 @@ export async function approveCarPurchase(
             updatedAt,
             note,
             adminNote,
+            carImages, // Bóc tách ra để loại bỏ khỏi spread
+            documents, // Bóc tách ra để loại bỏ khỏi spread
             ...validCarFields
           } = carData;
 
@@ -435,6 +448,20 @@ export async function approveCarPurchase(
               referrerId: activity.customer.referrerId,
               purchasedAt: new Date(),
               status: "REFURBISHING",
+
+              // Đảm bảo ép kiểu Date cho các trường deadline
+              registrationDeadline: carData.registrationDeadline
+                ? new Date(carData.registrationDeadline)
+                : null,
+              insuranceDeadline: carData.insuranceDeadline
+                ? new Date(carData.insuranceDeadline)
+                : null,
+              insuranceVCDeadline: carData.insuranceVCDeadline
+                ? new Date(carData.insuranceVCDeadline)
+                : null,
+              insuranceTNDSDeadline: carData.insuranceTNDSDeadline
+                ? new Date(carData.insuranceTNDSDeadline)
+                : null,
               //authorizedOwnerName đã được spread từ validCarFields nếu có trong carData
             },
           });
