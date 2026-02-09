@@ -80,8 +80,6 @@ export async function deleteBranchAction(id: string) {
 // ✅ API MỚI: Chỉ dùng cho trang Đăng ký (Public)
 export async function getBranchesForRegisterAction() {
   try {
-    const auth = await getCurrentUser();
-    if (!auth) throw new Error("Chưa đăng nhập");
     // Không check auth ở đây vì người dùng chưa có tài khoản
     return await db.branch.findMany({
       select: {
