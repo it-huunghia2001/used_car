@@ -259,6 +259,42 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
               key: "/dashboard/settings/branches",
               label: <Link href="/dashboard/settings/branches">Chi nhánh</Link>,
             },
+            {
+              key: "/dashboard/settings/departments",
+              label: (
+                <Link href="/dashboard/settings/departments">Phòng ban</Link>
+              ),
+            },
+            {
+              key: "/dashboard/settings/lead",
+              label: (
+                <Link href="/dashboard/settings/lead">
+                  Trạng thái khách hàng
+                </Link>
+              ),
+            },
+            {
+              key: "/dashboard/settings/reasons",
+              label: (
+                <Link href="/dashboard/settings/reasons">Lý do xử lý</Link>
+              ),
+            },
+            {
+              key: "/dashboard/settings/reasons/not-seen-car",
+              label: (
+                <Link href="/dashboard/settings/reasons/not-seen-car">
+                  Lý do không xem xe
+                </Link>
+              ),
+            },
+            {
+              key: "/dashboard/settings/reasons/sell-car",
+              label: (
+                <Link href="/dashboard/settings/reasons/sell-car">
+                  Lý do không bán xe
+                </Link>
+              ),
+            },
           ],
         },
       ].filter(Boolean),
