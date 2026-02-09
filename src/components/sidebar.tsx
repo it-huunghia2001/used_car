@@ -20,6 +20,7 @@ import {
   MenuOutlined,
   BarChartOutlined,
   FileTextOutlined,
+  SnippetsOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -179,6 +180,11 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
             {
               key: "/dashboard/lead",
               label: <Link href="/dashboard/lead">Danh sách tổng</Link>,
+            },
+            {
+              key: "/dashboard/contract-admin",
+              icon: <SnippetsOutlined />,
+              label: <Link href="/dashboard/contract">Hợp đồng</Link>,
             },
             {
               key: "/dashboard/late-kpi-report",
