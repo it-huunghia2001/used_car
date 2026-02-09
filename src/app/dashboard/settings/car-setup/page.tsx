@@ -83,10 +83,6 @@ export default function CarSetupPage() {
       return message.warning("Vui lòng nhập tên mẫu xe");
     }
 
-    if (!grade) {
-      return message.warning("Vui lòng nhập Grade xe");
-    }
-
     setSubmitting(true);
     try {
       if (editingModel) {

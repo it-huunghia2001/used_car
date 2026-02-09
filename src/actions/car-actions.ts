@@ -156,7 +156,7 @@ export async function getCarModelsAction() {
 }
 
 // 2. Tạo mẫu xe mới
-export async function createCarModelAction(name: string, grade: string) {
+export async function createCarModelAction(name: string, grade: string | null) {
   try {
     const newModel = await db.carModel.create({
       data: { name, grade },
@@ -173,7 +173,7 @@ export async function createCarModelAction(name: string, grade: string) {
 export async function updateCarModelAction(
   id: string,
   name: string,
-  grade: string,
+  grade?: string | null,
 ) {
   try {
     const updated = await db.carModel.update({
