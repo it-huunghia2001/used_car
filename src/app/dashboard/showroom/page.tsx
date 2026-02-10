@@ -74,7 +74,7 @@ export default function AdvancedShowroomPage() {
       search,
     });
     setCars(res.data);
-    setHasMore(res.hasMore);
+    setHasMore(res.hasMore ?? false);
     setPage(1);
     setLoading(false);
   };
@@ -89,7 +89,7 @@ export default function AdvancedShowroomPage() {
       search,
     });
     setCars((prev) => [...prev, ...res.data]);
-    setHasMore(res.hasMore);
+    setHasMore(res.hasMore ?? false);
     setPage(nextPage);
     setLoadingMore(false);
   };
