@@ -3,13 +3,26 @@
 
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session-server";
+import dayjs from "dayjs";
 
-export async function getExportCustomerData() {
+export async function getExportCustomerData(startDate?: Date, endDate?: Date) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
+  // Thiết lập điều kiện lọc thời gian
+  let dateFilter = {};
+  if (startDate && endDate) {
+    dateFilter = {
+      createdAt: {
+        gte: dayjs(startDate).startOf("day").toDate(),
+        lte: dayjs(endDate).endOf("day").toDate(),
+      },
+    };
+  }
+
   const customers = await db.customer.findMany({
     where: {
+      ...dateFilter, // Áp dụng lọc ngày tiếp nhận
       branchId:
         user.role !== "ADMIN" && !user.isGlobalManager
           ? user.branchId
@@ -20,19 +33,17 @@ export async function getExportCustomerData() {
       referrer: { include: { department: true } },
       inspectorRef: true,
       carModel: true,
-      leadCar: { include: { carModel: true } },
+      leadCar: true,
       notSeenReasonRef: true,
-      buyReasonRef: true,
+      sellReason: true,
       branch: true,
     },
     orderBy: { createdAt: "desc" },
   });
 
-  // ✅ XỬ LÝ LỖI DECIMAL TẠI ĐÂY
-  // Chuyển đổi tất cả Decimal thành Number để Client Component có thể nhận được
+  // Chuyển đổi Decimal thành Number (giữ nguyên logic cũ của bạn)
   const serializedData = customers.map((customer) => ({
     ...customer,
-    // Convert Decimal trong LeadCar (nếu có)
     leadCar: customer.leadCar
       ? {
           ...customer.leadCar,
@@ -47,8 +58,6 @@ export async function getExportCustomerData() {
             : null,
         }
       : null,
-    // Convert Decimal trực tiếp trong Customer (nếu có trường budget/price là Decimal)
-    // Nếu budget của bạn là String trong Prisma thì không cần
   }));
 
   return serializedData;

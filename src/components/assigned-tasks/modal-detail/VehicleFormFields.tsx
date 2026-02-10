@@ -14,6 +14,8 @@ import {
   Card,
   Upload,
   Button,
+  Switch,
+  Space,
 } from "antd";
 import {
   CarOutlined,
@@ -24,31 +26,101 @@ import {
   EnvironmentOutlined,
   PlusOutlined,
   PictureOutlined,
-  FilePdfOutlined,
+  WarningOutlined,
+  GlobalOutlined,
+  HomeOutlined,
+  CheckCircleOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 
-const { Text } = Typography;
+const { Text, Paragraph } = Typography;
+
+// Danh sách 63 tỉnh thành Việt Nam chuẩn
+const provinces = [
+  "An Giang",
+  "Bà Rịa - Vũng Tàu",
+  "Bắc Giang",
+  "Bắc Kạn",
+  "Bạc Liêu",
+  "Bắc Ninh",
+  "Bến Tre",
+  "Bình Định",
+  "Bình Dương",
+  "Bình Phước",
+  "Bình Thuận",
+  "Cà Mau",
+  "Cần Thơ",
+  "Cao Bằng",
+  "Đà Nẵng",
+  "Đắk Lắk",
+  "Đắk Nông",
+  "Điện Biên",
+  "Đồng Nai",
+  "Đồng Tháp",
+  "Gia Lai",
+  "Hà Giang",
+  "Hà Nam",
+  "Hà Nội",
+  "Hà Tĩnh",
+  "Hải Dương",
+  "Hải Phòng",
+  "Hậu Giang",
+  "Hòa Bình",
+  "Hưng Yên",
+  "Khánh Hòa",
+  "Kiên Giang",
+  "Kon Tum",
+  "Lai Châu",
+  "Lâm Đồng",
+  "Lạng Sơn",
+  "Lào Cai",
+  "Long An",
+  "Nam Định",
+  "Nghệ An",
+  "Ninh Bình",
+  "Ninh Thuận",
+  "Phú Thọ",
+  "Phú Yên",
+  "Quảng Bình",
+  "Quảng Nam",
+  "Quảng Ngãi",
+  "Quảng Ninh",
+  "Quảng Trị",
+  "Sóc Trăng",
+  "Sơn La",
+  "Tây Ninh",
+  "Thái Bình",
+  "Thái Nguyên",
+  "Thanh Hóa",
+  "Thừa Thiên Huế",
+  "Tiền Giang",
+  "TP Hồ Chí Minh",
+  "Trà Vinh",
+  "Tuyên Quang",
+  "Vĩnh Long",
+  "Vĩnh Phúc",
+  "Yên Bái",
+];
 
 export const VehicleFormFields = ({
   carModels,
-  notSeenReasons, // Từ bảng NotSeenCarModel
-  sellReasons, // Từ bảng reasonBuyCar
-  users, // Danh sách nhân viên làm giám định
+  notSeenReasons,
+  sellReasons,
+  buyReasons,
+  users,
   type,
 }: any) => {
-  // Watcher để ẩn hiện lý do chưa xem xe
   const inspectStatus = Form.useWatch("inspectStatus");
+  const hasFine = Form.useWatch("hasFine");
   const isBuyType = type === "BUY";
 
   const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
+  // Logic Upload Cloudinary
   const handleCloudinaryUpload = async (options: any) => {
-    const { file, onSuccess, onError, onProgress } = options;
-
-    if (!CLOUD_NAME || !UPLOAD_PRESET) {
-      return onError("Missing config");
-    }
+    const { file, onSuccess, onError } = options;
+    if (!CLOUD_NAME || !UPLOAD_PRESET) return onError("Missing config");
 
     const formData = new FormData();
     formData.append("file", file);
@@ -57,60 +129,42 @@ export const VehicleFormFields = ({
     try {
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-        { method: "POST", body: formData },
+        {
+          method: "POST",
+          body: formData,
+        },
       );
-
       const data = await res.json();
-
-      if (data.secure_url) {
-        // onSuccess nhận data để Ant Design biết file đã 'done'
-        // và lưu thông tin trả về vào file.response
-        onSuccess(data);
-      } else {
-        onError("Upload failed");
-      }
+      if (data.secure_url) onSuccess(data);
+      else onError("Upload failed");
     } catch (err) {
-      console.error("Cloudinary Error:", err);
       onError(err);
     }
   };
 
-  const normFile = (e: any) => {
-    if (Array.isArray(e)) return e;
-    return e?.fileList;
-  };
-
-  const mapUrlsToFiles = (urls: any) => {
-    if (!urls || !Array.isArray(urls)) return [];
-    return urls.map((url, index) => ({
-      uid: `${index}`, // ID duy nhất cho mỗi file
-      name: `File-${index + 1}`, // Tên hiển thị
-      status: "done", // Trạng thái đã hoàn thành
-      url: url, // Đường dẫn ảnh
-      thumbUrl: url, // Ảnh thu nhỏ
-    }));
-  };
+  const normFile = (e: any) => (Array.isArray(e) ? e : e?.fileList);
 
   return (
-    <div className="animate-fadeIn pb-4">
-      {/* SECTION 1: PHÂN LOẠI & TRẠNG THÁI */}
-      <Divider className="m-0! mb-4!">
-        <Text
-          type="secondary"
-          className="text-[11px] uppercase font-bold flex items-center gap-2"
-        >
-          <FireOutlined /> Phân loại & Trạng thái khách hàng
-        </Text>
+    <div className="animate-fadeIn pb-8">
+      {/* --- SECTION 1: THÔNG TIN KHÁCH HÀNG & ĐỊA LÝ --- */}
+      <Divider className="!mb-6">
+        <Space>
+          <FireOutlined className="text-orange-500" />
+          <Text strong className="uppercase text-slate-600">
+            Phân loại & Thông tin khách hàng
+          </Text>
+        </Space>
       </Divider>
+
       <Row gutter={[16, 0]}>
         <Col xs={24} sm={8}>
           <Form.Item name="fullName" label="Tên khách hàng">
-            <Input disabled className="bg-gray-50 font-medium" />
+            <Input disabled className="bg-gray-50 font-bold text-indigo-600" />
           </Form.Item>
         </Col>
         <Col xs={24} sm={8}>
           <Form.Item name="phone" label="Số điện thoại">
-            <Input disabled className="bg-gray-50 font-medium" />
+            <Input disabled className="bg-gray-50 font-bold" />
           </Form.Item>
         </Col>
         <Col xs={24} sm={8}>
@@ -118,23 +172,40 @@ export const VehicleFormFields = ({
             <Select
               placeholder="Chọn độ nóng"
               options={[
-                { value: "HOT", label: "🔥 HOT" },
-                { value: "WARM", label: "☀️ WARM" },
-                { value: "COOL", label: "❄️ COOL" },
+                { value: "HOT", label: "🔥 HOT (Chốt ngay)" },
+                { value: "WARM", label: "☀️ WARM (Đang cân nhắc)" },
+                { value: "COOL", label: "❄️ COOL (Tìm hiểu)" },
               ]}
             />
           </Form.Item>
         </Col>
-        {(type === "SELL_TRADE_NEW" || type === "SELL_TRADE_USED") && (
+        <Col xs={24} sm={8}>
+          <Form.Item name="province" label="Tỉnh/Thành phố">
+            <Select
+              showSearch
+              placeholder="Chọn tỉnh thành"
+              options={provinces.map((p) => ({ label: p, value: p }))}
+              suffixIcon={<GlobalOutlined />}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={16}>
+          <Form.Item name="address" label="Địa chỉ chi tiết">
+            <Input
+              prefix={<HomeOutlined className="text-slate-400" />}
+              placeholder="Số nhà, tên đường, phường/xã..."
+            />
+          </Form.Item>
+        </Col>
+
+        {isBuyType && (
           <Col xs={24} md={8}>
-            <Form.Item name="tradeInModel" label="Xe khách muốn đổi">
+            <Form.Item name="buyReasonId" label="Mục đích mua xe">
               <Select
-                showSearch
-                placeholder="Chọn dòng xe"
-                optionFilterProp="label"
-                options={carModels.map((m: any) => ({
-                  value: m.name,
-                  label: m.name,
+                placeholder="Chọn lý do mua xe"
+                options={buyReasons?.map((r: any) => ({
+                  value: r.id,
+                  label: r.name,
                 }))}
               />
             </Form.Item>
@@ -142,27 +213,27 @@ export const VehicleFormFields = ({
         )}
       </Row>
 
-      {/* SECTION 2: CÔNG TÁC GIÁM ĐỊNH & NHU CẦU */}
+      {/* --- SECTION 2: CÔNG TÁC GIÁM ĐỊNH & PHÁP LÝ --- */}
       {!isBuyType && (
-        <>
-          <Divider className="mb-4!">
-            <Text
-              type="secondary"
-              className="text-[11px] uppercase font-bold flex items-center gap-2"
-            >
-              <FileSearchOutlined /> Chi tiết giám định & Nhu cầu bán
-            </Text>
+        <Card className="bg-slate-50/50 border-slate-200 rounded-3xl mb-8 shadow-sm">
+          <Divider className="!m-0 !mb-6">
+            <Space>
+              <FileSearchOutlined className="text-indigo-500" />
+              <Text strong className="uppercase text-slate-600">
+                Chi tiết giám định & Pháp lý xe
+              </Text>
+            </Space>
           </Divider>
 
           <Row gutter={[16, 0]}>
             <Col xs={24} md={6}>
               <Form.Item name="inspectStatus" label="Tình trạng xem xe">
-                <Select placeholder="Chọn tình trạng">
+                <Select placeholder="Chọn trạng thái">
                   <Select.Option value="NOT_INSPECTED">
-                    Chưa xem xe
+                    ❌ Chưa xem xe
                   </Select.Option>
-                  <Select.Option value="APPOINTED">Hẹn xem xe</Select.Option>
-                  <Select.Option value="INSPECTED">Đã xem xe</Select.Option>
+                  <Select.Option value="APPOINTED">📅 Hẹn xem xe</Select.Option>
+                  <Select.Option value="INSPECTED">✅ Đã xem xe</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -171,7 +242,6 @@ export const VehicleFormFields = ({
                 <Select
                   showSearch
                   placeholder="Chọn nhân viên"
-                  optionFilterProp="label"
                   options={users?.map((u: any) => ({
                     value: u.id,
                     label: u.fullName || u.username,
@@ -180,7 +250,7 @@ export const VehicleFormFields = ({
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="inspectDoneDate" label="Ngày đã giám định xong">
+              <Form.Item name="inspectDoneDate" label="Ngày hoàn tất GD">
                 <DatePicker
                   className="w-full"
                   showTime
@@ -188,12 +258,61 @@ export const VehicleFormFields = ({
                 />
               </Form.Item>
             </Col>
+
+            {/* LOGIC PHẠT NGUỘI */}
             <Col xs={24} md={6}>
-              <Form.Item name="buyReasonId" label="Lý do bán/Nhu cầu mua">
+              <Form.Item
+                name="hasFine"
+                label="Vi phạm phạt nguội?"
+                valuePropName="checked"
+              >
+                <Switch
+                  checkedChildren="CÓ VI PHẠM"
+                  unCheckedChildren="SẠCH"
+                  className={hasFine ? "bg-red-500" : "bg-emerald-500"}
+                />
+              </Form.Item>
+            </Col>
+
+            {hasFine && (
+              <Col span={24} className="animate-slideDown">
+                <div className="p-4 bg-red-50 rounded-2xl border border-red-100 mb-6">
+                  <Form.Item
+                    name="fineNote"
+                    label={
+                      <Text strong className="text-red-700">
+                        <WarningOutlined /> Chi tiết lỗi & Số tiền phạt dự kiến
+                      </Text>
+                    }
+                    rules={[
+                      {
+                        required: true,
+                        message:
+                          "Vui lòng nhập chi tiết phạt nguội để thẩm định giá!",
+                      },
+                    ]}
+                  >
+                    <Input.TextArea
+                      rows={2}
+                      placeholder="Nhập mã lỗi, ngày vi phạm, địa điểm..."
+                    />
+                  </Form.Item>
+                </div>
+              </Col>
+            )}
+
+            <Col xs={24} md={12}>
+              <Form.Item name="inspectLocation" label="Địa điểm giám định">
+                <Input
+                  prefix={<EnvironmentOutlined />}
+                  placeholder="Địa chỉ nơi xem xe thực tế..."
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="buyReasonId" label="Nhu cầu khách / Lý do bán">
                 <Select
                   placeholder="Chọn lý do hệ thống"
-                  showSearch
-                  optionFilterProp="label"
                   options={sellReasons?.map((r: any) => ({
                     value: r.id,
                     label: r.name,
@@ -201,32 +320,20 @@ export const VehicleFormFields = ({
                 />
               </Form.Item>
             </Col>
-            <Col xs={24}>
-              <Form.Item name="inspectLocation" label="Địa điểm giám định">
-                <Input
-                  prefix={<EnvironmentOutlined />}
-                  placeholder="Nhập địa chỉ xem xe..."
-                />
-              </Form.Item>
-            </Col>
 
-            {/* NGUYÊN NHÂN CHƯA XEM XE (Chỉ hiện khi trạng thái là chưa xem) */}
             {inspectStatus === "NOT_INSPECTED" && (
               <Col span={24}>
-                <div className="p-4 bg-red-50 rounded-xl border border-red-100 mb-4">
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
                   <Form.Item
                     name="notSeenReasonId"
                     label={
-                      <Text strong className="text-red-700">
-                        Nguyên nhân hệ thống (Admin set)
+                      <Text strong className="text-amber-700">
+                        Lý do chưa xem xe (Danh mục Admin)
                       </Text>
                     }
-                    rules={[
-                      { required: true, message: "Chọn lý do chưa xem!" },
-                    ]}
+                    rules={[{ required: true }]}
                   >
                     <Select
-                      placeholder="Chọn từ danh mục Admin"
                       options={notSeenReasons?.map((r: any) => ({
                         value: r.id,
                         label: r.name,
@@ -235,35 +342,36 @@ export const VehicleFormFields = ({
                   </Form.Item>
                   <Form.Item
                     name="notSeenReason"
-                    label="Ghi chú thêm về nguyên nhân"
+                    label="Ghi chú thêm nguyên nhân"
                   >
                     <Input.TextArea
                       rows={2}
-                      placeholder="Nhập cụ thể tình huống chưa xem được xe (nếu cần)..."
+                      placeholder="Mô tả cụ thể lý do khách hoãn hoặc chưa cho xem xe..."
                     />
                   </Form.Item>
                 </div>
               </Col>
             )}
           </Row>
-        </>
+        </Card>
       )}
-      {/* SECTION 3: THÔNG SỐ KỸ THUẬT XE */}
-      <Divider className="mb-4!">
-        <Text
-          type="secondary"
-          className="text-[11px] uppercase font-bold flex items-center gap-2"
-        >
-          <CarOutlined /> Thông số kỹ thuật xe (Lead Car)
-        </Text>
+
+      {/* --- SECTION 3: THÔNG SỐ KỸ THUẬT XE (LEAD CAR) --- */}
+      <Divider className="!mb-6">
+        <Space>
+          <CarOutlined className="text-blue-500" />
+          <Text strong className="uppercase text-slate-600">
+            Thông số kỹ thuật xe
+          </Text>
+        </Space>
       </Divider>
+
       <Row gutter={[16, 0]}>
         <Col xs={24} md={8}>
           <Form.Item name="carModelId" label="Dòng xe">
             <Select
               showSearch
               placeholder="Chọn dòng xe"
-              optionFilterProp="label"
               options={carModels.map((m: any) => ({
                 value: m.id,
                 label: m.name,
@@ -272,33 +380,32 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={24} md={8}>
-          <Form.Item name="modelName" label="Phiên bản chi tiết">
-            <Input placeholder="Vios G, Cross V..." />
+          <Form.Item name="modelName" label="Phiên bản / Grade">
+            <Input placeholder="Ví dụ: 1.5G, 2.0V, Premium..." />
           </Form.Item>
         </Col>
         {!isBuyType && (
-          <Col xs={12} md={8}>
+          <Col xs={24} md={8}>
             <Form.Item
               name="licensePlate"
-              label="Biển số"
+              label="Biển số xe"
               getValueFromEvent={(e) =>
                 e.target.value
                   .toUpperCase()
                   .replace(/[^A-Z0-9]/g, "")
-                  .slice(0, 9)
+                  .slice(0, 10)
               }
-              rules={[{ min: 5, max: 9, message: "Không hợp lệ" }]}
             >
               <Input
-                className="uppercase font-bold w-full"
-                placeholder="30H-12345"
+                className="font-bold uppercase"
+                placeholder="30H12345"
+                suffix={<InfoCircleOutlined className="text-slate-300" />}
               />
             </Form.Item>
           </Col>
         )}
-
         <Col xs={12} md={6}>
-          <Form.Item name="year" label="Năm SX">
+          <Form.Item name="year" label="Năm sản xuất">
             <InputNumber className="w-full" placeholder="2022" />
           </Form.Item>
         </Col>
@@ -335,20 +442,17 @@ export const VehicleFormFields = ({
             />
           </Form.Item>
         </Col>
-
         <Col xs={12} md={6}>
           <Form.Item name="vin" label="Số khung (VIN)">
-            <Input className="uppercase" placeholder="Nhập số khung" />
+            <Input
+              className="uppercase font-mono"
+              placeholder="Nhập 17 ký tự..."
+            />
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
           <Form.Item name="engineNumber" label="Số máy">
-            <Input className="uppercase" placeholder="Nhập số máy" />
-          </Form.Item>
-        </Col>
-        <Col xs={12} md={6}>
-          <Form.Item name="seats" label="Số chỗ ngồi">
-            <InputNumber className="w-full" />
+            <Input className="uppercase font-mono" />
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
@@ -357,71 +461,46 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Item name="interiorColor" label="Màu nội thất">
-            <Input placeholder="Kem, Nâu, Đen..." />
-          </Form.Item>
-        </Col>
-        <Col xs={12} md={6}>
-          <Form.Item name="engineSize" label="Dung tích động cơ">
-            <Input placeholder="1.5L, 2.0L..." />
-          </Form.Item>
-        </Col>
-        <Col xs={12} md={6}>
-          <Form.Item name="carType" label="Kiểu dáng">
-            <Select placeholder="Chọn kiểu dáng">
-              <Select.Option value="SEDAN">Sedan</Select.Option>
-              <Select.Option value="SUV">SUV</Select.Option>
-              <Select.Option value="HATCHBACK">Hatchback</Select.Option>
-              <Select.Option value="PICKUP">Bán tải</Select.Option>
-              <Select.Option value="MPV">MPV</Select.Option>
-            </Select>
-          </Form.Item>
-        </Col>
-        <Col xs={12} md={6}>
-          <Form.Item name="driveTrain" label="Hệ dẫn động">
-            <Select placeholder="Chọn hệ dẫn động">
-              <Select.Option value="FWD">Cầu trước (FWD)</Select.Option>
-              <Select.Option value="RWD">Cầu sau (RWD)</Select.Option>
-              <Select.Option value="AWD">4 bánh (AWD)</Select.Option>
-              <Select.Option value="4WD">2 cầu (4WD)</Select.Option>
-            </Select>
+          <Form.Item name="seats" label="Số chỗ ngồi">
+            <InputNumber className="w-full" />
           </Form.Item>
         </Col>
       </Row>
 
-      {/* SECTION 4: TÀI CHÍNH & PHÁP LÝ */}
-      <Divider className="!mb-4">
-        <Text
-          type="secondary"
-          className="text-[11px] uppercase font-bold flex items-center gap-2"
-        >
-          <DollarOutlined /> Tài chính & Pháp lý
-        </Text>
+      {/* --- SECTION 4: TÀI CHÍNH & HẠN ĐỊNH --- */}
+      <Divider className="!my-8">
+        <Space>
+          <DollarOutlined className="text-emerald-500" />
+          <Text strong className="uppercase text-slate-600">
+            Tài chính & Hạn định pháp lý
+          </Text>
+        </Space>
       </Divider>
+
       <Row gutter={[16, 0]}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} md={8}>
           <Form.Item name="expectedPrice" label="Giá khách mong muốn">
             <InputNumber
               className="w-full! border-emerald-200"
-              addonAfter="tr"
+              addonAfter="tr VNĐ"
               formatter={(val) =>
                 `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
               }
             />
           </Form.Item>
         </Col>
-        <Col xs={24} sm={8}>
-          <Form.Item name="tSurePrice" label="Định giá T-Sure (Dự kiến)">
+        <Col xs={24} md={8}>
+          <Form.Item name="tSurePrice" label="Định giá T-Sure dự kiến">
             <InputNumber
-              className="w-full! border-indigo-200"
-              addonAfter="tr"
+              className="w-full! border-indigo-200 bg-indigo-50/30"
+              addonAfter="tr VNĐ"
               formatter={(val) =>
                 `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
               }
             />
           </Form.Item>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} md={8}>
           <Form.Item name="ownerType" label="Hình thức sở hữu">
             <Select
               options={[
@@ -433,64 +512,47 @@ export const VehicleFormFields = ({
             />
           </Form.Item>
         </Col>
-      </Row>
-
-      {/* SECTION 5: BẢO HIỂM & HẠN ĐỊNH */}
-      <Divider className="!mb-4">
-        <Text
-          type="secondary"
-          className="text-[11px] uppercase font-bold flex items-center gap-2"
-        >
-          <ToolOutlined /> Bảo hiểm & Hạn định
-        </Text>
-      </Divider>
-      <Row gutter={[16, 0]}>
-        <Col xs={12} sm={6}>
+        <Col xs={12} md={6}>
           <Form.Item name="registrationDeadline" label="Hạn đăng kiểm">
             <DatePicker className="w-full" format="DD/MM/YYYY" />
           </Form.Item>
         </Col>
-        <Col xs={12} sm={6}>
-          <Form.Item name="insuranceVCDeadline" label="Hạn BH Vật chất">
-            <DatePicker className="w-full" format="DD/MM/YYYY" />
-          </Form.Item>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Form.Item name="insuranceTNDSDeadline" label="Hạn BH TNDS">
-            <DatePicker className="w-full" format="DD/MM/YYYY" />
-          </Form.Item>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Form.Item name="insuranceDeadline" label="Thời hạn bảo hành">
+        <Col xs={12} md={6}>
+          <Form.Item name="insuranceVCDeadline" label="Hạn BH vật chất">
             <DatePicker className="w-full" format="DD/MM/YYYY" />
           </Form.Item>
         </Col>
         <Col xs={24}>
-          <Form.Item name="note" label="Ghi chú tổng quát">
+          <Form.Item name="note" label="Ghi chú tổng quát tình trạng xe">
             <Input.TextArea
               rows={3}
-              placeholder="Ghi chú chi tiết về tình trạng xe..."
+              placeholder="Mô tả các hạng mục lỗi kỹ thuật, thân vỏ hoặc ghi chú quan trọng khác..."
             />
           </Form.Item>
         </Col>
       </Row>
+
+      {/* --- SECTION 5: HÌNH ẢNH & TÀI LIỆU --- */}
       {!isBuyType && (
         <>
-          <Divider className="!mb-6 !mt-8">
-            <Text
-              type="secondary"
-              className="text-[11px] uppercase font-bold flex items-center gap-2"
-            >
-              <PictureOutlined /> Hình ảnh & Hồ sơ giám định
-            </Text>
+          <Divider className="!my-8">
+            <Space>
+              <PictureOutlined className="text-rose-500" />
+              <Text strong className="uppercase text-slate-600">
+                Hình ảnh & Chứng từ gốc
+              </Text>
+            </Space>
           </Divider>
-
           <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <Card
                 size="small"
-                title="Hình ảnh xe thực tế (carImages)"
-                className="rounded-2xl border-dashed"
+                title={
+                  <Space>
+                    <CarOutlined /> Ảnh xe thực tế (Giám định)
+                  </Space>
+                }
+                className="rounded-3xl border-dashed"
               >
                 <Form.Item
                   name="carImages"
@@ -505,18 +567,21 @@ export const VehicleFormFields = ({
                   >
                     <div>
                       <PlusOutlined />
-                      <div style={{ marginTop: 8 }}>Tải ảnh</div>
+                      <div className="mt-2">Tải ảnh</div>
                     </div>
                   </Upload>
                 </Form.Item>
               </Card>
             </Col>
-
             <Col xs={24} md={12}>
               <Card
                 size="small"
-                title="Tài liệu hồ sơ (documents)"
-                className="rounded-2xl border-dashed"
+                title={
+                  <Space>
+                    <HomeOutlined /> Tài liệu hồ sơ (Đăng kiểm/CCCD)
+                  </Space>
+                }
+                className="rounded-3xl border-dashed"
               >
                 <Form.Item
                   name="documents"
@@ -530,9 +595,9 @@ export const VehicleFormFields = ({
                   >
                     <Button
                       icon={<PlusOutlined />}
-                      className="w-full rounded-lg border-dashed h-10"
+                      className="w-full rounded-xl border-dashed h-12"
                     >
-                      Tải lên tài liệu
+                      TẢI TÀI LIỆU
                     </Button>
                   </Upload>
                 </Form.Item>

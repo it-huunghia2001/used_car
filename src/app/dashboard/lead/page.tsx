@@ -25,6 +25,7 @@ import {
   message,
   Tooltip,
   Alert,
+  DatePicker,
 } from "antd";
 import {
   UserOutlined,
@@ -76,6 +77,7 @@ export default function LeadsPage() {
     [],
   );
   const [exportLoading, setExportLoading] = useState(false);
+  const [dateRange, setDateRange] = useState<any>(null); // State cho RangePicker
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -87,9 +89,19 @@ export default function LeadsPage() {
   const onExportExcel = async () => {
     setExportLoading(true);
     try {
-      const exportData = await getExportCustomerData();
+      // Lấy ngày từ state dateRange
+      const startDate = dateRange ? dateRange[0].toDate() : undefined;
+      const endDate = dateRange ? dateRange[1].toDate() : undefined;
+
+      // Truyền tham số ngày vào action
+      const exportData = await getExportCustomerData(startDate, endDate);
+
+      if (exportData.length === 0) {
+        return message.info("Không có dữ liệu trong khoảng thời gian đã chọn");
+      }
+
       await handleExportFullCustomerExcel(exportData);
-      message.success("Xuất file Excel thành công!");
+      message.success(`Xuất thành công ${exportData.length} hồ sơ!`);
     } catch (error: any) {
       message.error("Lỗi xuất file: " + error.message);
     } finally {
@@ -344,7 +356,7 @@ export default function LeadsPage() {
         {/* HEADER */}
         <Card className="rounded-[2rem] border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-md transition-all">
           <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} lg={8}>
+            <Col xs={24} lg={6}>
               <Title
                 level={3}
                 className="m-0! uppercase font-black tracking-tight text-slate-800"
@@ -355,37 +367,36 @@ export default function LeadsPage() {
                 type="secondary"
                 className="text-[11px] font-bold flex items-center gap-2"
               >
-                <InfoCircleOutlined /> Hệ thống ghi nhận {total} khách hàng tiềm
-                năng
+                <InfoCircleOutlined className="text-blue-500" /> Hệ thống ghi
+                nhận {total} khách hàng
               </Text>
             </Col>
-            <Col xs={24} lg={16}>
-              <div className="flex flex-wrap gap-3 justify-end">
-                {/* NÚT CẢNH BÁO QUÁ HẠN */}
-                <Badge count={overdueData.length} offset={[-5, 5]} size="small">
-                  <Button
-                    danger
-                    type="primary"
-                    icon={<AlertOutlined />}
-                    className="h-12 rounded-2xl font-black shadow-lg shadow-red-100 px-6"
-                    onClick={() => setIsOverdueModalOpen(true)}
-                  >
-                    HỒ SƠ QUÁ HẠN
-                  </Button>
-                </Badge>
 
+            <Col xs={24} lg={18}>
+              <div className="flex flex-wrap gap-3 justify-end items-center">
+                {/* BỘ LỌC NGÀY TIẾP NHẬN */}
+                <DatePicker.RangePicker
+                  format="DD/MM/YYYY"
+                  className="h-12 rounded-2xl shadow-sm border-none bg-slate-50 hover:bg-white transition-all px-4"
+                  placeholder={["Từ ngày nhận", "Đến ngày nhận"]}
+                  onChange={(values) => setDateRange(values)}
+                />
+
+                {/* Ô TÌM KIẾM NHANH */}
                 <Input
                   placeholder="Tìm tên, SĐT, biển số..."
-                  prefix={<SearchOutlined className="text-slate-300" />}
-                  className="max-w-sm rounded-2xl h-12 border-none bg-slate-100 shadow-inner"
+                  prefix={<SearchOutlined className="text-slate-400" />}
+                  className="max-w-[220px] rounded-2xl h-12 border-none bg-slate-100 shadow-inner"
                   allowClear
                   onPressEnter={(e: any) =>
                     setFilters({ ...filters, search: e.target.value, page: 1 })
                   }
                 />
+
+                {/* LỌC TRẠNG THÁI */}
                 <Select
                   defaultValue="ALL"
-                  className="w-44 h-12"
+                  className="w-40 h-12 custom-select-round"
                   onChange={(val) =>
                     setFilters({ ...filters, status: val, page: 1 })
                   }
@@ -396,21 +407,42 @@ export default function LeadsPage() {
                   <Option value="DEAL_DONE">Chốt đơn</Option>
                   <Option value="FROZEN">Đóng băng</Option>
                 </Select>
-                <Button
-                  icon={<FileExcelOutlined />}
-                  loading={exportLoading}
-                  className="h-12 rounded-2xl font-bold bg-green-600 text-white hover:bg-green-700 border-none"
-                  onClick={onExportExcel}
-                >
-                  XUẤT EXCEL
-                </Button>
-                <Button
-                  icon={<ReloadOutlined />}
-                  className="h-12 rounded-2xl font-bold"
-                  onClick={loadData}
-                >
-                  LÀM MỚI
-                </Button>
+
+                {/* NHÓM NÚT HÀNH ĐỘNG */}
+                <Space size={10}>
+                  <Button
+                    icon={<FileExcelOutlined />}
+                    loading={exportLoading}
+                    className="h-12 rounded-2xl font-bold bg-emerald-600 text-white hover:bg-emerald-700 border-none px-6 shadow-lg shadow-emerald-100"
+                    onClick={onExportExcel}
+                  >
+                    XUẤT EXCEL
+                  </Button>
+
+                  <Badge
+                    count={overdueData.length}
+                    offset={[-5, 5]}
+                    size="small"
+                  >
+                    <Button
+                      danger
+                      type="primary"
+                      icon={<AlertOutlined />}
+                      className="h-12 rounded-2xl font-black shadow-lg shadow-red-100 px-4"
+                      onClick={() => setIsOverdueModalOpen(true)}
+                    >
+                      QUÁ HẠN
+                    </Button>
+                  </Badge>
+
+                  <Tooltip title="Làm mới dữ liệu">
+                    <Button
+                      icon={<ReloadOutlined />}
+                      className="h-12 w-12 rounded-2xl font-bold flex items-center justify-center bg-white border-slate-200 text-slate-400 hover:text-blue-500"
+                      onClick={loadData}
+                    />
+                  </Tooltip>
+                </Space>
               </div>
             </Col>
           </Row>

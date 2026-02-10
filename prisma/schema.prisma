@@ -65,11 +65,13 @@ model NotSeenCarModel {
   customers Customer[] @relation("NotSeenReason")
 }
 
-model reasonBuyCar {
+model SellReason {
   id        String     @id @default(cuid())
   name      String     @unique
-  content   String?
-  customers Customer[] @relation("BuyReason") // Quan hệ cho lý do mua xe
+  content   String?    @db.Text // Thêm @db.Text nếu content dài
+  active    Boolean    @default(true) // Nên có để Admin ẩn/hiện
+  customers Customer[] @relation("CustomerSellReason") // Sửa lại tên relation cho đồng bộ
+  createdAt DateTime   @default(now())
 }
 
 // ==========================================
@@ -146,6 +148,7 @@ model Customer {
 
   fullName String
   phone    String
+
   province String?
   address  String? @db.Text
 
@@ -179,9 +182,7 @@ model Customer {
   notSeenReason    String?          @db.Text // Ghi chú tay thêm nếu cần
 
   // --- NHU CẦU MUA XE / LÝ DO BÁN XE (BỔ SUNG) ---
-  // Liên kết với danh mục reasonBuyCar Admin set
-  buyReasonId  String?
-  buyReasonRef reasonBuyCar? @relation("BuyReason", fields: [buyReasonId], references: [id])
+  // Liên kết với danh mục reasonSellCar Admin set
 
   urgencyLevel      UrgencyType?
   lastContactAt     DateTime?
@@ -198,16 +199,24 @@ model Customer {
   ownerHistories CarOwnerHistory[]
   tasks          Task[]
 
+  // --- QUAN HỆ LÝ DO 
+  sellReasonId String?
+  sellReason   SellReason? @relation("CustomerSellReason", fields: [sellReasonId], references: [id])
+
+  buyReasonId String?
+  buyReason   BuyReason? @relation("CustomerBuyReason", fields: [buyReasonId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Quan hệ ngược từ User (nếu cần)
+  // Quan hệ ngược với User
   userId    String?
   user      User?      @relation(fields: [userId], references: [id])
   contracts Contract[]
 
   @@index([status])
   @@index([phone])
+  @@index([province]) // Thêm index này nếu bạn thường xuyên lọc khách hàng theo tỉnh thành
 }
 
 // ==========================================
@@ -244,6 +253,10 @@ model LeadCar {
   insuranceVCCorp       String?
   insuranceVCDeadline   DateTime?
   insuranceDeadline     DateTime?
+
+  // --- THÔNG TIN PHẠT NGUỘI (BỔ SUNG MỚI) ---
+  hasFine  Boolean @default(false) // Trạng thái: Có phạt nguội hay không
+  fineNote String? @db.Text // Chi tiết lỗi, số tiền phạt, hoặc ghi chú phạt nguội
 
   tSurePrice    Decimal? @db.Decimal(15, 2)
   expectedPrice Decimal? @db.Decimal(15, 2)
@@ -285,6 +298,10 @@ model Car {
   seats         Int          @default(5)
   engineSize    String?
   driveTrain    String?
+
+  // --- THÔNG TIN PHẠT NGUỘI (BỔ SUNG MỚI) ---
+  hasFine  Boolean @default(false) // Trạng thái: Có phạt nguội hay không
+  fineNote String? @db.Text // Chi tiết lỗi, số tiền phạt, hoặc ghi chú phạt nguội
 
   registrationDeadline  DateTime?
   insuranceTNDS         Boolean   @default(false)
@@ -396,6 +413,15 @@ model SalesSchedule {
   createdAt DateTime @default(now())
 
   @@index([date, branchId])
+}
+
+model BuyReason {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  content   String?    @db.Text
+  active    Boolean    @default(true)
+  customers Customer[] @relation("CustomerBuyReason") // Phải khớp với Customer
+  createdAt DateTime   @default(now())
 }
 
 model Task {

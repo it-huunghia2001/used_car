@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   Form,
@@ -15,14 +15,19 @@ import {
   Space,
   Alert,
   InputNumber,
+  Badge,
+  Spin,
+  Empty,
 } from "antd";
 import {
   UserAddOutlined,
   PhoneOutlined,
   CarOutlined,
-  DollarOutlined,
+  BarcodeOutlined,
+  LoadingOutlined,
 } from "@ant-design/icons";
 import { Role } from "@prisma/client";
+import { getInventoryCarsAction } from "@/actions/car-actions"; // Import action
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -33,7 +38,7 @@ interface ModalAddSelfLeadProps {
   onFinish: (values: any) => void;
   loading: boolean;
   carModels: any[];
-  currentUser: any; // Truyền user từ Page vào để check Role
+  currentUser: any;
 }
 
 export default function ModalAddSelfLead({
@@ -46,28 +51,48 @@ export default function ModalAddSelfLead({
 }: ModalAddSelfLeadProps) {
   const [form] = Form.useForm();
   const watchType = Form.useWatch("type", form);
-  console.log(currentUser);
 
-  // Tự động set giá trị mặc định dựa trên Role khi mở Modal
+  // Trạng thái lưu danh sách xe lấy từ API
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [fetchingCars, setFetchingCars] = useState(false);
+
+  // 1. Logic lấy danh sách xe khi mở Modal
   useEffect(() => {
-    if (isOpen && currentUser?.role) {
-      if (currentUser.role === Role.SALES_STAFF) {
-        form.setFieldValue("type", "BUY");
-      } else if (currentUser.role === Role.PURCHASE_STAFF) {
-        form.setFieldValue("type", "SELL");
+    const fetchInventory = async () => {
+      setFetchingCars(true);
+      const res = await getInventoryCarsAction();
+      if (res.success) {
+        setInventory(res.data || []);
       }
+      setFetchingCars(false);
+    };
+
+    if (isOpen) {
+      fetchInventory();
+      // Set giá trị mặc định dựa trên Role
+      const defaultType =
+        currentUser?.role === Role.PURCHASE_STAFF ? "SELL" : "BUY";
+      form.setFieldsValue({ type: defaultType });
     }
   }, [isOpen, currentUser, form]);
 
-  const isLocked =
-    currentUser?.role === Role.SALES_STAFF ||
-    currentUser?.role === Role.PURCHASE_STAFF;
+  // 2. Hàm xử lý khi chọn xe từ kho
+  const handleSelectInventoryCar = (carId: string) => {
+    const selectedCar = inventory.find((c) => c.id === carId);
+    if (selectedCar) {
+      form.setFieldsValue({
+        carModelId: selectedCar.carModelId,
+        carYear: selectedCar.year,
+        budget: selectedCar.sellingPrice,
+      });
+    }
+  };
 
   return (
     <Modal
       title={
         <Space>
-          <UserAddOutlined className="text-green-600" />
+          <UserAddOutlined className="text-blue-600" />
           <span className="uppercase font-bold">
             Thêm khách hàng mới của tôi
           </span>
@@ -80,7 +105,7 @@ export default function ModalAddSelfLead({
         onClose();
       }}
       confirmLoading={loading}
-      width={600}
+      width={700}
       okText="Tạo khách hàng & Nhận chăm sóc"
       centered
       destroyOnHidden
@@ -105,38 +130,81 @@ export default function ModalAddSelfLead({
               label="Số điện thoại"
               rules={[
                 { required: true, message: "Nhập số điện thoại" },
-                { pattern: /^[0-9]{10}$/, message: "SĐT không hợp lệ (10 số)" },
+                {
+                  pattern: /^[0-9]{10}$/,
+                  message: "SĐT phải có đúng 10 chữ số",
+                },
               ]}
             >
               <Input
-                placeholder="090..."
+                placeholder="0123456789"
+                maxLength={10}
                 prefix={<PhoneOutlined className="text-gray-400" />}
+                onChange={(e) =>
+                  form.setFieldValue("phone", e.target.value.replace(/\D/g, ""))
+                }
               />
             </Form.Item>
           </Col>
         </Row>
 
-        <Form.Item
-          name="type"
-          label="Nhu cầu khách hàng"
-          extra={
-            isLocked ? (
-              <Text type="secondary" className="text-[11px]">
-                Nhu cầu được cố định theo chức vụ của bạn
-              </Text>
-            ) : null
-          }
-        >
-          <Select className="w-full" disabled={isLocked}>
-            <Option value="BUY">Mua xe (Lead Bán hàng)</Option>
-            <Option value="SELL">Bán xe / Ký gửi (Lead Thu mua)</Option>
-            <Option value="VALUATION">Chỉ định giá xe</Option>
+        <Form.Item name="type" label="Nhu cầu khách hàng">
+          <Select className="w-full" disabled={isLocked(currentUser)}>
+            <Option value="BUY">Mua xe (NV Bán hàng)</Option>
+            <Option value="SELL">Bán xe (NV Thu mua)</Option>
           </Select>
         </Form.Item>
 
         <Divider plain>
           <CarOutlined /> Thông tin nhu cầu chi tiết
         </Divider>
+
+        {/* CHỌN XE TỪ KHO - Chỉ hiện khi chọn MUA */}
+        {watchType === "BUY" && (
+          <Form.Item
+            name="inventoryCarId"
+            label={
+              <Text strong className="text-blue-600 italic">
+                Chọn xe đang có sẵn trong kho (Nếu có)
+              </Text>
+            }
+          >
+            <Select
+              placeholder="Tìm theo Mã kho hoặc Tên xe..."
+              showSearch
+              allowClear
+              loading={fetchingCars}
+              optionFilterProp="children"
+              onChange={handleSelectInventoryCar}
+              prefix={<BarcodeOutlined />}
+              notFoundContent={
+                fetchingCars ? (
+                  <Spin size="small" />
+                ) : (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description="Không có xe sẵn sàng bán"
+                  />
+                )
+              }
+            >
+              {inventory.map((car) => (
+                <Option key={car.id} value={car.id}>
+                  <div className="flex justify-between w-full">
+                    <span>
+                      <Badge status="success" className="mr-2" />
+                      <Text strong>{car.stockCode}</Text> - {car.modelName} (
+                      {car.year})
+                    </span>
+                    <Text type="secondary">
+                      {Number(car.sellingPrice).toLocaleString()} đ
+                    </Text>
+                  </div>
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        )}
 
         <Row gutter={16}>
           <Col span={12}>
@@ -161,7 +229,7 @@ export default function ModalAddSelfLead({
           <Form.Item name="budget" label="Ngân sách dự kiến">
             <InputNumber
               className="w-full!"
-              placeholder="VD: Khoảng 500 - 600 triệu"
+              placeholder="VD: 600,000,000"
               formatter={(value) =>
                 `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
               }
@@ -182,11 +250,7 @@ export default function ModalAddSelfLead({
                     .slice(0, 9)
                 }
                 rules={[
-                  {
-                    required: watchType !== "BUY",
-                    message: "Vui lòng nhập biển số xe!",
-                  },
-                  { min: 5, message: "Biển số không hợp lệ" },
+                  { required: true, message: "Vui lòng nhập biển số xe!" },
                 ]}
               >
                 <Input placeholder="VD: 51G12345" />
@@ -196,7 +260,6 @@ export default function ModalAddSelfLead({
               <Form.Item name="expectedPrice" label="Giá khách muốn bán">
                 <InputNumber
                   className="w-full!"
-                  placeholder="Vd: 500,000,000"
                   formatter={(value) =>
                     `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                   }
@@ -216,15 +279,16 @@ export default function ModalAddSelfLead({
         </Form.Item>
 
         <Alert
-          type="success"
+          type="info"
           showIcon
-          title={
-            <Text className="text-green-700 font-medium">
-              Bạn đang tự gán khách hàng này cho chính mình.
-            </Text>
-          }
+          message={`Hệ thống sẽ tự động gán khách hàng này cho bạn`}
         />
       </Form>
     </Modal>
   );
+}
+
+// Hàm helper để check lock role
+function isLocked(user: any) {
+  return user?.role === Role.SALES_STAFF || user?.role === Role.PURCHASE_STAFF;
 }

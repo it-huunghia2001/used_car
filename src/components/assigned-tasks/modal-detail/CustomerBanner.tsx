@@ -10,6 +10,7 @@ import {
   CarOutlined,
   InfoCircleOutlined,
   UserSwitchOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { getReferralTypeTag } from "@/lib/status-helper";
 
@@ -20,8 +21,7 @@ export const CustomerBanner = ({
   renderTime,
   UrgencyBadge,
 }: any) => {
-  console.log(customerData);
-
+  // Helper gán màu sắc và label cho trạng thái giám định
   const getInspectStatusTag = (status: string) => {
     switch (status) {
       case "INSPECTED":
@@ -62,7 +62,7 @@ export const CustomerBanner = ({
 
   return (
     <div className="mb-6 p-6 md:p-8 bg-[#0f172a] rounded-[2.5rem] shadow-2xl text-white relative overflow-hidden border border-slate-800 transition-all shadow-indigo-500/10">
-      {/* Background Decor */}
+      {/* Hiệu ứng nền decor */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-600/10 rounded-full -mr-24 -mt-24 blur-[80px]"></div>
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/5 rounded-full -ml-20 -mb-20 blur-[60px]"></div>
 
@@ -71,7 +71,7 @@ export const CustomerBanner = ({
         align="top"
         className="relative z-10 justify-between"
       >
-        {/* CỘT 1: KHÁCH HÀNG & NGƯỜI GIỚI THIỆU */}
+        {/* CỘT 1: THÔNG TIN KHÁCH HÀNG & ĐỊA CHỈ */}
         <Col xs={24} md={9} lg={9}>
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
             <div className="flex-1 text-center sm:text-left">
@@ -98,7 +98,29 @@ export const CustomerBanner = ({
                   {getReferralTypeTag(customerData.type)}
                 </div>
 
-                {/* THÔNG TIN NHÂN VIÊN GIỚI THIỆU (REFERRER) */}
+                {/* PHẦN ĐỊA CHỈ: Hiển thị Tỉnh thành và Địa chỉ chi tiết */}
+                {(customerData.province || customerData.address) && (
+                  <div className="flex flex-col gap-1.5 py-1">
+                    {customerData.province && (
+                      <div className="flex items-center justify-center sm:justify-start gap-2 text-indigo-400">
+                        <GlobalOutlined className="text-xs" />
+                        <span className="text-xs uppercase font-black tracking-widest leading-none">
+                          {customerData.province}
+                        </span>
+                      </div>
+                    )}
+                    {customerData.address && (
+                      <div className="flex items-start justify-center sm:justify-start gap-2">
+                        <EnvironmentOutlined className="text-slate-500 text-xs mt-1 shrink-0" />
+                        <Text className="text-slate-400! text-[13px] leading-snug font-medium italic">
+                          {customerData.address}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* THÔNG TIN NGUỒN GIỚI THIỆU */}
                 <div className="bg-white/5 border border-white/10 p-3 rounded-2xl inline-block w-full sm:w-auto">
                   <div className="flex items-center gap-2 mb-1 justify-center sm:justify-start text-indigo-400">
                     <UserSwitchOutlined className="text-xs" />
@@ -121,44 +143,53 @@ export const CustomerBanner = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center sm:justify-start gap-2 text-slate-400 font-medium pt-1">
-                  <CarOutlined className="text-indigo-400" />
-                  <span>{customerData.carModel?.name || "KĐ"}</span>
-                  <Tag
-                    color="default"
-                    className="bg-slate-800 border-slate-700 text-slate-300 font-mono m-0 ml-1 h-5 flex items-center text-[10px]"
-                  >
-                    {customerData.licensePlate || "---"}
-                  </Tag>
-                </div>
-                {customerData.tradeInModel && (
-                  <div className="flex items-center justify-center sm:justify-start gap-2 text-slate-400 font-medium pt-1">
+                {/* THÔNG TIN XE QUAN TÂM */}
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-center sm:justify-start gap-2 text-slate-400 font-medium">
                     <CarOutlined className="text-indigo-400" />
-                    <span>
-                      Xe muốn đổi: {customerData.tradeInModel || "KĐ"}
-                    </span>
+                    <span>{customerData.carModel?.name || "KĐ"}</span>
+                    <Tag
+                      color="default"
+                      className="bg-slate-800 border-slate-700 text-slate-300 font-mono m-0 ml-1 h-5 flex items-center text-[10px]"
+                    >
+                      {customerData.licensePlate || "---"}
+                    </Tag>
                   </div>
-                )}
-
-                {customerData.inspectStatus === "NOT_INSPECTED" && (
-                  <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl">
-                    <div className="flex items-center gap-2 text-blue-400 mb-1">
-                      <InfoCircleOutlined className="text-[10px]" />
-                      <span className="text-[9px] uppercase font-black tracking-widest">
-                        Lý do bán xe:
+                  {customerData.tradeInModel && (
+                    <div className="flex items-center justify-center sm:justify-start gap-2 text-slate-500 text-xs">
+                      <CarOutlined className="text-indigo-500/50" />
+                      <span>
+                        Xe muốn đổi:{" "}
+                        <span className="text-slate-300 font-bold">
+                          {customerData.tradeInModel}
+                        </span>
                       </span>
                     </div>
-                    <span className="text-[13px] text-blue-200! leading-relaxed font-medium">
-                      {customerData?.buyReasonRef?.name ||
-                        "Chưa ghi nhận lý do"}
-                    </span>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                {/* LÝ DO BÁN (Chỉ hiện khi chưa xem xe) */}
+                {customerData.type !== "BUY" &&
+                  customerData.inspectStatus === "NOT_INSPECTED" && (
+                    <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl">
+                      <div className="flex items-center gap-2 text-indigo-400 mb-1">
+                        <InfoCircleOutlined className="text-[10px]" />
+                        <span className="text-[9px] uppercase font-black tracking-widest">
+                          Lý do bán xe:
+                        </span>
+                      </div>
+                      <span className="text-[12px] text-indigo-200! leading-relaxed font-medium">
+                        {customerData?.sellReason?.name ||
+                          "Chưa ghi nhận lý do"}
+                      </span>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
         </Col>
 
+        {/* CỘT 2: CÔNG TÁC GIÁM ĐỊNH (Chỉ hiện cho nghiệp vụ Thu mua/Định giá) */}
         {customerData.type !== "BUY" && (
           <Col
             xs={24}
@@ -171,7 +202,7 @@ export const CustomerBanner = ({
                 <Text className="text-[10px] uppercase tracking-[0.2em] text-slate-300! font-black block mb-2">
                   Công tác giám định
                 </Text>
-                <div className="flex items-center gap-2 text-slate-500!">
+                <div className="flex items-center gap-2">
                   {getInspectStatusTag(customerData.inspectStatus)}
                 </div>
               </div>
@@ -197,7 +228,7 @@ export const CustomerBanner = ({
                   </div>
                   <div>
                     <Text className="text-slate-300! block text-[10px] uppercase font-bold tracking-wider">
-                      Địa điểm
+                      Địa điểm xem xe
                     </Text>
                     <Text className="font-semibold text-slate-200! italic leading-snug">
                       {customerData.inspectLocation || "Chưa có địa chỉ"}
@@ -206,6 +237,7 @@ export const CustomerBanner = ({
                 </div>
               </div>
 
+              {/* Nguyên nhân chưa xem được xe */}
               {customerData.inspectStatus === "NOT_INSPECTED" && (
                 <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-2xl">
                   <div className="flex items-center gap-2 text-red-400 mb-1">

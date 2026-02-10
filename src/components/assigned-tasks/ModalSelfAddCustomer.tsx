@@ -213,6 +213,12 @@ export default function ModalSelfAddCustomer({
                   placeholder="09xx xxx xxx"
                   size="large"
                   className="rounded-xl border-slate-200"
+                  onChange={(e) => {
+                    // Chỉ giữ lại các ký tự là số, loại bỏ chữ và ký tự đặc biệt ngay lập tức
+                    const value = e.target.value.replace(/\D/g, "");
+                    // Cập nhật lại giá trị sạch vào form
+                    form.setFieldsValue({ phone: value });
+                  }}
                 />
               </Form.Item>
             </Col>

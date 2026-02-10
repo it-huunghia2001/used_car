@@ -61,6 +61,7 @@ import ModalLoseLead from "@/components/assigned-tasks/ModalLoseLead";
 import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndLeadCar";
 import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
 import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
+import { getBuyReasons } from "@/actions/sell-reason-actions";
 
 const { Title, Text } = Typography;
 
@@ -90,6 +91,7 @@ export default function AssignedTasksPage() {
 
   const [notSeenReasons, setNotSeenReasons] = useState<any[]>([]);
   const [sellReasons, setSellReasons] = useState<any[]>([]);
+  const [buyReasons, setBuyReasons] = useState<any[]>([]);
   const [allStaffAPPRAISER, setAllStaffAPPRAISER] = useState<any[]>([]);
 
   // --- LOAD DATA ---
@@ -105,6 +107,7 @@ export default function AssignedTasksPage() {
         nsReasons,
         sReasons,
         staffsAPPRAISER,
+        buyReasons,
       ]: any = await Promise.all([
         getMyTasksAction(),
         getAvailableCars(),
@@ -114,6 +117,7 @@ export default function AssignedTasksPage() {
         getNotSeenReasonsAction(), // Mới
         getSellReasonsAction(), // Mới
         getAllStaffAPPRAISERAction(), // Mới
+        getBuyReasons(),
       ]);
       setTasks(leads);
       setCustomers(myCustomers);
@@ -123,6 +127,7 @@ export default function AssignedTasksPage() {
 
       setNotSeenReasons(nsReasons);
       setSellReasons(sReasons);
+      setBuyReasons(buyReasons);
       setAllStaffAPPRAISER(staffsAPPRAISER);
     } catch (err) {
       messageApi.error("Không thể tải dữ liệu");
@@ -529,6 +534,7 @@ export default function AssignedTasksPage() {
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         selectedLead={selectedLead}
+        buyReasons={buyReasons}
         onContactClick={() => {
           setIsDetailModalOpen(false);
           setIsContactModalOpen(true);

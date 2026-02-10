@@ -87,9 +87,25 @@ export default function FormValuation({ carModels, userId, onSuccess }: any) {
               <Form.Item
                 name="phone"
                 label="Số điện thoại"
-                rules={[{ required: true, message: "Nhập số điện thoại" }]}
+                rules={[
+                  { required: true, message: "Vui lòng nhập số điện thoại" },
+                  {
+                    pattern: /^[0-9]{10}$/,
+                    message: "Số điện thoại phải có đúng 10 chữ số",
+                  },
+                ]}
               >
-                <Input prefix={<PhoneOutlined />} placeholder="0367..." />
+                <Input
+                  prefix={<PhoneOutlined className="text-gray-400" />}
+                  placeholder="0901234567"
+                  maxLength={10} // Chặn không cho nhập ký tự thứ 11
+                  onChange={(e) => {
+                    // Chỉ giữ lại các ký tự là số, loại bỏ chữ và ký tự đặc biệt ngay lập tức
+                    const value = e.target.value.replace(/\D/g, "");
+                    // Cập nhật lại giá trị sạch vào form
+                    form.setFieldsValue({ phone: value });
+                  }}
+                />
               </Form.Item>
             </Col>
           </Row>

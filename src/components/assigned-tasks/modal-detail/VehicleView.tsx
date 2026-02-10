@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { Row, Col, Typography, Tag, Space, Divider, Badge } from "antd";
+import { Row, Col, Typography, Tag, Space, Divider, Badge, Alert } from "antd";
 import {
   CalendarOutlined,
   BgColorsOutlined,
@@ -8,13 +8,14 @@ import {
   DashboardOutlined,
   SettingOutlined,
   TeamOutlined,
+  WarningOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
 
 const { Title, Text, Paragraph } = Typography;
 
 export const VehicleView = ({ lc, carModels, customerData }: any) => {
-  // Hàm helper hiển thị item thông tin với class responsive
   const InfoItem = ({ label, value, icon, color }: any) => (
     <div className="flex flex-col mb-4 h-full">
       <div className="text-gray-500 text-[11px] uppercase flex items-center gap-1 mb-1 font-medium whitespace-nowrap">
@@ -106,6 +107,41 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
               />
             </Col>
           </Row>
+
+          {/* --- PHẦN HIỂN THỊ PHẠT NGUỘI --- */}
+          <div className="mt-6">
+            {lc.hasFine ? (
+              <Alert
+                message={
+                  <Text className="font-bold text-red-700">
+                    CẢNH BÁO PHÁP LÝ: XE CÓ PHẠT NGUỘI
+                  </Text>
+                }
+                description={
+                  <div className="mt-1">
+                    <Text className="text-red-600">
+                      {lc.fineNote ||
+                        "Chưa có nội dung chi tiết lỗi phạt nguội."}
+                    </Text>
+                  </div>
+                }
+                type="error"
+                showIcon
+                icon={<WarningOutlined />}
+                className="rounded-xl border-red-200 bg-red-50"
+              />
+            ) : (
+              <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+                <CheckCircleOutlined className="text-emerald-500" />
+                <Text className="text-emerald-700 font-medium text-[13px]">
+                  Kiểm tra pháp lý:{" "}
+                  <Text className="font-bold text-emerald-800">
+                    Không có phạt nguội
+                  </Text>
+                </Text>
+              </div>
+            )}
+          </div>
         </Col>
 
         {/* Cột phải: Định danh & Giá */}
@@ -180,6 +216,20 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
                   value={lc.ownerType === "PERSONAL" ? "Cá nhân" : "Công ty"}
                 />
               </Col>
+              <Col xs={24}>
+                <Divider className="my-2 border-slate-200/50" />
+                <div className="flex items-center gap-2">
+                  <Text className="text-[11px] uppercase font-bold text-slate-400">
+                    Trạng thái phạt nguội:
+                  </Text>
+                  <Tag
+                    color={lc.hasFine ? "red" : "green"}
+                    className="font-bold m-0 border-none"
+                  >
+                    {lc.hasFine ? "CÓ VI PHẠM" : "SẠCH (KHÔNG VI PHẠM)"}
+                  </Tag>
+                </div>
+              </Col>
             </Row>
           </div>
         </Col>
@@ -213,7 +263,6 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
                 </Text>
               </div>
             ))}
-
             <div className="grid grid-cols-2 gap-2 mt-2">
               {[
                 { label: "BH TNDS", deadline: lc.insuranceTNDSDeadline },

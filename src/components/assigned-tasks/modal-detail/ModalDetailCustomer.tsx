@@ -42,6 +42,7 @@ export default function ModalDetailCustomer({
   onContactClick,
   UrgencyBadge,
   carModels = [],
+  buyReasons = [],
   notSeenReasons = [],
   sellReasons = [],
   users = [],
@@ -157,6 +158,10 @@ export default function ModalDetailCustomer({
 
       const cleanedValues = {
         ...values,
+        province: values.province || "",
+        address: values.address || "",
+        hasFine: values.hasFine || false,
+        fineNote: values.fineNote || "",
         inspectDoneDate: values.inspectDoneDate?.toISOString() || null,
         inspectDate: values.inspectDate?.toISOString() || null,
         registrationDeadline:
@@ -169,6 +174,7 @@ export default function ModalDetailCustomer({
         carImages: documentUrls,
       };
 
+      console.log("Cleaned Values:", cleanedValues);
       const res = await updateFullLeadDetail(customerData.id, cleanedValues);
 
       if (res.success) {
@@ -214,16 +220,37 @@ export default function ModalDetailCustomer({
         >
           Đóng
         </Button>,
-        <Button
-          key="call"
-          type="primary"
-          size="large"
-          icon={<PhoneOutlined />}
-          onClick={onContactClick}
-          className="bg-indigo-600 rounded-xl shadow-md"
-        >
-          Ghi nhận tương tác
-        </Button>,
+        !loading &&
+          (isEditing ? (
+            <Space>
+              <Button
+                size="large"
+                onClick={() => setIsEditing(false)}
+                className="rounded-lg ml-4"
+              >
+                Hủy
+              </Button>
+              <Button
+                size="large"
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={handleSave}
+                loading={loading}
+                className="rounded-lg bg-indigo-600 mr-4"
+              >
+                Lưu thay đổi
+              </Button>
+            </Space>
+          ) : (
+            <Button
+              size="large"
+              icon={<EditOutlined />}
+              onClick={() => setIsEditing(true)}
+              className="rounded-lg border-indigo-200 text-indigo-600"
+            >
+              Chỉnh sửa
+            </Button>
+          )),
       ]}
     >
       <div className="max-h-[78vh] overflow-y-auto px-1 custom-scrollbar overflow-x-hidden pt-2">
@@ -303,6 +330,7 @@ export default function ModalDetailCustomer({
                     <VehicleFormFields
                       carModels={carModels}
                       notSeenReasons={notSeenReasons}
+                      buyReasons={buyReasons}
                       sellReasons={sellReasons}
                       users={users}
                       type={customerData.type}

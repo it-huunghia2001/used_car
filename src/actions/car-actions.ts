@@ -40,6 +40,8 @@ export async function updateCarAction(id: string, data: any) {
     Now = dayjs().tz("Asia/Ho_Chi_Minh");
   }
   try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const updated = await db.car.update({
       where: { id },
       data: {
@@ -67,8 +69,7 @@ export async function getInventory(filters?: {
 }) {
   try {
     const user = await getCurrentUser();
-    if (!user) return [];
-
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const { role, isGlobalManager, branchId } = user;
     const isHighLevel = role === "ADMIN" || isGlobalManager;
 
@@ -122,6 +123,8 @@ export async function getInventory(filters?: {
 // --- LOGIC DUYỆT XE RA SHOWROOM (MỚI) ---
 export async function publishCarAction(carId: string, price: number) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const updatedCar = await db.car.update({
       where: { id: carId },
       data: {
@@ -142,6 +145,8 @@ export async function publishCarAction(carId: string, price: number) {
 // --- LOGIC QUẢN LÝ MẪU XE (Giữ nguyên và bọc try-catch) ---
 export async function getCarModelsAction() {
   try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const carModels = await db.carModel.findMany({
       select: { id: true, name: true, grade: true },
       orderBy: { name: "asc" },
@@ -158,6 +163,8 @@ export async function getCarModelsAction() {
 // 2. Tạo mẫu xe mới
 export async function createCarModelAction(name: string, grade: string | null) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const newModel = await db.carModel.create({
       data: { name, grade },
     });
@@ -176,6 +183,8 @@ export async function updateCarModelAction(
   grade?: string | null,
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const updated = await db.carModel.update({
       where: { id },
       data: { name, grade },
@@ -191,6 +200,8 @@ export async function updateCarModelAction(
 // 4. Xóa mẫu xe
 export async function deleteCarModelAction(id: string) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     // Lưu ý: Nếu có khách hàng đang chọn mẫu xe này, Prisma sẽ báo lỗi liên kết (Foreign Key)
     await db.carModel.delete({
       where: { id },
@@ -217,6 +228,8 @@ export async function getInventoryAdvancedAction({
   search?: string;
 }) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const skip = (page - 1) * limit;
 
     // 1. ĐIỀU KIỆN LỌC TỔNG THỂ
@@ -296,6 +309,8 @@ export async function getInventoryAdvancedAction({
 }
 export async function getAvailableCarsAction() {
   try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const cars = await db.car.findMany({
       where: {
         status: { in: ["READY_FOR_SALE", "REFURBISHING"] },
@@ -318,5 +333,29 @@ export async function getAvailableCarsAction() {
   } catch (error) {
     console.error("Lỗi getAvailableCarsAction:", error);
     return [];
+  }
+}
+
+export async function getInventoryCarsAction() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
+    const cars = await db.car.findMany({
+      where: {
+        status: "READY_FOR_SALE", // Chỉ lấy xe sẵn sàng bán
+      },
+      select: {
+        id: true,
+        stockCode: true,
+        modelName: true,
+        year: true,
+        sellingPrice: true,
+        carModelId: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return { success: true, data: cars };
+  } catch (error) {
+    return { success: false, error: "Không thể tải danh sách xe" };
   }
 }

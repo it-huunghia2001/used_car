@@ -115,7 +115,7 @@ export async function getLeadDetail(customerId: string) {
             name: true,
           },
         },
-        buyReasonRef: {
+        sellReason: {
           select: {
             name: true,
           },

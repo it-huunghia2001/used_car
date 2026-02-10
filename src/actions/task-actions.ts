@@ -87,7 +87,7 @@ export async function getMyTasksAction() {
                   name: true,
                 },
               },
-              buyReasonRef: {
+              sellReason: {
                 select: {
                   name: true,
                 },
@@ -1103,9 +1103,8 @@ export async function selfCreateCustomerAction(values: any) {
       notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED, LeadStatus.LOSE],
     };
 
-    // 2. KIỂM TRA TRÙNG LẶP (Đồng bộ logic với createCustomerAction)
+    // 2. KIỂM TRA TRÙNG LẶP
     if (values.type === "BUY") {
-      // Đối với khách MUA: Chặn trùng Số điện thoại đang xử lý
       const duplicatePhone = await db.customer.findFirst({
         where: {
           phone: values.phone,
@@ -1121,7 +1120,6 @@ export async function selfCreateCustomerAction(values: any) {
         };
       }
     } else if (cleanPlate) {
-      // Đối với khách BÁN/ĐỊNH GIÁ: Chặn trùng Biển số xe đang xử lý
       const duplicatePlate = await db.customer.findFirst({
         where: {
           licensePlate: cleanPlate,
@@ -1137,7 +1135,15 @@ export async function selfCreateCustomerAction(values: any) {
       }
     }
 
-    // 3. TRANSACTION LƯU DỮ LIỆU
+    // 3. LẤY THÔNG TIN XE TỪ KHO (NẾU CÓ CHỌN)
+    let inventoryCarData: any = null;
+    if (values.inventoryCarId) {
+      inventoryCarData = await db.car.findUnique({
+        where: { id: values.inventoryCarId },
+      });
+    }
+
+    // 4. TRANSACTION LƯU DỮ LIỆU
     return await db.$transaction(async (tx) => {
       const now = new Date();
 
@@ -1145,55 +1151,90 @@ export async function selfCreateCustomerAction(values: any) {
         data: {
           fullName: values.fullName,
           phone: values.phone,
-          status: LeadStatus.CONTACTED, // Tự tạo thì nhảy thẳng sang Contacted
+          status: LeadStatus.CONTACTED,
           type: values.type,
           referrerId: auth.id,
           assignedToId: auth.id,
           assignedAt: now,
           branchId: auth.branchId,
-          carModelId: values.carModelId,
-          licensePlate: cleanPlate,
+          // Ưu tiên lấy modelId từ xe trong kho nếu có chọn
+          carModelId: inventoryCarData
+            ? inventoryCarData.carModelId
+            : values.carModelId,
+          licensePlate: inventoryCarData
+            ? inventoryCarData.licensePlate
+            : cleanPlate,
+          budget: values.budget,
+          expectedPrice: values.expectedPrice,
           note: values.note,
 
+          // TẠO LEADCAR TỰ ĐỘNG GÁN THÔNG TIN XE
           leadCar: {
             create: {
-              carModelId: values.carModelId,
-              licensePlate: cleanPlate,
-              year: values.year ? values.year : undefined, // Đảm bảo kiểu string cho carYear
+              carModelId: inventoryCarData
+                ? inventoryCarData.carModelId
+                : values.carModelId,
+              modelName: inventoryCarData
+                ? inventoryCarData.modelName
+                : undefined,
+              licensePlate: inventoryCarData
+                ? inventoryCarData.licensePlate
+                : cleanPlate,
+              year: inventoryCarData
+                ? inventoryCarData.year
+                : values.carYear
+                  ? parseInt(values.carYear)
+                  : undefined,
+              vin: inventoryCarData ? inventoryCarData.vin : undefined,
+              engineNumber: inventoryCarData
+                ? inventoryCarData.engineNumber
+                : undefined,
+              odo: inventoryCarData ? inventoryCarData.odo : undefined,
+              color: inventoryCarData ? inventoryCarData.color : undefined,
+              tSurePrice: inventoryCarData
+                ? inventoryCarData.costPrice
+                : undefined,
+              expectedPrice: inventoryCarData
+                ? inventoryCarData.sellingPrice
+                : values.expectedPrice,
+              // Lưu vết ID xe gốc để đối soát sau này nếu cần
+              note: inventoryCarData
+                ? `Xe chọn từ kho: ${inventoryCarData.stockCode}`
+                : undefined,
             },
           },
 
           tasks: {
             create: {
               title: `🌟 CHĂM SÓC: ${values.fullName}`,
-              content: `Khách hàng tự khai thác - ${values.note || "Nghiệp vụ " + values.type}`,
+              content: inventoryCarData
+                ? `Khách quan tâm xe: ${inventoryCarData.stockCode} - ${inventoryCarData.modelName}. ${values.note || ""}`
+                : `Khách hàng tự khai thác - ${values.note || "Nghiệp vụ " + values.type}`,
               scheduledAt: now,
-              // Deadline 1 năm để nhân viên tự quản lý, không ép KPI trễ phút
               deadlineAt: dayjs(now).add(1, "year").toDate(),
               assigneeId: auth.id,
               status: TaskStatus.PENDING,
-              type: values.type === "BUY" ? "SALES" : "PURCHASE", // Gán type task chuẩn theo nghiệp vụ
+              type: values.type === "BUY" ? "SALES" : "PURCHASE",
             },
           },
 
           activities: {
             create: {
               status: LeadStatus.CONTACTED,
-              note: `[NHÂN VIÊN TỰ TẠO] Khách hàng tự khai thác. Biển số: ${cleanPlate || "N/A"}`,
+              note: `[NHÂN VIÊN TỰ TẠO] Khách hàng quan tâm ${inventoryCarData ? "xe tại kho: " + inventoryCarData.stockCode : "xe ngoài"}.`,
               createdById: auth.id,
             },
           },
         },
       });
 
-      // Cập nhật mốc thời gian gán cuối cho chính nhân viên này
       await tx.user.update({
         where: { id: auth.id },
         data: { lastAssignedAt: now },
       });
 
       revalidatePath("/dashboard/assigned-tasks");
-      revalidatePath("/dashboard/my-referrals"); // Revalidate thêm trang lịch sử cá nhân
+      revalidatePath("/dashboard/my-referrals");
 
       return { success: true, data: JSON.parse(JSON.stringify(customer)) };
     });
@@ -1716,7 +1757,7 @@ export async function getAllStaffAPPRAISERAction() {
 export async function getSellReasonsAction() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
-  return await db.reasonBuyCar.findMany({
+  return await db.sellReason.findMany({
     orderBy: { name: "asc" },
   });
 }

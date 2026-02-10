@@ -19,6 +19,7 @@ import { getBranchesForRegisterAction } from "@/actions/branch-actions";
 const { Title, Text } = Typography;
 
 export default function RegisterPage() {
+  const [form] = Form.useForm();
   const router = useRouter();
   const [branches, setBranches] = useState<
     { address: string; name: string; id: string }[]
@@ -173,18 +174,26 @@ export default function RegisterPage() {
             </Form.Item>
 
             <Form.Item
-              label={
-                <span className="text-xs font-semibold text-gray-500">
-                  Số điện thoại
-                </span>
-              }
               name="phone"
-              rules={[{ required: true, message: "Bắt buộc" }]}
+              label="Số điện thoại"
+              rules={[
+                { required: true, message: "Vui lòng nhập số điện thoại" },
+                {
+                  pattern: /^[0-9]{10}$/,
+                  message: "Số điện thoại phải có đúng 10 chữ số",
+                },
+              ]}
             >
               <Input
                 prefix={<PhoneOutlined className="text-gray-400" />}
-                placeholder="090x xxx xxx"
-                className="rounded-lg"
+                placeholder="0901234567"
+                maxLength={10} // Chặn không cho nhập ký tự thứ 11
+                onChange={(e) => {
+                  // Chỉ giữ lại các ký tự là số, loại bỏ chữ và ký tự đặc biệt ngay lập tức
+                  const value = e.target.value.replace(/\D/g, "");
+                  // Cập nhật lại giá trị sạch vào form
+                  form.setFieldsValue({ phone: value });
+                }}
               />
             </Form.Item>
 

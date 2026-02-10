@@ -312,6 +312,8 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
           notSeenReason, // Ghi chú thêm
           carImages: restValues.carImages || [],
           documents: restValues.documents || [],
+          address: restValues.address || null,
+          province: restValues.province || null,
         },
       });
 
@@ -355,6 +357,8 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
         // Logic Boolean cho bảo hiểm
         insuranceTNDS: !!restValues.insuranceTNDSDeadline,
         insuranceVC: !!restValues.insuranceVCDeadline,
+        hasFine: !!restValues.hasFine,
+        fineNote: restValues.fineNote || null,
       };
 
       // 3. Upsert LeadCar
