@@ -82,7 +82,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
     ]) && {
       key: "/",
       icon: <DashboardOutlined />,
-      label: <Link href="/">Bảng điều khiển</Link>,
+      label: <Link href="/">Bảng hiệu suất</Link>,
     },
     {
       key: "/dashboard/showroom",

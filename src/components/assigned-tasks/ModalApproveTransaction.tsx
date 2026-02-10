@@ -21,6 +21,7 @@ import {
   Image,
   Empty,
   Typography,
+  Switch,
 } from "antd";
 import {
   FilePdfOutlined,
@@ -55,6 +56,7 @@ export default function ModalApproveTransaction({
   // 🔥 Quan trọng: Watcher để theo dõi giá trị ảnh và tài liệu trong Form
   const carImagesWatcher = Form.useWatch("carImages", form);
   const documentsWatcher = Form.useWatch("documents", form);
+  const isCertified = Form.useWatch("isCertified", form);
 
   const conditionOptions = [
     "Mức 5: Xuất sắc: gần như mới",
@@ -622,35 +624,78 @@ export default function ModalApproveTransaction({
             </Card>
             <Card
               size="small"
-              title="2. Nội dung hiển thị (CMS)"
+              title="2. Nội dung hiển thị & Đánh giá (CMS)"
               className="mb-4 mt-2!"
             >
-              <Form.Item
-                name="description"
-                label="Đánh giá tình trạng xe"
-                rules={[
-                  { required: true, message: "Vui lòng chọn tình trạng xe" },
-                ]}
-              >
-                <Select
-                  placeholder="Chọn mức độ đánh giá tình trạng..."
-                  allowClear
-                >
-                  {conditionOptions.map((item) => (
-                    <Select.Option key={item} value={item}>
-                      {item}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
+              <Row gutter={16}>
+                {/* 1. ĐÁNH GIÁ TÌNH TRẠNG */}
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name="conditionGrade"
+                    label="Phân loại tình trạng"
+                    rules={[
+                      {
+                        required: true,
+                        message: "Vui lòng chọn tình trạng xe",
+                      },
+                    ]}
+                  >
+                    <Select
+                      placeholder="Chọn mức độ (A/B/C hoặc 1-5*)"
+                      allowClear
+                    >
+                      {conditionOptions.map((item) => (
+                        <Select.Option key={item} value={item}>
+                          {item}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
 
-              <Form.Item
-                name="features"
-                label="Phụ kiện"
-                rules={[{ required: true }]}
-              >
-                <Input placeholder="VD: Cửa sổ trời, Ghế điện..." />
-              </Form.Item>
+                {/* 2. TRẠNG THÁI ĐẠT CHUẨN (SWITCH) */}
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name="isCertified"
+                    label="Chứng nhận xe đạt chuẩn?"
+                    valuePropName="checked"
+                    initialValue={false}
+                  >
+                    <Switch
+                      checkedChildren="ĐẠT CHUẨN"
+                      unCheckedChildren="KHÔNG ĐẠT"
+                      // 3. Sử dụng biến đã khai báo ở trên, không gọi hook tại đây nữa
+                      className={isCertified ? "bg-green-600" : "bg-red-500"}
+                    />
+                  </Form.Item>
+                </Col>
+
+                {/* 3. GHI CHÚ CHỨNG NHẬN (Hiện ra khi cần lưu ý) */}
+                <Col span={24}>
+                  <Form.Item
+                    name="certificationNote"
+                    label="Ghi chú chứng nhận / Lý do không đạt chuẩn"
+                  >
+                    <Input.TextArea
+                      rows={2}
+                      placeholder="VD: Xe đạt chuẩn T-Sure Gold / Hoặc: Xe lỗi khung gầm không cấp chứng nhận..."
+                    />
+                  </Form.Item>
+                </Col>
+
+                {/* 4. PHỤ KIỆN */}
+                <Col span={24}>
+                  <Form.Item
+                    name="features"
+                    label="Phụ kiện / Option đi kèm"
+                    rules={[
+                      { required: true, message: "Vui lòng nhập phụ kiện" },
+                    ]}
+                  >
+                    <Input placeholder="VD: Màn hình Android, Camera 360, Dán phim cách nhiệt..." />
+                  </Form.Item>
+                </Col>
+              </Row>
             </Card>
           </div>
         )}

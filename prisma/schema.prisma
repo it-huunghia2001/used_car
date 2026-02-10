@@ -227,32 +227,37 @@ model LeadCar {
   customerId String   @unique
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  modelName             String?
-  grade                 String?
-  color                 String?
-  interiorColor         String?
-  year                  Int?
-  vin                   String?
-  engineNumber          String?
-  licensePlate          String?
-  odo                   Int?
-  description           String?       @db.Text
-  transmission          Transmission? @default(AUTOMATIC)
-  fuelType              FuelType?     @default(GASOLINE)
-  driveTrain            String?
-  engineSize            String?
-  carType               CarType?
-  origin                OriginType?   @default(VN)
-  ownerType             OwnerType?    @default(PERSONAL)
-  seats                 Int?          @default(5)
-  features              Json?
-  registrationDeadline  DateTime?
-  insuranceTNDS         Boolean       @default(false)
-  insuranceTNDSDeadline DateTime?
-  insuranceVC           Boolean       @default(false)
-  insuranceVCCorp       String?
-  insuranceVCDeadline   DateTime?
-  insuranceDeadline     DateTime?
+  modelName                     String?
+  grade                         String?
+  color                         String?
+  interiorColor                 String?
+  year                          Int?
+  vin                           String?
+  engineNumber                  String?
+  licensePlate                  String?
+  odo                           Int?
+  description                   String?       @db.Text
+  transmission                  Transmission? @default(AUTOMATIC)
+  fuelType                      FuelType?     @default(GASOLINE)
+  driveTrain                    String?
+  engineSize                    String?
+  carType                       CarType?
+  origin                        OriginType?   @default(VN)
+  ownerType                     OwnerType?    @default(PERSONAL)
+  seats                         Int?          @default(5)
+  features                      Json?
+  insuranceregistrationDeadline Boolean       @default(false)
+  registrationDeadline          DateTime?
+  insuranceTNDS                 Boolean       @default(false)
+  insuranceTNDSDeadline         DateTime?
+  insuranceVC                   Boolean       @default(false)
+  insuranceVCCorp               String?
+  insuranceVCDeadline           DateTime?
+  insuranceDeadline             DateTime?
+
+  conditionGrade    String? // Đánh giá tình trạng (Ví dụ: A/B/C hoặc 1-5 sao)
+  isCertified       Boolean @default(false) // Đạt chuẩn (T-Sure) hay không
+  certificationNote String? @db.Text // Chi tiết đánh giá hoặc lý do không đạt chuẩn
 
   // --- THÔNG TIN PHẠT NGUỘI (BỔ SUNG MỚI) ---
   hasFine  Boolean @default(false) // Trạng thái: Có phạt nguội hay không
@@ -302,6 +307,10 @@ model Car {
   // --- THÔNG TIN PHẠT NGUỘI (BỔ SUNG MỚI) ---
   hasFine  Boolean @default(false) // Trạng thái: Có phạt nguội hay không
   fineNote String? @db.Text // Chi tiết lỗi, số tiền phạt, hoặc ghi chú phạt nguội
+
+  conditionGrade    String? // Đánh giá tình trạng (Ví dụ: A/B/C hoặc 1-5 sao)
+  isCertified       Boolean @default(false) // Đạt chuẩn (T-Sure) hay không
+  certificationNote String? @db.Text // Chi tiết đánh giá hoặc lý do không đạt chuẩn
 
   registrationDeadline  DateTime?
   insuranceTNDS         Boolean   @default(false)
