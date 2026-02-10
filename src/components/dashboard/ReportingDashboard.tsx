@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
-
 import React, { useState } from "react";
 import {
   Card,
@@ -14,632 +14,305 @@ import {
   Badge,
   DatePicker,
   Button,
-  Empty,
-  Avatar,
   Select,
-  Rate,
   Tag,
+  Avatar,
   Divider,
-  message,
 } from "antd";
 import {
   WarningOutlined,
-  CarOutlined,
-  DownloadOutlined,
-  TrophyOutlined,
-  AreaChartOutlined,
-  PieChartOutlined,
-  UserOutlined,
-  CheckCircleFilled,
-  ProjectOutlined,
+  EyeOutlined,
+  ScheduleOutlined,
+  FireOutlined,
   ClockCircleOutlined,
-  ShoppingCartOutlined,
-  ApartmentOutlined,
+  CheckCircleOutlined,
+  RiseOutlined,
+  CalendarOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip as ChartTooltip,
+  Tooltip,
   ResponsiveContainer,
   Legend,
-  Cell,
+  Bar,
+  BarChart,
 } from "recharts";
 import dayjs from "dayjs";
-import { getAdvancedReportAction } from "@/actions/report-actions";
-import { getRoleTag } from "../role";
-import * as XLSX from "xlsx"; // Import thư viện Excel
 
 const { Title, Text } = Typography;
-
-interface ReportingDashboardProps {
-  initialData: {
-    role: string;
-    isGlobal: boolean;
-    stats: any;
-  };
-  branches: any[];
-  user: any;
-}
 
 export default function ReportingDashboard({
   initialData,
   branches,
   user,
-}: ReportingDashboardProps) {
-  const [loading, setLoading] = useState(false);
-  const [report, setReport] = useState<any>(initialData);
-  const [filters, setFilters] = useState({
-    date: null as dayjs.Dayjs | null, // Mặc định null để lấy "Tất cả thời gian"
-    branchId: undefined as string | undefined,
-  });
-
-  const { role, isGlobal, stats } = report;
-
-  // HÀM XỬ LÝ LỌC DỮ LIỆU CHUẨN
-  const handleFetch = async (updatedFilters: any) => {
-    setLoading(true);
-    try {
-      // Nếu có date thì lấy month/year, nếu không truyền undefined để Server lấy All-time
-      const month = updatedFilters.date
-        ? updatedFilters.date.month() + 1
-        : undefined;
-      const year = updatedFilters.date ? updatedFilters.date.year() : undefined;
-
-      const res = await getAdvancedReportAction(
-        month,
-        year,
-        updatedFilters.branchId, // Gửi branchId lên server để lọc
-      );
-      setReport(res);
-    } catch (error) {
-      console.error("Lỗi tải báo cáo:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExportExcel = () => {
-    try {
-      const wb = XLSX.utils.book_new();
-
-      // 1. Sheet Hiệu suất nhân sự
-      const staffData = stats.staffPerformance.map((r: any) => ({
-        "Tên nhân viên": r.fullName,
-        "Chức vụ": r.role,
-        "Chi nhánh": r.branch?.name || "Hệ thống",
-        "Số lượng Bán": r._count?.soldCars || 0,
-        "Số lượng Mua": r._count?.purchases || 0,
-        "Lỗi KPI (Trễ)":
-          (r._count?.leadActivities || 0) + (r._count?.tasks || 0),
-      }));
-      const wsStaff = XLSX.utils.json_to_sheet(staffData);
-      XLSX.utils.book_append_sheet(wb, wsStaff, "Hieu_Suat_Nhan_Su");
-
-      // 2. Sheet Tồn kho thực tế
-      const inventoryData = stats.inventoryStatus.map((i: any) => ({
-        "Trạng thái": i.status,
-        "Số lượng": i._count,
-      }));
-      const wsInv = XLSX.utils.json_to_sheet(inventoryData);
-      XLSX.utils.book_append_sheet(wb, wsInv, "Ton_Kho");
-
-      // 3. Sheet Hiệu suất chi nhánh (Nếu có)
-      if (stats.branchStats?.length > 0) {
-        const wsBranch = XLSX.utils.json_to_sheet(stats.branchStats);
-        XLSX.utils.book_append_sheet(wb, wsBranch, "Hieu_Suat_Chi_Nhanh");
-      }
-
-      // Xuất file
-      const fileName = `Bao_Cao_Van_Hanh_${filters.date ? filters.date.format("MM_YYYY") : "Toan_Thoi_Gian"}.xlsx`;
-      XLSX.writeFile(wb, fileName);
-
-      message.success("Đã xuất file báo cáo thành công!");
-    } catch (error) {
-      console.error("Export error:", error);
-      message.error("Lỗi khi xuất file Excel");
-    }
-  };
+}: any) {
+  const [report, setReport] = useState(initialData);
+  const { stats } = report;
 
   return (
-    <div className="p-8 bg-[#f4f7fe] min-h-screen text-slate-900">
+    <div className="p-4 md:p-8 bg-[#f4f7fe] min-h-screen">
       <div className="max-w-[1600px] mx-auto space-y-6">
-        {/* 1. HEADER SECTION */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 transition-all hover:shadow-md">
-          <div className="flex items-center gap-4">
-            <Avatar
-              size={64}
-              icon={<UserOutlined />}
-              className={
-                role === "PURCHASE_STAFF"
-                  ? "bg-purple-600 shadow-lg"
-                  : "bg-red-600 shadow-lg"
-              }
-            />
-            <div>
-              <Title
-                level={3}
-                className="!m-0 !font-black uppercase tracking-tight"
-              >
-                Chào mừng, {user.fullName || "Thành viên"}!
-              </Title>
-              <Space separator={<Divider orientation="vertical" />}>
-                <Text className="font-bold text-slate-400 text-[10px] uppercase tracking-widest">
-                  {role}
-                </Text>
-                <Tag
-                  color={filters.date ? "orange" : "blue"}
-                  className="rounded-md border-none font-bold"
-                >
-                  {filters.date
-                    ? `Kỳ: ${filters.date.format("MM/YYYY")}`
-                    : "TOÀN THỜI GIAN"}
-                </Tag>
+        {/* --- MỤC 1: THEO NĂM (HIỆU SUẤT XEM XE) --- */}
+        <Card
+          className="rounded-[2.5rem] border-none shadow-sm overflow-hidden"
+          title={
+            <Space>
+              <RiseOutlined className="text-blue-600" />{" "}
+              <span className="font-black">BÁO CÁO NĂM {dayjs().year()}</span>
+            </Space>
+          }
+        >
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={16}>
+              <div className="h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stats.growthChart}>
+                    <defs>
+                      <linearGradient id="colorC" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="5%"
+                          stopColor="#1890ff"
+                          stopOpacity={0.1}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#1890ff"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#f0f0f0"
+                    />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                    <YAxis hide />
+                    <Tooltip />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#1890ff"
+                      strokeWidth={3}
+                      fill="url(#colorC)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Col>
+            <Col xs={24} lg={8} className="bg-slate-50/50 p-4 rounded-3xl">
+              <Space direction="vertical" className="w-full" size={12}>
+                <div className="flex justify-between items-center p-3 bg-white rounded-2xl border border-slate-100">
+                  <Space>
+                    <CheckCircleOutlined className="text-green-500" />{" "}
+                    <Text strong>Đã cho xem xe</Text>
+                  </Space>
+                  <Text strong className="text-lg">
+                    {stats.yearStats.inspected}
+                  </Text>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-white rounded-2xl border border-slate-100">
+                  <Space>
+                    <WarningOutlined className="text-red-500" />{" "}
+                    <Text strong>Chưa xem xe</Text>
+                  </Space>
+                  <Text strong className="text-lg text-red-500">
+                    {stats.yearStats.notInspected}
+                  </Text>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-white rounded-2xl border border-slate-100">
+                  <Space>
+                    <ClockCircleOutlined className="text-blue-500" />{" "}
+                    <Text strong>Chờ xem xe</Text>
+                  </Space>
+                  <Text strong className="text-lg">
+                    {stats.yearStats.pendingView}
+                  </Text>
+                </div>
+                <div className="flex justify-between items-center p-3 bg-white rounded-2xl border border-slate-100">
+                  <Space>
+                    <ScheduleOutlined className="text-orange-500" />{" "}
+                    <Text strong>Hẹn xem xe</Text>
+                  </Space>
+                  <Text strong className="text-lg text-orange-500">
+                    {stats.yearStats.appointed}
+                  </Text>
+                </div>
               </Space>
-            </div>
-          </div>
+            </Col>
+          </Row>
+        </Card>
 
-          <Space
-            wrap
-            className="bg-slate-50 p-2 rounded-2xl border border-slate-100"
-          >
-            {/* Bộ lọc Ngày Tháng */}
-            <DatePicker
-              classNames={{
-                popup: {
-                  root: "mobile-center-picker", // Thay cho dropdownClassName
-                },
-              }}
-              picker="month"
-              placeholder="Tất cả thời gian"
-              value={filters.date}
-              onChange={(d) => {
-                const nf = { ...filters, date: d };
-                setFilters(nf);
-                handleFetch(nf);
-              }}
-              allowClear
-              className="rounded-xl font-bold bg-transparent border-none w-44"
-            />
-
-            {/* Bộ lọc Chi nhánh (Chỉ Admin/Global Manager mới chọn được) */}
-            {isGlobal && (
-              <Select
-                placeholder="Chọn chi nhánh"
-                className="w-56"
-                allowClear
-                value={filters.branchId}
-                onChange={(v) => {
-                  const nf = { ...filters, branchId: v };
-                  setFilters(nf);
-                  handleFetch(nf);
-                }}
-                options={branches?.map((b: any) => ({
-                  label: b.name,
-                  value: b.id,
-                }))}
-              />
-            )}
-
-            <Button
-              icon={<DownloadOutlined />}
-              type="primary"
-              danger
-              onClick={handleExportExcel}
-              className="rounded-xl font-bold h-10 px-6"
-            >
-              REPORT
-            </Button>
-          </Space>
-        </div>
-
-        {/* 2. KPI METRIC CARDS */}
+        {/* --- MỤC 2 & 3: THEO THÁNG & THEO NGÀY --- */}
         <Row gutter={[20, 20]}>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="rounded-[2rem] border-none shadow-sm bg-white border-l-8 border-blue-600">
-              <Statistic
-                title="TASK CỦA TÔI"
-                value={stats.myPending}
-                suffix="VIỆC"
-                style={{ fontWeight: 900, color: "#2563eb" }}
-                prefix={<ProjectOutlined />}
-              />
-              <Text className="text-[10px] text-slate-400 font-bold uppercase">
-                Đang chờ xử lý
-              </Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
+          {/* THEO THÁNG */}
+          <Col xs={24} md={12}>
             <Card
-              className={`rounded-[2rem] border-none shadow-sm bg-white border-l-8 ${role === "PURCHASE_STAFF" ? "border-purple-600" : "border-emerald-500"}`}
-            >
-              <Statistic
-                title={"XE ĐÃ MUA / XE ĐÃ BÁN"}
-                value={stats.totalPurchased + " / " + stats.totalSales}
-                prefix={
-                  role === "PURCHASE_STAFF" ? (
-                    <ShoppingCartOutlined />
-                  ) : (
-                    <CarOutlined />
-                  )
-                }
-                style={{
-                  fontWeight: 900,
-                  color: role === "PURCHASE_STAFF" ? "#9333ea" : "#10b981",
-                }}
-              />
-              <Text className="text-[10px] text-slate-400 font-bold uppercase">
-                Hiệu suất kỳ này
-              </Text>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="rounded-[2rem] border-none shadow-sm bg-white border-l-8 border-rose-500">
-              <Statistic
-                title="VI PHẠM KPI"
-                value={stats.lateLeads}
-                prefix={<WarningOutlined />}
-                style={{ fontWeight: 900, color: "#f43f5e" }}
-              />
-              <Progress
-                percent={Math.min(stats.lateLeads * 10, 100)}
-                status="exception"
-                showInfo={false}
-                size="small"
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="rounded-[2rem] border-none shadow-sm bg-slate-900 text-white border-l-8 border-amber-500">
-              <Statistic
-                title="LỊCH HẸN TRỄ"
-                value={stats.lateTasks}
-                style={{ fontWeight: 900, color: "#f43f5e !important" }}
-                prefix={<ClockCircleOutlined className="text-[#f43f5e]" />}
-              />
-              <Badge
-                status="error"
-                text={
-                  <span className="text-[#f43f5e] text-[10px] font-bold uppercase">
-                    Cần rà soát
+              className="rounded-[2.5rem] border-none shadow-sm h-full"
+              title={
+                <Space>
+                  <CalendarOutlined className="text-purple-600" />{" "}
+                  <span className="font-black text-slate-700">
+                    PHÂN LOẠI KHÁCH THEO THÁNG
                   </span>
-                }
-              />
+                </Space>
+              }
+            >
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stats.monthlyUrgency}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#f0f0f0"
+                    />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "15px",
+                        border: "none",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      verticalAlign="top"
+                      align="right"
+                    />
+                    {/* Cột chồng hiển thị HOT, WARM, COOL */}
+                    <Bar
+                      dataKey="hot"
+                      name="HOT"
+                      stackId="a"
+                      fill="#ef4444"
+                      radius={[0, 0, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="warm"
+                      name="WARM"
+                      stackId="a"
+                      fill="#f59e0b"
+                      radius={[0, 0, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="cool"
+                      name="COOL"
+                      stackId="a"
+                      fill="#94a3b8"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 flex justify-around bg-slate-50 p-4 rounded-2xl">
+                <div className="text-center">
+                  <Text className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Tổng Hot
+                  </Text>
+                  <Text strong className="text-red-500 text-lg">
+                    {stats.monthlyUrgency.reduce(
+                      (a: any, b: any) => a + b.hot,
+                      0,
+                    )}
+                  </Text>
+                </div>
+                <div className="text-center">
+                  <Text className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Tổng Warm
+                  </Text>
+                  <Text strong className="text-orange-500 text-lg">
+                    {stats.monthlyUrgency.reduce(
+                      (a: any, b: any) => a + b.warm,
+                      0,
+                    )}
+                  </Text>
+                </div>
+                <div className="text-center">
+                  <Text className="text-[10px] uppercase font-bold text-slate-400 block">
+                    Tổng Cool
+                  </Text>
+                  <Text strong className="text-slate-500 text-lg">
+                    {stats.monthlyUrgency.reduce(
+                      (a: any, b: any) => a + b.cool,
+                      0,
+                    )}
+                  </Text>
+                </div>
+              </div>
+            </Card>
+          </Col>
+
+          {/* THEO NGÀY */}
+          <Col xs={24} md={12}>
+            <Card
+              className="rounded-[2.5rem] border-none shadow-xl bg-slate-900 text-white h-full mt-4!"
+              title={
+                <span className="text-white font-black">HOẠT ĐỘNG HÔM NAY</span>
+              }
+            >
+              <Row gutter={[16, 16]} className="mt-4">
+                <Col span={12}>
+                  <div className="p-6 bg-white/5 rounded-[2rem] border border-white/10 text-center">
+                    <Text className="text-slate-400 uppercase text-[10px] font-black block mb-2">
+                      Cần liên hệ
+                    </Text>
+                    <div className="text-4xl font-black text-blue-400">
+                      {stats.todayStats.needContact}
+                    </div>
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div className="p-6 bg-white/5 rounded-[2rem] border border-white/10 text-center">
+                    <Text className="text-slate-400 uppercase text-[10px] font-black block mb-2">
+                      Đã liên hệ
+                    </Text>
+                    <div className="text-4xl font-black text-green-400">
+                      {stats.todayStats.contacted}
+                    </div>
+                  </div>
+                </Col>
+                <Col span={24}>
+                  <div className="mt-2 p-6 bg-red-500/10 rounded-[2rem] border border-red-500/20 flex justify-between items-center">
+                    <Space size="large">
+                      <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/50">
+                        <WarningOutlined className="text-white text-xl" />
+                      </div>
+                      <div>
+                        <Text className="text-red-400 font-black uppercase text-[10px] block">
+                          Cảnh báo vi phạm
+                        </Text>
+                        <Text strong className="text-white text-lg">
+                          Liên hệ trễ (LATE)
+                        </Text>
+                      </div>
+                    </Space>
+                    <div className="text-5xl font-black text-red-500">
+                      {stats.todayStats.late}
+                    </div>
+                  </div>
+                </Col>
+              </Row>
             </Card>
           </Col>
         </Row>
-
-        {/* 3. VISUALIZATION SECTION */}
-        {(isGlobal || role === "MANAGER") && (
-          <Row gutter={[20, 20]}>
-            {/* 3.1. BIỂU ĐỒ CHI NHÁNH */}
-            <Col xs={24} lg={12}>
-              <Card
-                title={
-                  <Space>
-                    <AreaChartOutlined className="text-red-600" />
-                    <span>HIỆU SUẤT CHI NHÁNH (BÁN & MUA)</span>
-                  </Space>
-                }
-                className="rounded-[2.5rem] shadow-sm border-none overflow-hidden h-full"
-              >
-                <div className="h-[400px] w-full mt-4">
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart
-                      data={stats.branchStats}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        vertical={false}
-                        stroke="#f1f5f9"
-                      />
-                      <XAxis
-                        dataKey="name"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 11 }}
-                      />
-                      <ChartTooltip
-                        cursor={{ fill: "#f8fafc" }}
-                        contentStyle={{ borderRadius: "16px", border: "none" }}
-                      />
-                      <Legend
-                        iconType="circle"
-                        wrapperStyle={{ paddingTop: "20px" }}
-                      />
-                      <Bar
-                        dataKey="soldCount"
-                        name="Xe đã bán"
-                        fill="#ef4444"
-                        radius={[6, 6, 0, 0]}
-                        barSize={25}
-                      />
-                      <Bar
-                        dataKey="purchasedCount"
-                        name="Xe thu mua"
-                        fill="#9333ea"
-                        radius={[6, 6, 0, 0]}
-                        barSize={25}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </Col>
-
-            {/* 3.2. BIỂU ĐỒ GIỚI THIỆU PHÒNG BAN */}
-            <Col xs={24} lg={12}>
-              <Card
-                title={
-                  <Space>
-                    <ApartmentOutlined className="text-blue-600" />
-                    <span>GIỚI THIỆU THEO PHÒNG BAN</span>
-                  </Space>
-                }
-                className="rounded-[2.5rem] shadow-sm border-none overflow-hidden h-full"
-              >
-                <div className="h-[400px] w-full mt-4">
-                  {stats.departmentStats?.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={400}>
-                      <BarChart
-                        data={stats.departmentStats}
-                        layout="vertical"
-                        margin={{ left: 30, right: 30 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          horizontal={false}
-                          stroke="#f1f5f9"
-                        />
-                        <XAxis type="number" hide />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          axisLine={false}
-                          tickLine={false}
-                          width={120}
-                          tick={{
-                            fill: "#64748b",
-                            fontSize: 10,
-                            fontWeight: "bold",
-                          }}
-                        />
-                        <ChartTooltip
-                          cursor={{ fill: "#f8fafc" }}
-                          contentStyle={{
-                            borderRadius: "12px",
-                            border: "none",
-                          }}
-                        />
-                        <Bar
-                          dataKey="count"
-                          name="Lượt giới thiệu"
-                          radius={[0, 6, 6, 0]}
-                          barSize={20}
-                        >
-                          {stats.departmentStats.map(
-                            (entry: any, index: number) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={index % 2 === 0 ? "#3b82f6" : "#60a5fa"}
-                              />
-                            ),
-                          )}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full flex items-center justify-center">
-                      <Empty description="Chưa có dữ liệu giới thiệu" />
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </Col>
-          </Row>
-        )}
-
-        {/* 3.3. PHÂN BỔ TỒN KHO (HIỂN THỊ DÀN HÀNG NGANG) */}
-        {(isGlobal || role === "MANAGER") && (
-          <Card
-            title={
-              <Space>
-                <PieChartOutlined className="text-blue-600" />
-                <span>TỒN KHO THỰC TẾ</span>
-              </Space>
-            }
-            className="rounded-[2.5rem] shadow-sm border-none"
-          >
-            <Row gutter={[20, 20]}>
-              {stats.inventoryStatus?.map((item: any) => (
-                <Col xs={24} sm={12} lg={6} key={item.status}>
-                  <div className="p-4 bg-slate-50 rounded-2xl flex justify-between items-center border border-slate-100">
-                    <Space orientation="vertical" size={0}>
-                      <Text
-                        strong
-                        className="text-[10px] uppercase text-slate-400"
-                      >
-                        {item.status.replace(/_/g, " ")}
-                      </Text>
-                      <Text strong className="text-xl">
-                        {item._count} Xe
-                      </Text>
-                    </Space>
-                    <Progress
-                      type="circle"
-                      percent={Math.min(item._count * 5, 100)}
-                      size={45}
-                      strokeColor={
-                        item.status === "READY_FOR_SALE" ? "#10b981" : "#6366f1"
-                      }
-                    />
-                  </div>
-                </Col>
-              ))}
-            </Row>
-          </Card>
-        )}
-
-        {/* 4. PERFORMANCE LEADERBOARD */}
-        <Card
-          title={
-            <div className="flex justify-between items-center">
-              <Space>
-                <TrophyOutlined className="text-amber-500" />
-                <span>BẢNG VÀNG HIỆU SUẤT NHÂN SỰ</span>
-              </Space>
-              <Badge status="processing" text="Dữ liệu chốt" />
-            </div>
-          }
-          className="rounded-[2.5rem] shadow-sm border-none overflow-hidden"
-        >
-          <Table
-            dataSource={stats.staffPerformance}
-            rowKey={(record: any) => record.id}
-            loading={loading}
-            pagination={{ pageSize: 5 }}
-            scroll={{ x: 1000 }}
-            columns={[
-              {
-                title: "NHÂN VIÊN",
-                render: (r) => (
-                  <Space>
-                    <Avatar
-                      className={
-                        r.role === "PURCHASE_STAFF"
-                          ? "bg-purple-500 font-bold"
-                          : "bg-red-500 font-bold"
-                      }
-                    >
-                      {r.fullName?.[0].toUpperCase()}
-                    </Avatar>
-                    <div>
-                      <Text strong className="block">
-                        {r.fullName}
-                      </Text>
-                      {getRoleTag(r.role)}
-                    </div>
-                  </Space>
-                ),
-              },
-              {
-                title: "CHI NHÁNH",
-                dataIndex: ["branch", "name"],
-                render: (text) => (
-                  <Text type="secondary">{text || "Hệ thống"}</Text>
-                ),
-              },
-              {
-                title: "KPI CHÍNH",
-                align: "center",
-                render: (r) => {
-                  const isP = r.role === "PURCHASE_STAFF";
-                  const count = isP
-                    ? r._count?.purchases || 0
-                    : r._count?.soldCars || 0;
-                  return (
-                    <div className="text-lg font-black text-blue-600">
-                      {count}{" "}
-                      <span className="text-[10px] text-slate-300 font-normal uppercase">
-                        {isP ? "Mua" : "Bán"}
-                      </span>
-                    </div>
-                  );
-                },
-              },
-              {
-                title: "ĐỘ CHUẨN KPI",
-                render: (r) => {
-                  const lates =
-                    (r._count?.leadActivities || 0) + (r._count?.tasks || 0);
-                  const score = Math.max(100 - lates * 15, 0);
-                  return (
-                    <div className="min-w-[150px]">
-                      <div className="flex justify-between text-[11px] mb-1">
-                        <span>Lỗi: {lates}</span>
-                        <Text
-                          strong
-                          style={{ color: score < 70 ? "#f43f5e" : "#10b981" }}
-                        >
-                          {score}%
-                        </Text>
-                      </div>
-                      <Progress
-                        percent={score}
-                        size="small"
-                        showInfo={false}
-                        strokeColor={score < 70 ? "#f43f5e" : "#10b981"}
-                      />
-                    </div>
-                  );
-                },
-              },
-              {
-                title: "RANK",
-                render: (r) => {
-                  const lates =
-                    (r._count?.leadActivities || 0) + (r._count?.tasks || 0);
-                  const score = Math.max(100 - lates * 15, 0);
-
-                  return (
-                    <div className="flex items-center gap-2">
-                      <Rate
-                        disabled
-                        defaultValue={Number(score) / 2 / 10}
-                        style={{ fontSize: 10 }}
-                      />
-                      {score >= 100 && (
-                        <Tag
-                          color="gold"
-                          icon={<CheckCircleFilled />}
-                          className="rounded-full border-none px-3 font-bold italic text-[9px]"
-                        >
-                          STAR
-                        </Tag>
-                      )}
-                    </div>
-                  );
-                },
-              },
-            ]}
-          />
-        </Card>
       </div>
 
       <style jsx global>{`
-        .ant-card {
-          border-radius: 32px !important;
-          transition: all 0.3s ease;
-        }
-        .ant-table-thead > tr > th {
-          background: #f8fafc !important;
-          font-weight: 700 !important;
-          color: #64748b !important;
-          font-size: 11px !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.5px;
+        .ant-card-head {
+          border-bottom: none !important;
+          padding-top: 20px !important;
         }
         .ant-statistic-title {
           font-size: 11px !important;
-          font-weight: 700 !important;
           text-transform: uppercase !important;
+          font-weight: 800 !important;
           color: #94a3b8 !important;
-          letter-spacing: 1px !important;
-          margin-bottom: 8px !important;
-        }
-        .ant-select-selector,
-        .ant-picker {
-          border-radius: 12px !important;
-          border: none !important;
-          background: transparent !important;
         }
       `}</style>
     </div>

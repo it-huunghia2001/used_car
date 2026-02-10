@@ -1,29 +1,31 @@
-import { getAdvancedReportAction } from "@/actions/report-actions";
 import ReportingDashboard from "@/components/dashboard/ReportingDashboard";
 import { getCurrentUser } from "@/lib/session-server";
-import { db } from "@/lib/db"; // Import db để lấy danh sách chi nhánh
+import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import dayjs from "dayjs";
+import { getAdvancedReportAction } from "@/actions/dashboard-actions";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  // Chạy song song để tối ưu tốc độ tải trang
+  // Lấy thời gian hiện tại để làm tham số mặc định
+  const now = dayjs();
+  const currentMonth = now.month() + 1;
+  const currentYear = now.year();
+
+  // Chạy song song để tối ưu tốc độ
   const [reportData, branches] = await Promise.all([
-    getAdvancedReportAction(), // Lấy dữ liệu báo cáo mặc định (tháng hiện tại)
+    // Truyền tham số mặc định cho lần tải trang đầu tiên
+    getAdvancedReportAction(currentMonth, currentYear),
 
     db.branch.findMany({
-      select: { id: true, name: true }, // Chỉ lấy các trường cần thiết cho Select
+      select: { id: true, name: true },
     }),
   ]);
 
   return (
     <div className="min-h-screen bg-[#f4f7fe]">
-      {/* Truyền đầy đủ 3 Props mà ReportingDashboard yêu cầu:
-        1. initialData: Dữ liệu báo cáo
-        2. branches: Danh sách chi nhánh để Admin lọc
-        3. user: Thông tin người dùng đang đăng nhập
-      */}
       <ReportingDashboard
         initialData={reportData}
         branches={branches}
