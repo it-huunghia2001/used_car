@@ -124,6 +124,7 @@ export const VehicleFormFields = ({
   const insuranceregistrationDeadline = Form.useWatch(
     "insuranceregistrationDeadline",
   );
+
   const insuranceTNDS = Form.useWatch("insuranceTNDS");
 
   const insuranceVC = Form.useWatch("insuranceVC");
@@ -711,8 +712,9 @@ export const VehicleFormFields = ({
         <Col xs={12} md={8}>
           <Form.Item
             name="insuranceregistrationDeadline"
-            label="Bảo hiểm TNDS (Bắt buộc)"
+            label="Bảo hiểm TNDS"
             valuePropName="checked"
+            vertical-align="middle"
           >
             <Switch
               checkedChildren="CÒN HẠN"
@@ -735,7 +737,7 @@ export const VehicleFormFields = ({
         <Col xs={12} md={8}>
           <Form.Item
             name="insuranceTNDS"
-            label="Bảo hiểm TNDS (Bắt buộc)"
+            label="Bảo hiểm TNDS"
             valuePropName="checked"
           >
             <Switch
@@ -746,25 +748,34 @@ export const VehicleFormFields = ({
             />
           </Form.Item>
           {insuranceTNDS && (
-            <Form.Item
-              name="insuranceTNDSDeadline"
-              label="Hạn bảo hiểm TNDS"
-              className="animate-slideDown"
-              rules={[{ required: true, message: "Nhập ngày hết hạn TNDS" }]}
-            >
-              <DatePicker
-                className="w-full"
-                format="DD/MM/YYYY"
-                placeholder="Chọn ngày"
-              />
-            </Form.Item>
+            <div className="animate-slideDown space-y-2">
+              <Form.Item
+                name="insuranceDSCorp"
+                label="Đơn vị bảo hiểm TNDS"
+                rules={[{ required: true, message: "Nhập tên hãng bảo hiểm" }]}
+              >
+                <Input placeholder="Ví dụ: Bảo Việt, Liberty, PVI..." />
+              </Form.Item>
+              <Form.Item
+                name="insuranceTNDSDeadline"
+                label="Hạn bảo hiểm TNDS"
+                className="animate-slideDown"
+                rules={[{ required: true, message: "Nhập ngày hết hạn TNDS" }]}
+              >
+                <DatePicker
+                  className="w-full"
+                  format="DD/MM/YYYY"
+                  placeholder="Chọn ngày"
+                />
+              </Form.Item>
+            </div>
           )}
         </Col>
 
         <Col xs={12} md={8}>
           <Form.Item
             name="insuranceVC"
-            label="Bảo hiểm vật chất (Thân vỏ)"
+            label="Bảo hiểm vật chất"
             valuePropName="checked"
           >
             <Switch
@@ -778,7 +789,7 @@ export const VehicleFormFields = ({
             <div className="animate-slideDown space-y-2">
               <Form.Item
                 name="insuranceVCCorp"
-                label="Đơn vị bảo hiểm"
+                label="Đơn vị bảo hiểm VC"
                 rules={[{ required: true, message: "Nhập tên hãng bảo hiểm" }]}
               >
                 <Input placeholder="Ví dụ: Bảo Việt, Liberty, PVI..." />

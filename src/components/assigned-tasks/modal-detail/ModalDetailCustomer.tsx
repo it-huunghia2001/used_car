@@ -108,8 +108,10 @@ export default function ModalDetailCustomer({
             : null,
           carImages: mapUrlsToFiles(customerData.carImages),
           documents: mapUrlsToFiles(customerData.documents),
+          carModelId: res.carModel?.id || res.leadCar?.carModelId,
         };
         form.setFieldsValue(formValues);
+        console.log(formValues);
       }
     } catch (error) {
       message.error("Lỗi tải dữ liệu chi tiết");

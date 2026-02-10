@@ -22,7 +22,6 @@ export const CustomerBanner = ({
   UrgencyBadge,
 }: any) => {
   // Helper gán màu sắc và label cho trạng thái giám địnhlog
-  console.log(customerData);
 
   const getInspectStatusTag = (status: string) => {
     switch (status) {

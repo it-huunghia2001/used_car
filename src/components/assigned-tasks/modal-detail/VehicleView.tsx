@@ -1,6 +1,20 @@
+/* eslint-disable jsx-a11y/alt-text */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { Row, Col, Typography, Tag, Space, Divider, Badge, Alert } from "antd";
+import {
+  Row,
+  Col,
+  Typography,
+  Tag,
+  Space,
+  Divider,
+  Alert,
+  Tooltip,
+  Image,
+  Empty,
+  Card,
+} from "antd";
 import {
   CalendarOutlined,
   BgColorsOutlined,
@@ -10,6 +24,11 @@ import {
   TeamOutlined,
   WarningOutlined,
   CheckCircleOutlined,
+  AuditOutlined,
+  InfoCircleOutlined,
+  PictureOutlined,
+  FilePdfOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
 
@@ -32,6 +51,22 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
   const modelName =
     carModels.find((m: any) => m.id === lc?.carModelId)?.name ||
     customerData?.carModel?.name;
+
+  // Helper để parse dữ liệu Json an toàn
+  const parseJsonData = (data: any) => {
+    if (!data) return [];
+    if (typeof data === "string") {
+      try {
+        return JSON.parse(data);
+      } catch (e) {
+        return [];
+      }
+    }
+    return Array.isArray(data) ? data : [];
+  };
+
+  const carImages = parseJsonData(lc?.images || customerData?.carImages);
+  const documents = parseJsonData(lc?.documents || customerData?.documents);
 
   return (
     <div className="p-2 animate-fadeIn max-w-full">
@@ -108,7 +143,6 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
             </Col>
           </Row>
 
-          {/* --- PHẦN HIỂN THỊ PHẠT NGUỘI --- */}
           <div className="mt-6">
             {lc.hasFine ? (
               <Alert
@@ -120,8 +154,7 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
                 description={
                   <div className="mt-1">
                     <Text className="text-red-600">
-                      {lc.fineNote ||
-                        "Chưa có nội dung chi tiết lỗi phạt nguội."}
+                      {lc.fineNote || "Chưa có chi tiết."}
                     </Text>
                   </div>
                 }
@@ -166,10 +199,8 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
               <InfoItem label="Số VIN" value={lc.vin} />
               <InfoItem label="Số máy" value={lc.engineNumber} />
             </div>
-
             <Divider className="my-6 border-slate-200" />
-
-            <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row justify-between gap-4">
+            <div className="flex flex-col gap-4">
               <InfoItem
                 label="Giá khách muốn"
                 value={
@@ -192,6 +223,112 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
           </div>
         </Col>
       </Row>
+
+      {/* --- SECTION 5: HÌNH ẢNH GIÁM ĐỊNH --- */}
+      <Divider className="mt-10!">
+        <Space>
+          <PictureOutlined className="text-rose-500" />
+          <Text strong className="uppercase text-slate-600">
+            Hình ảnh thực tế (Giám định)
+          </Text>
+        </Space>
+      </Divider>
+      <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 shadow-inner">
+        {carImages.length > 0 ? (
+          <Image.PreviewGroup>
+            <Row gutter={[12, 12]}>
+              {carImages.map((img: any, idx: number) => {
+                const src = img.url || img.secure_url || img;
+                return (
+                  <Col key={idx} xs={8} sm={6} md={4} lg={3}>
+                    <div className="relative aspect-square overflow-hidden rounded-2xl border-2 border-white shadow-sm hover:shadow-md transition-all hover:scale-105 z-10">
+                      <Image
+                        src={src}
+                        alt={`car-${idx}`}
+                        className="object-cover w-full! h-full!"
+                        fallback="https://placehold.co/400x400?text=No+Image"
+                      />
+                    </div>
+                  </Col>
+                );
+              })}
+            </Row>
+          </Image.PreviewGroup>
+        ) : (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="Chưa tải lên hình ảnh xe"
+          />
+        )}
+      </div>
+
+      {/* --- SECTION 6: TÀI LIỆU HỒ SƠ --- */}
+      <Divider className="mt-10!">
+        <Space>
+          <FilePdfOutlined className="text-indigo-500" />
+          <Text strong className="uppercase text-slate-600">
+            Hồ sơ & Tài liệu pháp lý
+          </Text>
+        </Space>
+      </Divider>
+      <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 mb-6">
+        {documents.length > 0 ? (
+          <Row gutter={[16, 16]}>
+            {documents.map((doc: any, idx: number) => {
+              const url = doc.url || doc.secure_url || doc;
+              const isImage = /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(url);
+              return (
+                <Col key={idx} xs={24} sm={12} md={8} lg={6}>
+                  <Card
+                    size="small"
+                    className="rounded-xl border-slate-200 hover:border-indigo-300 transition-colors group shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
+                        {isImage ? (
+                          <Image
+                            src={url}
+                            preview={true}
+                            className="object-cover w-full!  h-full!"
+                          />
+                        ) : (
+                          <FilePdfOutlined className="text-xl text-indigo-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <Tooltip title={doc.name || "Tải xuống tài liệu"}>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[12px] font-bold text-slate-700 truncate block group-hover:text-indigo-600"
+                          >
+                            {doc.name || `Tài liệu ${idx + 1}`}
+                          </a>
+                        </Tooltip>
+                        <Text
+                          type="secondary"
+                          className="text-[10px] uppercase"
+                        >
+                          {isImage ? "Hình ảnh" : "File tài liệu"}
+                        </Text>
+                      </div>
+                      <a href={url} download target="_blank" rel="noreferrer">
+                        <DownloadOutlined className="text-slate-400 hover:text-indigo-500 cursor-pointer" />
+                      </a>
+                    </div>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
+        ) : (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="Chưa có tài liệu đính kèm"
+          />
+        )}
+      </div>
 
       {/* Pháp lý & Bảo hiểm */}
       <Row gutter={[24, 24]} className="mt-8">
@@ -216,84 +353,78 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
                   value={lc.ownerType === "PERSONAL" ? "Cá nhân" : "Công ty"}
                 />
               </Col>
-              <Col xs={24}>
-                <Divider className="my-2 border-slate-200/50" />
-                <div className="flex items-center gap-2">
-                  <Text className="text-[11px] uppercase font-bold text-slate-400">
-                    Trạng thái phạt nguội:
-                  </Text>
-                  <Tag
-                    color={lc.hasFine ? "red" : "green"}
-                    className="font-bold m-0 border-none"
-                  >
-                    {lc.hasFine ? "CÓ VI PHẠM" : "SẠCH (KHÔNG VI PHẠM)"}
-                  </Tag>
-                </div>
-              </Col>
             </Row>
           </div>
         </Col>
 
         <Col xs={24} md={10} lg={8}>
-          <div className="space-y-2 h-full">
-            {[
-              {
-                label: "Đăng kiểm",
-                date: lc.registrationDeadline,
-                icon: <SafetyCertificateOutlined />,
-                color: "text-blue-500",
-              },
-              {
-                label: "Bảo hành",
-                date: lc.insuranceDeadline,
-                icon: <SafetyCertificateOutlined />,
-                color: "text-indigo-500",
-              },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm"
-              >
-                <Text className="flex items-center">
-                  <span className={`${item.color} mr-2 flex`}>{item.icon}</span>{" "}
-                  {item.label}
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm h-full">
+            <div className="text-[11px] uppercase font-bold text-slate-400 mb-4 tracking-widest">
+              Thời hạn & Bảo hiểm
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <Text>
+                  <SafetyCertificateOutlined className="text-blue-500 mr-2" />{" "}
+                  Đăng kiểm
                 </Text>
-                <Text strong className="text-slate-700">
-                  {item.date ? dayjs(item.date).format("DD/MM/YYYY") : "---"}
+                <Text strong>
+                  {lc.registrationDeadline
+                    ? dayjs(lc.registrationDeadline).format("DD/MM/YYYY")
+                    : "---"}
                 </Text>
               </div>
-            ))}
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {[
-                { label: "BH TNDS", deadline: lc.insuranceTNDSDeadline },
-                { label: "BH Vật chất", deadline: lc.insuranceVCDeadline },
-              ].map((item, idx) => {
-                const isValid = dayjs(item.deadline).isAfter(dayjs());
-                return (
-                  <div
-                    key={idx}
-                    className="flex flex-col p-2 bg-white border border-slate-100 rounded-xl shadow-sm text-center"
+              <Tooltip
+                title={
+                  lc.insuranceDSCorp
+                    ? `Hãng: ${lc.insuranceDSCorp}`
+                    : "Không có thông tin hãng"
+                }
+              >
+                <div className="flex justify-between items-center cursor-help group p-1 hover:bg-slate-50 rounded">
+                  <Text>
+                    <AuditOutlined className="text-emerald-500 mr-2" /> BH TNDS{" "}
+                    <InfoCircleOutlined className="text-[10px] opacity-0 group-hover:opacity-100 transition-all" />
+                  </Text>
+                  <Tag
+                    color={
+                      dayjs(lc.insuranceTNDSDeadline).isAfter(dayjs())
+                        ? "green"
+                        : "red"
+                    }
                   >
-                    <Text
-                      type="secondary"
-                      className="text-[10px] uppercase font-bold"
-                    >
-                      {item.label}
-                    </Text>
-                    <Badge
-                      status={isValid ? "success" : "default"}
-                      text={
-                        <span
-                          className={`text-[12px] font-bold ${isValid ? "text-emerald-600" : "text-slate-400"}`}
-                        >
-                          {isValid ? "Còn hạn" : "Hết hạn"}
-                        </span>
-                      }
-                      className="mt-1"
-                    />
-                  </div>
-                );
-              })}
+                    {lc.insuranceTNDSDeadline
+                      ? dayjs(lc.insuranceTNDSDeadline).format("DD/MM/YYYY")
+                      : "---"}
+                  </Tag>
+                </div>
+              </Tooltip>
+              <Tooltip
+                title={
+                  lc.insuranceVCCorp
+                    ? `Hãng: ${lc.insuranceVCCorp}`
+                    : "Không có thông tin hãng"
+                }
+              >
+                <div className="flex justify-between items-center cursor-help group p-1 hover:bg-slate-50 rounded">
+                  <Text>
+                    <SafetyCertificateOutlined className="text-orange-500 mr-2" />{" "}
+                    BH Vật chất{" "}
+                    <InfoCircleOutlined className="text-[10px] opacity-0 group-hover:opacity-100 transition-all" />
+                  </Text>
+                  <Tag
+                    color={
+                      dayjs(lc.insuranceVCDeadline).isAfter(dayjs())
+                        ? "green"
+                        : "red"
+                    }
+                  >
+                    {lc.insuranceVCDeadline
+                      ? dayjs(lc.insuranceVCDeadline).format("DD/MM/YYYY")
+                      : "---"}
+                  </Tag>
+                </div>
+              </Tooltip>
             </div>
           </div>
         </Col>

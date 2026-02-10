@@ -359,8 +359,16 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
         // Logic Boolean cho bảo hiểm
         insuranceTNDS: !!restValues.insuranceTNDSDeadline,
         insuranceVC: !!restValues.insuranceVCDeadline,
+        insuranceregistrationDeadline:
+          !!restValues.insuranceregistrationDeadline,
         hasFine: !!restValues.hasFine,
         fineNote: restValues.fineNote || null,
+
+        insuranceDSCorp: restValues.insuranceDSCorp || null,
+        insuranceVCCorp: restValues.insuranceVCCorp || null,
+        conditionGrade: restValues.conditionGrade || null,
+        isCertified: restValues.isCertified || false,
+        certificationNote: restValues.certificationNote || null,
       };
 
       // 3. Upsert LeadCar

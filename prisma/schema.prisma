@@ -252,6 +252,7 @@ model LeadCar {
   insuranceTNDSDeadline         DateTime?
   insuranceVC                   Boolean       @default(false)
   insuranceVCCorp               String?
+  insuranceDSCorp               String?
   insuranceVCDeadline           DateTime?
   insuranceDeadline             DateTime?
 
