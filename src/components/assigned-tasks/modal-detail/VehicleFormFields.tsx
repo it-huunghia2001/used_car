@@ -313,6 +313,9 @@ export const VehicleFormFields = ({
               <Form.Item name="sellReasonId" label="Nhu cầu khách / Lý do bán">
                 <Select
                   placeholder="Chọn lý do hệ thống"
+                  className="custom-select-responsive"
+                  dropdownMatchSelectWidth={false} // Rất quan trọng: cho phép menu rộng hơn ô chọn
+                  listHeight={300}
                   options={sellReasons?.map((r: any) => ({
                     value: r.id,
                     label: r.name,

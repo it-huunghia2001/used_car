@@ -148,3 +148,27 @@ button {
   height: 100%;
   width: 100%;
 }
+
+/* Áp dụng cho ô hiển thị sau khi đã chọn */
+.custom-select-responsive .ant-select-selection-item {
+  white-space: normal !important;
+  word-break: break-word !important; /* Bẻ từ nếu quá dài */
+  line-height: 1.4 !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 8px 0 !important;
+}
+
+/* Áp dụng cho các item trong danh sách lúc đang chọn */
+.ant-select-item-option-content {
+  white-space: normal !important;
+  word-break: break-word !important;
+  line-height: 1.5 !important;
+}
+
+/* Tăng chiều cao ô chọn để chứa đủ dòng chữ vừa xuống */
+.custom-select-responsive .ant-select-selector {
+  height: auto !important;
+  min-height: 48px !important;
+  padding: 4px 11px !important;
+}
