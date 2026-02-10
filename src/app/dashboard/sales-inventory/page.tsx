@@ -49,6 +49,7 @@ import {
   completeMaintenanceTaskAction,
   getMaintenanceTasksAction,
   getMyCustomersAction,
+  selfCreateCustomerAction,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
 import dayjs from "@/lib/dayjs";
@@ -63,6 +64,7 @@ import { UrgencyBadge } from "@/lib/urgencyBadge";
 import { log } from "console";
 import { getMeAction } from "@/actions/user-actions";
 import { getLeadStatusHelper } from "@/lib/status-helper";
+import ModalAddSelfLead from "@/components/assigned-tasks/ModalAddSelfLead";
 
 const { Title, Text } = Typography;
 
@@ -163,6 +165,28 @@ export default function SalesTasksPage() {
         r.phone?.includes(searchText),
     );
   }, [customers, searchText]);
+
+  const onFinishAddCustomer = async (values: any) => {
+    setLoading(true);
+    try {
+      const res = await selfCreateCustomerAction(values);
+
+      if (res.success) {
+        messageApi.success("Khách hàng đã được thêm thành công!");
+        setIsAddModalOpen(false);
+        form.resetFields();
+        loadData(); // Reload data to show the new customer
+      } else {
+        const errorMsg =
+          (res as any).error || "Dữ liệu này đã tồn tại trong hệ thống.";
+        messageApi.error(errorMsg);
+      }
+    } catch (error: any) {
+      messageApi.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- ACTIONS ---
   const onContactFinish = async (values: any) => {
@@ -741,11 +765,13 @@ export default function SalesTasksPage() {
         onFinish={onFailFinish}
         onStatusChange={(val) => getActiveReasonsAction(val).then(setReasons)}
       />
-      <ModalSelfAddCustomer
+      <ModalAddSelfLead
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         carModels={carModels}
-        onSuccess={loadData}
+        currentUser={currentUser}
+        loading={loading}
+        onFinish={onFinishAddCustomer}
       />
 
       <style jsx global>{`
