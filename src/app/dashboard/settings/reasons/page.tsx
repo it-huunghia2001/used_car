@@ -273,7 +273,7 @@ export default function AdminReasonsPage() {
           <Col span={6}>
             <Card className="shadow-sm border-l-4 border-red-500">
               <div className="text-slate-400 text-xs uppercase font-bold mb-1">
-                Thất bại (Lose)
+                Lost
               </div>
               <div className="text-2xl font-bold text-red-600">
                 {stats.lose}
@@ -286,7 +286,7 @@ export default function AdminReasonsPage() {
               className="shadow-sm border-l-4 border-orange-500"
             >
               <div className="text-slate-400 text-xs uppercase font-bold mb-1">
-                Tạm dừng
+                Đóng băng
               </div>
               <div className="text-2xl font-bold text-orange-600">
                 {stats.frozen}
@@ -364,15 +364,9 @@ export default function AdminReasonsPage() {
             ]}
           >
             <Select placeholder="Chọn trạng thái">
-              <Select.Option value="LOSE">
-                Thất bại (Khách không mua/bán nữa)
-              </Select.Option>
-              <Select.Option value="FROZEN">
-                Tạm dừng (Sẽ quay lại sau)
-              </Select.Option>
-              <Select.Option value="PENDING_VIEW">
-                Chờ xem xe (Đang sắp xếp lịch)
-              </Select.Option>
+              <Select.Option value="LOSE">Lost</Select.Option>
+              <Select.Option value="FROZEN">Đóng băng</Select.Option>
+              <Select.Option value="PENDING_VIEW">Đang theo dõi</Select.Option>
             </Select>
           </Form.Item>
 

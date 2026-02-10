@@ -60,8 +60,7 @@ export default function ModalDetailCustomer({
   }, []);
 
   // Dữ liệu hiển thị ưu tiên fullDetail từ API
-  const customerData =
-    fullDetail || selectedLead?.customer || selectedLead || {};
+  let customerData = fullDetail || selectedLead?.customer || selectedLead || {};
   const leadCar = customerData.leadCar || {};
 
   const mapUrlsToFiles = (urls: any) => {
@@ -83,7 +82,8 @@ export default function ModalDetailCustomer({
       const res = await getLeadDetail(targetId);
       setFullDetail(res);
       console.log(res);
-      console.log(customerData.documents);
+
+      customerData = res || customerData; // Cập nhật lại customerData với dữ liệu mới
 
       if (res) {
         // Fill dữ liệu vào Form

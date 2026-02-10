@@ -87,7 +87,7 @@ export default function AdminReasonsPage() {
                 label: (
                   <Space>
                     <ShoppingOutlined />
-                    Lý do BÁN xe
+                    Lý do bán xe
                   </Space>
                 ),
                 children: <SellReasonsTab />,
@@ -97,7 +97,7 @@ export default function AdminReasonsPage() {
                 label: (
                   <Space>
                     <ShoppingCartOutlined />
-                    Lý do MUA xe
+                    Lý do mua xe
                   </Space>
                 ),
                 children: <BuyReasonsTab />,

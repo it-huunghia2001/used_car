@@ -287,6 +287,7 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
       notSeenReasonId,
       notSeenReason,
       buyReasonId,
+      sellReasonId,
       // Thông số xe
       ...restValues
     } = values;
@@ -309,6 +310,7 @@ export async function updateFullLeadDetail(customerId: string, values: any) {
           // Lý do liên kết
           notSeenReasonId,
           buyReasonId,
+          sellReasonId,
           notSeenReason, // Ghi chú thêm
           carImages: restValues.carImages || [],
           documents: restValues.documents || [],

@@ -21,7 +21,9 @@ export const CustomerBanner = ({
   renderTime,
   UrgencyBadge,
 }: any) => {
-  // Helper gán màu sắc và label cho trạng thái giám định
+  // Helper gán màu sắc và label cho trạng thái giám địnhlog
+  console.log(customerData);
+
   const getInspectStatusTag = (status: string) => {
     switch (status) {
       case "INSPECTED":
@@ -181,6 +183,21 @@ export const CustomerBanner = ({
                       <span className="text-[12px] text-indigo-200! leading-relaxed font-medium">
                         {customerData?.sellReason?.name ||
                           "Chưa ghi nhận lý do"}
+                      </span>
+                    </div>
+                  )}
+
+                {customerData.type === "BUY" &&
+                  customerData.inspectStatus === "NOT_INSPECTED" && (
+                    <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl">
+                      <div className="flex items-center gap-2 text-indigo-400 mb-1">
+                        <InfoCircleOutlined className="text-[10px]" />
+                        <span className="text-[9px] uppercase font-black tracking-widest">
+                          Lý do mua xe:
+                        </span>
+                      </div>
+                      <span className="text-[12px] text-indigo-200! leading-relaxed font-medium">
+                        {customerData?.buyReason?.name || "Chưa ghi nhận lý do"}
                       </span>
                     </div>
                   )}

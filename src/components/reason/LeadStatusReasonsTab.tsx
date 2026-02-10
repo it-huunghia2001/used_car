@@ -186,9 +186,9 @@ export default function LeadStatusReasonsTab() {
           >
             <Select
               options={[
-                { label: "Thất bại (Lose)", value: "LOSE" },
-                { label: "Tạm dừng (Frozen)", value: "FROZEN" },
-                { label: "Chờ xem xe", value: "PENDING_VIEW" },
+                { label: "Lost", value: "LOSE" },
+                { label: "Đóng băng", value: "FROZEN" },
+                { label: "Đang theo dõi", value: "PENDING_VIEW" },
               ]}
             />
           </Form.Item>

@@ -310,7 +310,7 @@ export const VehicleFormFields = ({
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="buyReasonId" label="Nhu cầu khách / Lý do bán">
+              <Form.Item name="sellReasonId" label="Nhu cầu khách / Lý do bán">
                 <Select
                   placeholder="Chọn lý do hệ thống"
                   options={sellReasons?.map((r: any) => ({

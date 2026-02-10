@@ -120,6 +120,11 @@ export async function getLeadDetail(customerId: string) {
             name: true,
           },
         },
+        buyReason: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
