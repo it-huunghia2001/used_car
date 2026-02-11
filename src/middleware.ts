@@ -105,7 +105,7 @@ export async function middleware(req: NextRequest) {
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
 
-    if (payload.app !== APP_NAME)
+    if (payload.appName !== APP_NAME)
       return NextResponse.redirect(new URL("/login", req.url));
 
     const userRole = (payload.role as string) || "";
@@ -134,6 +134,7 @@ export async function middleware(req: NextRequest) {
 
     return NextResponse.next();
   } catch (err) {
+    console.log("🚩 Middleware Error:", err); // Thêm dòng này để debug
     return NextResponse.redirect(new URL("/login", req.url));
   }
 }
