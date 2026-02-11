@@ -342,7 +342,7 @@ export async function getInventoryCarsAction() {
     if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const cars = await db.car.findMany({
       where: {
-        status: "READY_FOR_SALE", // Chỉ lấy xe sẵn sàng bán
+        status: { in: ["READY_FOR_SALE", "REFURBISHING"] }, // Chỉ lấy xe sẵn sàng bán
       },
       select: {
         id: true,

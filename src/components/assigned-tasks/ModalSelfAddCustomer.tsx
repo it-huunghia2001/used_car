@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   Form,
@@ -14,19 +14,19 @@ import {
   Divider,
   Space,
   Typography,
-  ConfigProvider,
   Button,
 } from "antd";
 import {
   UserAddOutlined,
   CarOutlined,
   InfoCircleOutlined,
-  TagOutlined,
   CheckCircleFilled,
   CloseCircleFilled,
   WarningFilled,
   PhoneOutlined,
   FontSizeOutlined,
+  SwapOutlined,
+  DashboardOutlined,
 } from "@ant-design/icons";
 import { selfCreateCustomerAction } from "@/actions/task-actions";
 
@@ -48,7 +48,12 @@ export default function ModalSelfAddCustomer({
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
-  // --- HÀM HIỂN THỊ THÔNG BÁO CHUYÊN NGHIỆP ---
+  // --- THEO DÕI LOẠI GIAO DỊCH ĐỂ ẨN HIỆN TRƯỜNG ĐỔI XE ---
+  const transactionType = Form.useWatch("type", form);
+  const isTradeIn =
+    transactionType === "SELL_TRADE_NEW" ||
+    transactionType === "SELL_TRADE_USED";
+
   const showNotification = (
     type: "success" | "error" | "warning",
     msg: string,
@@ -56,7 +61,6 @@ export default function ModalSelfAddCustomer({
     const isSuccess = type === "success";
     const isWarning = type === "warning";
 
-    // Không gán biến 'modal' để tránh lỗi unused variable
     Modal[type]({
       icon: null,
       width: 480,
@@ -94,7 +98,7 @@ export default function ModalSelfAddCustomer({
           <div className="px-4">
             <Text className="text-gray-500 text-lg leading-relaxed">
               {isSuccess
-                ? "Hồ sơ khách hàng tự khai thác đã được khởi tạo. Bạn có thể bắt đầu chăm sóc ngay mà không bị áp KPI thời hạn."
+                ? "Hồ sơ khách hàng đã được khởi tạo thành công."
                 : msg}
             </Text>
           </div>
@@ -107,16 +111,16 @@ export default function ModalSelfAddCustomer({
     setLoading(true);
     try {
       const res = await selfCreateCustomerAction(values);
-
       if (res.success) {
         onClose();
         showNotification("success", "");
         form.resetFields();
         onSuccess();
       } else {
-        const errorMsg =
-          (res as any).error || "Dữ liệu này đã tồn tại trong hệ thống.";
-        showNotification("warning", errorMsg);
+        showNotification(
+          "warning",
+          (res as any).error || "Dữ liệu đã tồn tại.",
+        );
       }
     } catch (error: any) {
       showNotification("error", error.message);
@@ -124,6 +128,10 @@ export default function ModalSelfAddCustomer({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    console.log(isTradeIn);
+  }, []);
 
   return (
     <Modal
@@ -137,7 +145,7 @@ export default function ModalSelfAddCustomer({
               Tạo Hồ Sơ Khách Hàng
             </Text>
             <Text className="text-[10px] text-blue-500 font-bold uppercase italic">
-              Chế độ: Tự khai thác (Không KPI)
+              Chế độ: Tự khai thác
             </Text>
           </div>
         </Space>
@@ -146,12 +154,11 @@ export default function ModalSelfAddCustomer({
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={loading}
-      width={780}
+      width={800}
       centered
       okText="Xác nhận & Lưu hồ sơ"
       cancelText="Hủy bỏ"
       maskClosable={false}
-      className="modal-custom-border"
     >
       <Form
         form={form}
@@ -160,12 +167,13 @@ export default function ModalSelfAddCustomer({
         initialValues={{ type: "SELL" }}
         autoComplete="off"
         className="mt-6"
+        requiredMark="optional"
       >
-        {/* KHỐI 1: ĐỊNH DANH */}
+        {/* KHỐI 1: THÔNG TIN KHÁCH HÀNG */}
         <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 mb-6">
           <Divider titlePlacement="left" plain className="m-0! mb-5!">
             <Space className="text-slate-400 uppercase text-[11px] font-bold tracking-widest">
-              <InfoCircleOutlined /> Thông tin khách hàng
+              <InfoCircleOutlined /> Thông tin định danh
             </Space>
           </Divider>
           <Row gutter={20}>
@@ -173,22 +181,17 @@ export default function ModalSelfAddCustomer({
               <Form.Item
                 name="fullName"
                 label={
-                  <span className="font-semibold text-slate-600">
-                    Họ và tên khách
-                  </span>
+                  <Text strong className="text-slate-600">
+                    Họ và tên khách hàng
+                  </Text>
                 }
-                rules={[
-                  {
-                    required: true,
-                    message: "Vui lòng không bỏ trống tên khách",
-                  },
-                ]}
+                rules={[{ required: true, message: "Bắt buộc nhập tên khách" }]}
               >
                 <Input
                   prefix={<FontSizeOutlined className="text-slate-300" />}
-                  placeholder="VD: Nguyễn Văn A"
+                  placeholder="Nguyễn Văn A"
                   size="large"
-                  className="rounded-xl border-slate-200"
+                  className="rounded-xl"
                 />
               </Form.Item>
             </Col>
@@ -196,143 +199,184 @@ export default function ModalSelfAddCustomer({
               <Form.Item
                 name="phone"
                 label={
-                  <span className="font-semibold text-slate-600">
-                    Số điện thoại liên hệ
-                  </span>
+                  <Text strong className="text-slate-600">
+                    Số điện thoại
+                  </Text>
                 }
                 rules={[
-                  { required: true, message: "Vui lòng nhập SĐT" },
-                  {
-                    pattern: /^[0-9]{10,11}$/,
-                    message: "SĐT phải từ 10-11 chữ số",
-                  },
+                  { required: true, message: "Bắt buộc nhập SĐT" },
+                  { pattern: /^[0-9]{10,11}$/, message: "SĐT không hợp lệ" },
                 ]}
               >
                 <Input
                   prefix={<PhoneOutlined className="text-slate-300" />}
                   placeholder="09xx xxx xxx"
                   size="large"
-                  className="rounded-xl border-slate-200"
-                  onChange={(e) => {
-                    // Chỉ giữ lại các ký tự là số, loại bỏ chữ và ký tự đặc biệt ngay lập tức
-                    const value = e.target.value.replace(/\D/g, "");
-                    // Cập nhật lại giá trị sạch vào form
-                    form.setFieldsValue({ phone: value });
-                  }}
+                  className="rounded-xl"
+                  max={10}
+                  maxLength={10}
+                  onChange={(e) =>
+                    form.setFieldsValue({
+                      phone: e.target.value.replace(/\D/g, ""),
+                    })
+                  }
                 />
               </Form.Item>
             </Col>
           </Row>
         </div>
 
-        {/* KHỐI 2: NGHIỆP VỤ */}
-        <Row gutter={20}>
+        {/* KHỐI 2: LOẠI HÌNH GIAO DỊCH */}
+        <div className="p-5">
+          <Row gutter={20}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="type"
+                label={
+                  <Text strong className="text-slate-600">
+                    Loại hình giao dịch
+                  </Text>
+                }
+                rules={[{ required: true }]}
+              >
+                <Select
+                  size="large"
+                  className="w-full"
+                  options={[
+                    { value: "SELL", label: "🤝 Thu mua xe (Khách bán)" },
+                    {
+                      value: "SELL_TRADE_NEW",
+                      label: "♻️ Thu cũ - Đổi xe mới",
+                    },
+                    {
+                      value: "SELL_TRADE_USED",
+                      label: "🔄 Thu cũ - Đổi xe cũ",
+                    },
+                    { value: "VALUATION", label: "⚖️ Định giá xe" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="licensePlate"
+                label={
+                  <Text strong className="text-slate-600">
+                    Biển số phương tiện
+                  </Text>
+                }
+                rules={[{ required: true, message: "Bắt buộc nhập biển số" }]}
+                getValueFromEvent={(e) =>
+                  e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
+                }
+              >
+                <Input
+                  size="large"
+                  placeholder="VD: 51H12345"
+                  maxLength={9}
+                  className="uppercase font-bold text-blue-600 rounded-xl"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
           <Col xs={24} md={12}>
-            <Form.Item
-              name="type"
-              label={
-                <span className="font-semibold text-slate-600">
-                  Loại hình giao dịch
-                </span>
-              }
-              rules={[{ required: true }]}
-            >
-              <Select
-                size="large"
-                className="w-full rounded-xl"
-                options={[
-                  { value: "SELL", label: "🤝 Thu mua xe (Khách bán)" },
-                  { value: "SELL_TRADE_NEW", label: "♻️ Thu cũ - Đổi xe mới" },
-                  { value: "SELL_TRADE_USED", label: "🔄 Thu cũ - Đổi xe cũ" },
-                  { value: "VALUATION", label: "⚖️ Định giá xe" },
-                ]}
-              />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12}>
-            <Form.Item
-              name="licensePlate"
-              label={
-                <span className="font-semibold text-slate-600">
-                  Biển số phương tiện
-                </span>
-              }
-              getValueFromEvent={(e) =>
-                e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
-              }
-            >
-              <Input
-                size="large"
-                placeholder="VD: 51H12345"
-                className="uppercase font-bold text-blue-600 rounded-xl border-slate-200 placeholder:font-normal placeholder:text-slate-300"
-              />
-            </Form.Item>
-          </Col>
-        </Row>
-
-        {/* KHỐI 3: XE */}
-        <Divider titlePlacement="left" plain className="my-6!">
-          <Space className="text-slate-400 uppercase text-[11px] font-bold tracking-widest">
-            <CarOutlined /> Thông tin dòng xe
-          </Space>
-        </Divider>
-
-        <Row gutter={20}>
-          <Col xs={24} md={16}>
             <Form.Item
               name="carModelId"
               label={
-                <span className="font-semibold text-slate-600">
-                  Model xe khách hàng
-                </span>
+                <Text strong className="text-slate-600">
+                  Dòng xe khách hàng
+                </Text>
               }
+              rules={[
+                { required: true, message: "Chọn dòng xe khách đang đi" },
+              ]}
             >
               <Select
                 size="large"
                 showSearch
-                allowClear
-                placeholder="Tìm kiếm model xe (Innova, Camry...)"
+                placeholder="Innova, Camry, Vios..."
                 optionFilterProp="label"
                 options={carModels.map((m) => ({ label: m.name, value: m.id }))}
                 className="rounded-xl"
               />
             </Form.Item>
           </Col>
-          <Col xs={24} md={8}>
+
+          {/* HIỆN THỊ KHI CHỌN THU CŨ ĐỔI MỚI/CŨ */}
+          {isTradeIn && (
+            <div className="animate-fadeIn p-4 bg-indigo-50/50 rounded-2xl border border-dashed border-indigo-200 mb-6 mt-2">
+              <Form.Item
+                name="tradeInModelId"
+                label={
+                  <Text strong className="text-indigo-600">
+                    <SwapOutlined /> Dòng xe khách muốn đổi sang
+                  </Text>
+                }
+                rules={[
+                  { required: true, message: "Vui lòng chọn dòng xe muốn đổi" },
+                ]}
+              >
+                <Select
+                  size="large"
+                  showSearch
+                  placeholder="Chọn model xe mới/cũ muốn đổi..."
+                  optionFilterProp="label"
+                  options={carModels.map((m) => ({
+                    label: m.name,
+                    value: m.id,
+                  }))}
+                  className="rounded-xl"
+                />
+              </Form.Item>
+            </div>
+          )}
+        </div>
+
+        {/* KHỐI 3: THÔNG TIN XE HIỆN TẠI */}
+        <Divider titlePlacement="left" plain className="my-4!">
+          <Space className="text-slate-400 uppercase text-[11px] font-bold tracking-widest">
+            <CarOutlined /> Chi tiết xe khách đang đi
+          </Space>
+        </Divider>
+
+        <Row gutter={20}>
+          <Col xs={12} md={6}>
             <Form.Item
-              name="year"
+              name="carYear"
               label={
-                <span className="font-semibold text-slate-600">
+                <Text strong className="text-slate-600">
                   Năm sản xuất
-                </span>
+                </Text>
               }
+              rules={[{ required: true, message: "Chọn năm" }]}
             >
               <InputNumber
-                className="w-full! rounded-xl border-slate-200"
+                className="w-full! rounded-xl"
                 size="large"
-                placeholder="2024"
+                placeholder="2022"
                 min={1990}
                 max={2026}
               />
             </Form.Item>
           </Col>
-          <Col xs={24} md={16}>
+          <Col xs={12} md={6}>
             <Form.Item
-              name="tradeInModelId"
+              name="expectedPrice"
               label={
-                <span className="font-semibold text-slate-600">
-                  Model khách hàng quan tâm
-                </span>
+                <Text strong className="text-slate-600">
+                  Giá mong muốn
+                </Text>
               }
+              rules={[{ required: true, message: "Nhập giá" }]}
             >
-              <Select
+              <InputNumber
+                className="w-full! rounded-xl"
                 size="large"
-                showSearch
-                allowClear
-                placeholder="Tìm kiếm model xe (Innova, Camry...)"
-                optionFilterProp="label"
-                options={carModels.map((m) => ({ label: m.name, value: m.id }))}
-                className="rounded-xl"
+                placeholder="VNĐ"
+                formatter={(val) =>
+                  `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                }
+                parser={(val) => val!.replace(/\$\s?|(,*)/g, "")}
               />
             </Form.Item>
           </Col>
@@ -340,15 +384,15 @@ export default function ModalSelfAddCustomer({
             <Form.Item
               name="note"
               label={
-                <span className="font-semibold text-slate-600">
-                  Ghi chú & Nguồn khách
-                </span>
+                <Text strong className="text-slate-600">
+                  Ghi chú chi tiết
+                </Text>
               }
             >
               <Input.TextArea
                 rows={3}
-                placeholder="Mô tả ngắn gọn về tình trạng xe hoặc nguồn khách (Bạn bè, Facebook, khách vãng lai...)"
-                className="rounded-xl border-slate-200"
+                placeholder="Mô tả tình trạng xe hoặc nhu cầu cụ thể của khách..."
+                className="rounded-xl"
               />
             </Form.Item>
           </Col>

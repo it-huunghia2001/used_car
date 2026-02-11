@@ -1130,7 +1130,7 @@ export async function selfCreateCustomerAction(values: any) {
   if (!auth) throw new Error("Unauthorized");
 
   try {
-    // 1. CHUẨN HÓA DỮ LIỆU
+    // 1. CHUẨN HÓA DỮ LIỆU ĐỊNH DANH
     const cleanPlate = values.licensePlate
       ? values.licensePlate.toUpperCase().replace(/[^A-Z0-9]/g, "")
       : undefined;
@@ -1139,39 +1139,27 @@ export async function selfCreateCustomerAction(values: any) {
       notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED, LeadStatus.LOSE],
     };
 
-    // 2. KIỂM TRA TRÙNG LẶP
+    // 2. KIỂM TRA TRÙNG LẶP (Giữ nguyên logic của bạn)
     if (values.type === "BUY") {
       const duplicatePhone = await db.customer.findFirst({
-        where: {
-          phone: values.phone,
-          type: "BUY",
-          status: activeStatuses,
-        },
+        where: { phone: values.phone, type: "BUY", status: activeStatuses },
       });
-
-      if (duplicatePhone) {
+      if (duplicatePhone)
         return {
           success: false,
-          error: `Số điện thoại ${values.phone} đang có yêu cầu MUA XE đang xử lý.`,
+          error: `SĐT ${values.phone} đang có yêu cầu MUA XE.`,
         };
-      }
     } else if (cleanPlate) {
       const duplicatePlate = await db.customer.findFirst({
-        where: {
-          licensePlate: cleanPlate,
-          status: activeStatuses,
-        },
+        where: { licensePlate: cleanPlate, status: activeStatuses },
       });
-
-      if (duplicatePlate) {
+      if (duplicatePlate)
         return {
           success: false,
-          error: `Biển số ${cleanPlate} đang hiện hữu và đang được xử lý trên hệ thống.`,
+          error: `Biển số ${cleanPlate} đang được xử lý.`,
         };
-      }
     }
 
-    // 3. LẤY THÔNG TIN XE TỪ KHO (NẾU CÓ CHỌN)
     let inventoryCarData: any = null;
     if (values.inventoryCarId) {
       inventoryCarData = await db.car.findUnique({
@@ -1179,9 +1167,20 @@ export async function selfCreateCustomerAction(values: any) {
       });
     }
 
-    // 4. TRANSACTION LƯU DỮ LIỆU
+    // 3. TRANSACTION LƯU DỮ LIỆU
     return await db.$transaction(async (tx) => {
       const now = new Date();
+
+      // ÉP KIỂU SỐ THÀNH CHUỖI ĐỂ TRÁNH LỖI PRISMA
+      const finalExpectedPrice =
+        values.expectedPrice !== undefined && values.expectedPrice !== null
+          ? String(values.expectedPrice)
+          : null;
+
+      const finalBudget =
+        values.budget !== undefined && values.budget !== null
+          ? String(values.budget)
+          : null;
 
       const customer = await tx.customer.create({
         data: {
@@ -1193,18 +1192,20 @@ export async function selfCreateCustomerAction(values: any) {
           assignedToId: auth.id,
           assignedAt: now,
           branchId: auth.branchId,
-          // Ưu tiên lấy modelId từ xe trong kho nếu có chọn
           carModelId: inventoryCarData
             ? inventoryCarData.carModelId
             : values.carModelId,
+
+          // LƯU TRƯỜNG XE MUỐN ĐỔI (TRADE-IN)
+          tradeInModelId: values.tradeInModelId || null,
+
           licensePlate: inventoryCarData
             ? inventoryCarData.licensePlate
             : cleanPlate,
-          budget: values.budget,
-          expectedPrice: values.expectedPrice,
+          budget: finalBudget, // Đã ép kiểu sang String
+          expectedPrice: finalExpectedPrice, // Đã ép kiểu sang String
           note: values.note,
 
-          // TẠO LEADCAR TỰ ĐỘNG GÁN THÔNG TIN XE
           leadCar: {
             create: {
               carModelId: inventoryCarData
@@ -1225,15 +1226,21 @@ export async function selfCreateCustomerAction(values: any) {
               engineNumber: inventoryCarData
                 ? inventoryCarData.engineNumber
                 : undefined,
-              odo: inventoryCarData ? inventoryCarData.odo : undefined,
-              color: inventoryCarData ? inventoryCarData.color : undefined,
+              odo: inventoryCarData
+                ? inventoryCarData.odo
+                  ? Number(inventoryCarData.odo)
+                  : undefined
+                : values.odo
+                  ? Number(values.odo)
+                  : undefined,
+              color: inventoryCarData ? inventoryCarData.color : values.color,
+              // Lưu ý: tSurePrice và expectedPrice trong LeadCar thường là Decimal, Prisma nhận Number/String đều được nhưng nên đồng nhất
               tSurePrice: inventoryCarData
                 ? inventoryCarData.costPrice
                 : undefined,
               expectedPrice: inventoryCarData
                 ? inventoryCarData.sellingPrice
-                : values.expectedPrice,
-              // Lưu vết ID xe gốc để đối soát sau này nếu cần
+                : finalExpectedPrice,
               note: inventoryCarData
                 ? `Xe chọn từ kho: ${inventoryCarData.stockCode}`
                 : undefined,
@@ -1244,8 +1251,8 @@ export async function selfCreateCustomerAction(values: any) {
             create: {
               title: `🌟 CHĂM SÓC: ${values.fullName}`,
               content: inventoryCarData
-                ? `Khách quan tâm xe: ${inventoryCarData.stockCode} - ${inventoryCarData.modelName}. ${values.note || ""}`
-                : `Khách hàng tự khai thác - ${values.note || "Nghiệp vụ " + values.type}`,
+                ? `Khách quan tâm xe kho: ${inventoryCarData.stockCode}. ${values.note || ""}`
+                : `Khách tự khai thác - ${values.note || "Nghiệp vụ " + values.type}`,
               scheduledAt: now,
               deadlineAt: dayjs(now).add(1, "year").toDate(),
               assigneeId: auth.id,
@@ -1257,7 +1264,7 @@ export async function selfCreateCustomerAction(values: any) {
           activities: {
             create: {
               status: LeadStatus.CONTACTED,
-              note: `[NHÂN VIÊN TỰ TẠO] Khách hàng quan tâm ${inventoryCarData ? "xe tại kho: " + inventoryCarData.stockCode : "xe ngoài"}.`,
+              note: `[NHÂN VIÊN TỰ TẠO] Khách hàng quan tâm ${inventoryCarData ? "xe tại kho" : "xe ngoài"}.`,
               createdById: auth.id,
             },
           },
