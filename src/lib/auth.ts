@@ -1,15 +1,23 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // lib/auth.ts
-// lib/auth.ts
-import jwt from "jsonwebtoken";
 import { db } from "./db";
 import { apiRequest } from "./api";
+import { jwtVerify } from "jose";
 
-const JWT_SECRET = process.env.JWT_SECRET || ""; // đổi thành secret của bạn
+// ✅ SỬA TẠI ĐÂY: Chuyển string sang Uint8Array
+const JWT_SECRET_STR = process.env.JWT_SECRET || "super-secret-key";
+const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STR);
 
+const APP_NAME = "used-car";
+
+// Khai báo Interface chuẩn
 export interface TokenPayload {
   id: string;
   role: string;
   username: string;
+  appName: string;
+  version: number;
 }
 
 export async function login(username: string, password: string) {
@@ -17,7 +25,7 @@ export async function login(username: string, password: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
-    credentials: "include", // cần để cookie được set
+    credentials: "include",
   });
 }
 
@@ -28,19 +36,21 @@ export async function logout() {
   });
 }
 
-export async function getUser() {
-  return apiRequest("/api/auth/me", { method: "GET", credentials: "include" });
-}
-
 export async function getUserFromToken(token: string) {
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    // 1. Giải mã bằng jose
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const data = payload as unknown as TokenPayload;
 
-    if (!payload?.id) return null;
+    // 2. Kiểm tra định danh App
+    if (data.appName !== APP_NAME) {
+      console.warn("🚩 Auth Fail: App Name mismatch");
+      return null;
+    }
 
-    // Lấy thông tin user từ DB để đảm bảo còn active
+    // 3. Lấy thông tin user từ DB
     const user = await db.user.findUnique({
-      where: { id: payload.id },
+      where: { id: data.id },
       select: {
         id: true,
         username: true,
@@ -49,14 +59,27 @@ export async function getUserFromToken(token: string) {
         fullName: true,
         isGlobalManager: true,
         branchId: true,
+        tokenVersion: true,
       },
     });
 
-    if (!user || !user.active) return null;
+    // 4. Kiểm tra tài khoản
+    if (!user || !user.active) {
+      console.warn("🚩 Auth Fail: User inactive or deleted");
+      return null;
+    }
+
+    // 5. Kiểm tra Version (Đổi mật khẩu thì văng)
+    if (data.version !== user.tokenVersion) {
+      console.warn("🚩 Auth Fail: Token version outdated (Security Reset)");
+      return null;
+    }
 
     return user;
   } catch (err) {
-    console.error("Invalid token:", err);
+    console.error(
+      "🚩 Auth Fail: Invalid token signature, expired or secret mismatch",
+    );
     return null;
   }
 }

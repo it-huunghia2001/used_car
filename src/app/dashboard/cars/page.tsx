@@ -355,6 +355,8 @@ export default function InventoryPage() {
                         className="bg-slate-100 border-none hover:!bg-slate-200 text-slate-600 rounded-xl font-bold flex items-center"
                         icon={<FileTextOutlined />}
                         onClick={() => {
+                          console.log("Selected car:", record);
+
                           setSelectedCar(record);
                           setIsDetailOpen(true);
                         }}
@@ -368,7 +370,10 @@ export default function InventoryPage() {
                       ghost
                       className="rounded-xl font-bold"
                       icon={<ToolOutlined />}
-                      onClick={() => setIsModalOpen(true)}
+                      onClick={() => {
+                        setIsModalOpen(true);
+                        setSelectedCar(record);
+                      }}
                     >
                       Quản lý
                     </Button>

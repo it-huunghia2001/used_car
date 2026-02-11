@@ -120,7 +120,11 @@ export default function AdvancedShowroomPage() {
                 defaultValue="ALL"
                 options={[
                   { label: "Tất cả dòng xe", value: "ALL" },
-                  ...models.map((m) => ({ label: m.name, value: m.id })),
+                  // Sử dụng Array.isArray để đảm bảo chắc chắn là mảng trước khi map
+                  ...(Array.isArray(models) ? models : []).map((m: any) => ({
+                    label: m.name,
+                    value: m.id,
+                  })),
                 ]}
               />
             </Col>

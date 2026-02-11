@@ -146,17 +146,23 @@ export async function publishCarAction(carId: string, price: number) {
 export async function getCarModelsAction() {
   try {
     const user = await getCurrentUser();
-    if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
+    // Nếu lỗi, trả về mảng rỗng thay vì Object
+    console.log(user);
+
+    if (!user) {
+      console.warn("getCarModelsAction: Unauthorized");
+      return [];
+    }
+
     const carModels = await db.carModel.findMany({
       select: { id: true, name: true, grade: true },
       orderBy: { name: "asc" },
     });
 
-    // Đảm bảo trả về Plain Object thuần túy
     return JSON.parse(JSON.stringify(carModels));
   } catch (error) {
     console.error("Error fetching car models:", error);
-    return [];
+    return []; // Luôn trả về mảng
   }
 }
 

@@ -102,6 +102,8 @@ export default function EditCarModal({
       form.resetFields();
       setFileList([]);
     }
+    console.log(car);
+    console.log("Form values:", form.getFieldsValue());
   }, [car, isOpen, form]);
 
   // 3. Xử lý Upload ảnh lên Cloudinary
