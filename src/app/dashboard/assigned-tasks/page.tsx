@@ -23,6 +23,8 @@ import {
   Avatar,
   Empty,
   Skeleton,
+  DatePicker,
+  Select,
 } from "antd";
 import {
   CloseCircleOutlined,
@@ -34,6 +36,7 @@ import {
   UserAddOutlined,
   UserOutlined,
   FilterOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 
 // Actions & Libs
@@ -93,11 +96,19 @@ export default function AssignedTasksPage() {
   const [sellReasons, setSellReasons] = useState<any[]>([]);
   const [buyReasons, setBuyReasons] = useState<any[]>([]);
   const [allStaffAPPRAISER, setAllStaffAPPRAISER] = useState<any[]>([]);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    searchText: "",
+    licensePlate: "",
+    dateRange: null as any, // Ngày nhận (createdAt)
+    contactDateRange: null as any, // Ngày cần liên hệ (scheduledAt)
+    inspectStatus: "ALL", // Trạng thái xem xe
+  });
 
   // --- LOAD DATA ---
   const loadData = async () => {
     setLoading(true);
     try {
+      // Truyền advancedFilters vào các action để Server thực hiện lọc SQL
       const [
         leads,
         cars,
@@ -107,27 +118,27 @@ export default function AssignedTasksPage() {
         nsReasons,
         sReasons,
         staffsAPPRAISER,
-        buyReasons,
+        bReasons,
       ]: any = await Promise.all([
-        getMyTasksAction(),
+        getMyTasksAction(advancedFilters), // <--- QUAN TRỌNG: Truyền filter ở đây
         getAvailableCars(),
         getCarModelsAction(),
-        getMyCustomersAction(),
+        getMyCustomersAction(advancedFilters), // <--- QUAN TRỌNG: Truyền filter ở đây
         getMeAction(),
-        getNotSeenReasonsAction(), // Mới
-        getSellReasonsAction(), // Mới
-        getAllStaffAPPRAISERAction(), // Mới
+        getNotSeenReasonsAction(),
+        getSellReasonsAction(),
+        getAllStaffAPPRAISERAction(),
         getBuyReasons(),
       ]);
+
       setTasks(leads);
       setCustomers(myCustomers);
       setInventory(cars);
       setCarModels(models);
       setCurrentUser(userData.data);
-
       setNotSeenReasons(nsReasons);
       setSellReasons(sReasons);
-      setBuyReasons(buyReasons);
+      setBuyReasons(bReasons);
       setAllStaffAPPRAISER(staffsAPPRAISER);
     } catch (err) {
       messageApi.error("Không thể tải dữ liệu");
@@ -138,7 +149,7 @@ export default function AssignedTasksPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, []); // Chạy lại khi advancedFilters thay đổi
 
   // --- LOGIC LỌC & TÍNH TOÁN ---
   const calculateDelay = (task: any) => {
@@ -155,25 +166,19 @@ export default function AssignedTasksPage() {
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((i) => {
-      const matchSearch =
-        i.customer?.fullName
-          ?.toLowerCase()
-          .includes(searchText.toLowerCase()) ||
-        i.customer?.phone?.includes(searchText);
+      // Chỉ giữ lại logic lọc theo Tab phụ (HOT/LATE) vì cái này xử lý nhanh ở Client
+      const { isLate } = calculateDelay(i);
       let matchType = true;
       if (filterType === "HOT") matchType = i.customer?.urgencyLevel === "HOT";
-      if (filterType === "LATE") matchType = calculateDelay(i).isLate;
-      return matchSearch && matchType;
+      if (filterType === "LATE") matchType = isLate;
+      return matchType;
     });
-  }, [tasks, searchText, filterType]);
+  }, [tasks, filterType]);
 
   const filteredCustomers = useMemo(() => {
-    return customers.filter(
-      (r) =>
-        r.fullName?.toLowerCase().includes(searchText.toLowerCase()) ||
-        r.phone?.includes(searchText),
-    );
-  }, [customers, searchText]);
+    // Server đã lọc sẵn tên/biển số/ngày cho customers rồi nên chỉ cần trả về
+    return customers;
+  }, [customers]);
 
   const handleMakeCall = (customerPhone: string) => {
     if (!customerPhone) return;
@@ -394,37 +399,150 @@ export default function AssignedTasksPage() {
       {contextHolder}
       <div className="max-w-[1200px] mx-auto space-y-6">
         {/* HEADER */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-          <div className="flex items-center gap-4">
-            <div className="bg-blue-600 p-3.5 rounded-2xl text-white shadow-lg shadow-blue-200">
-              <TeamOutlined className="text-2xl" />
+        {/* HEADER & FILTERS BOX */}
+        <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+          {/* Row 1: Title & Action */}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-blue-600 p-3.5 rounded-2xl text-white shadow-lg shadow-blue-200">
+                <TeamOutlined className="text-2xl" />
+              </div>
+              <div>
+                <Title
+                  level={3}
+                  className="m-0! font-black uppercase tracking-tight text-slate-800 leading-tight"
+                >
+                  Quản lý Nhiệm vụ
+                </Title>
+                <Text
+                  type="secondary"
+                  className="text-[11px] font-bold uppercase tracking-widest text-blue-500"
+                >
+                  Workplace / Assigned Tasks
+                </Text>
+              </div>
             </div>
-            <Title
-              level={3}
-              className="m-0! font-black uppercase tracking-tight text-slate-800 leading-none"
-            >
-              Quản lý Nhiệm vụ
-            </Title>
-          </div>
-
-          <Space wrap className="w-full lg:w-auto">
-            <Input
-              placeholder="Tìm khách hàng..."
-              prefix={<SearchOutlined className="text-slate-400" />}
-              className="rounded-xl h-12 w-full lg:w-72 border-none bg-slate-100 focus:bg-white transition-all shadow-inner"
-              allowClear
-              onChange={(e) => setSearchText(e.target.value)}
-            />
             <Button
               type="primary"
               danger
               icon={<UserAddOutlined />}
-              className="rounded-xl h-12 font-bold px-8 shadow-lg shadow-red-200"
+              className="rounded-2xl h-12 font-black px-8 shadow-lg shadow-red-100 hover:scale-105 transition-transform"
               onClick={() => setIsAddModalOpen(true)}
             >
-              THÊM KHÁCH
+              THÊM KHÁCH HÀNG
             </Button>
-          </Space>
+          </div>
+
+          <Divider className="m-0 border-slate-100" />
+
+          {/* Row 2: Advanced Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+            {/* Tìm kiếm tên/SĐT */}
+            <div className="lg:col-span-3">
+              <Text className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">
+                Khách hàng
+              </Text>
+              <Input
+                placeholder="Tên hoặc số điện thoại..."
+                prefix={<SearchOutlined className="text-blue-500" />}
+                className="rounded-2xl h-11 border-none bg-slate-100 focus:bg-white transition-all shadow-inner"
+                allowClear
+                value={advancedFilters.searchText}
+                onChange={(e) =>
+                  setAdvancedFilters({
+                    ...advancedFilters,
+                    searchText: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            {/* Biển số */}
+            <div className="lg:col-span-2">
+              <Text className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">
+                Biển số
+              </Text>
+              <Input
+                placeholder="30H-123.45"
+                prefix={<CarOutlined className="text-slate-400" />}
+                className="rounded-2xl h-11 border-none bg-slate-100 uppercase font-mono shadow-inner"
+                allowClear
+                value={advancedFilters.licensePlate}
+                onChange={(e) =>
+                  setAdvancedFilters({
+                    ...advancedFilters,
+                    licensePlate: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            {/* Trạng thái xem xe */}
+            <div className="lg:col-span-2">
+              <Text className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">
+                Trạng thái GĐ
+              </Text>
+              <Select
+                placeholder="Xem xe"
+                className="w-full h-11 custom-select-round"
+                value={advancedFilters.inspectStatus}
+                onChange={(val) =>
+                  setAdvancedFilters({ ...advancedFilters, inspectStatus: val })
+                }
+                options={[
+                  { label: "Tất cả", value: "ALL" },
+                  { label: "✅ Đã xem xe", value: "INSPECTED" },
+                  { label: "📅 Hẹn xem xe", value: "APPOINTED" },
+                  { label: "❌ Chưa xem xe", value: "NOT_INSPECTED" },
+                ]}
+              />
+            </div>
+
+            {/* Ngày nhận */}
+            <div className="lg:col-span-2">
+              <Text className="text-[10px] font-black text-slate-400 uppercase ml-2 mb-1 block">
+                Ngày nhận Lead
+              </Text>
+              <DatePicker.RangePicker
+                placeholder={["Từ", "Đến"]}
+                className="w-full h-11 rounded-2xl border-none bg-slate-100 shadow-inner"
+                format="DD/MM"
+                onChange={(val) =>
+                  setAdvancedFilters({ ...advancedFilters, dateRange: val })
+                }
+              />
+            </div>
+
+            {/* Nút Lọc & Reset */}
+            <div className="lg:col-span-3 flex gap-2">
+              <Button
+                type="primary"
+                icon={<FilterOutlined />}
+                loading={loading}
+                onClick={loadData}
+                className="flex-1 h-11 rounded-2xl bg-slate-800 border-none font-bold shadow-lg shadow-slate-200"
+              >
+                LỌC DỮ LIỆU
+              </Button>
+              <Tooltip title="Xóa bộ lọc">
+                <Button
+                  icon={<ReloadOutlined />}
+                  className="h-11 w-11 rounded-2xl bg-slate-100 border-none text-slate-500 hover:text-red-500"
+                  onClick={() => {
+                    setAdvancedFilters({
+                      searchText: "",
+                      licensePlate: "",
+                      dateRange: null,
+                      contactDateRange: null,
+                      inspectStatus: "ALL",
+                    });
+                    // Thực hiện load lại ngay sau khi reset
+                    setTimeout(loadData, 100);
+                  }}
+                />
+              </Tooltip>
+            </div>
+          </div>
         </div>
 
         {/* TABS CONTENT */}

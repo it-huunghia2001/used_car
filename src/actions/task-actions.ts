@@ -43,7 +43,7 @@ export async function getActiveReasonsAction(type: LeadStatus) {
   return serializePrisma(reasons);
 }
 
-export async function getMyTasksAction() {
+export async function getMyTasksAction(filters?: any) {
   try {
     const user = await getCurrentUser();
     if (!user?.id) return [];
@@ -51,20 +51,66 @@ export async function getMyTasksAction() {
     const now = dayjs().tz("Asia/Ho_Chi_Minh");
     let taskTypeFilter: any = undefined;
 
+    // Phân loại nghiệp vụ dựa trên Role
     if (user.role === Role.SALES_STAFF) {
       taskTypeFilter = TaskType.SALES;
     } else if (user.role === Role.PURCHASE_STAFF) {
       taskTypeFilter = TaskType.PURCHASE;
     }
 
+    // 1. Xây dựng điều kiện lọc (WHERE clause)
+    const whereCondition: any = {
+      assigneeId: user.id,
+      status: "PENDING", // Chỉ lấy các nhiệm vụ đang chờ xử lý
+      ...(taskTypeFilter && { type: taskTypeFilter }),
+    };
+
+    // Khởi tạo lọc lồng nhau cho quan hệ Customer
+    whereCondition.customer = {};
+
+    if (filters) {
+      // Lọc theo Tên hoặc Số điện thoại
+      if (filters.searchText) {
+        whereCondition.customer.OR = [
+          { fullName: { contains: filters.searchText } },
+          { phone: { contains: filters.searchText } },
+        ];
+      }
+
+      // Lọc theo Biển số xe (Nằm trong bảng LeadCar lồng trong Customer)
+      if (filters.licensePlate) {
+        whereCondition.customer.leadCar = {
+          licensePlate: { contains: filters.licensePlate },
+        };
+      }
+
+      // Lọc theo Trạng thái xem xe (INSPECTED, NOT_INSPECTED, APPOINTED)
+      if (filters.inspectStatus && filters.inspectStatus !== "ALL") {
+        whereCondition.customer.inspectStatus = filters.inspectStatus;
+      }
+
+      // Lọc theo Khoảng ngày nhận thông tin (Ngày tạo Lead/Customer)
+      if (filters.dateRange && filters.dateRange.length === 2) {
+        whereCondition.customer.createdAt = {
+          gte: dayjs(filters.dateRange[0]).startOf("day").toDate(),
+          lte: dayjs(filters.dateRange[1]).endOf("day").toDate(),
+        };
+      }
+
+      // Lọc theo Khoảng ngày cần liên hệ (Ngày hẹn trên Task)
+      if (filters.contactDateRange && filters.contactDateRange.length === 2) {
+        whereCondition.scheduledAt = {
+          gte: dayjs(filters.contactDateRange[0]).startOf("day").toDate(),
+          lte: dayjs(filters.contactDateRange[1]).endOf("day").toDate(),
+        };
+      }
+    }
+
+    // 2. Thực thi truy vấn Database
     const [config, tasks] = await Promise.all([
       db.leadSetting.findFirst(),
       db.task.findMany({
-        where: {
-          assigneeId: user.id,
-          ...(taskTypeFilter && { type: taskTypeFilter }),
-          status: "PENDING",
-        },
+        where: whereCondition,
         include: {
           customer: {
             include: {
@@ -77,39 +123,29 @@ export async function getMyTasksAction() {
                 },
                 orderBy: { createdAt: "desc" },
               },
-              inspectorRef: {
-                select: {
-                  fullName: true,
-                },
-              },
-              notSeenReasonRef: {
-                select: {
-                  name: true,
-                },
-              },
-              sellReason: {
-                select: {
-                  name: true,
-                },
-              },
+              inspectorRef: { select: { fullName: true } },
+              notSeenReasonRef: { select: { name: true } },
+              sellReason: { select: { name: true } },
             },
           },
         },
-        orderBy: { scheduledAt: "asc" },
+        orderBy: { scheduledAt: "asc" }, // Sắp xếp theo lịch hẹn gần nhất
       }),
     ]);
 
     const maxLate = config?.maxLateMinutes || 30;
 
+    // 3. Xử lý hậu kỳ (Mapping dữ liệu)
     const processedTasks = tasks.map((task) => {
       const customer = task.customer;
       const scheduledAtVN = dayjs(task.scheduledAt).tz("Asia/Ho_Chi_Minh");
       const deadline = scheduledAtVN.add(maxLate, "minute");
 
+      // Tính toán trạng thái trễ hạn
       const isOverdue = now.isAfter(deadline);
       const minutesOverdue = isOverdue ? now.diff(deadline, "minute") : 0;
 
-      // Ép kiểu Decimal sang Number cho leadCar
+      // Ép kiểu Decimal sang Number để tránh lỗi JSON/Client
       const rawLeadCar = customer?.leadCar;
       const formattedLeadCar = rawLeadCar
         ? {
@@ -126,7 +162,7 @@ export async function getMyTasksAction() {
           }
         : null;
 
-      // Chuyển sang Plain Object
+      // Chuyển sang Plain Object an toàn
       const plainTask = JSON.parse(JSON.stringify(task));
 
       return {
@@ -1709,38 +1745,66 @@ export async function completeMaintenanceTaskAction(taskId: string) {
   return { success: true };
 }
 
-export async function getMyCustomersAction() {
+export async function getMyCustomersAction(filters?: any) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const customers = await db.customer.findMany({
-    where: {
-      assignedToId: user.id,
-      status: {
-        in: [
-          "NEW",
-          "CONTACTED",
-          "FOLLOW_UP",
-          "INSPECTING",
-          "ASSIGNED",
-          "PENDING_DEAL_APPROVAL",
-          "PENDING_LOSE_APPROVAL",
-        ], // Chỉ lấy khách đang trong luồng xử lý
-      },
+  const whereCondition: any = {
+    assignedToId: user.id,
+    status: {
+      in: [
+        "NEW",
+        "CONTACTED",
+        "FOLLOW_UP",
+        "INSPECTING",
+        "ASSIGNED",
+        "PENDING_DEAL_APPROVAL",
+        "PENDING_LOSE_APPROVAL",
+      ],
     },
+  };
+
+  if (filters) {
+    // Lọc Tên/SĐT
+    if (filters.searchText) {
+      whereCondition.OR = [
+        { fullName: { contains: filters.searchText } },
+        { phone: { contains: filters.searchText } },
+      ];
+    }
+    // Lọc Biển số
+    if (filters.licensePlate) {
+      whereCondition.leadCar = {
+        licensePlate: { contains: filters.licensePlate },
+      };
+    }
+    // Lọc Trạng thái xem xe
+    if (filters.inspectStatus && filters.inspectStatus !== "ALL") {
+      whereCondition.inspectStatus = filters.inspectStatus;
+    }
+    // Lọc ngày nhận
+    if (filters.dateRange && filters.dateRange.length === 2) {
+      whereCondition.createdAt = {
+        gte: dayjs(filters.dateRange[0]).startOf("day").toDate(),
+        lte: dayjs(filters.dateRange[1]).endOf("day").toDate(),
+      };
+    }
+  }
+
+  const customers = await db.customer.findMany({
+    where: whereCondition,
     include: {
       carModel: { select: { name: true } },
       leadCar: true,
       branch: { select: { name: true } },
       activities: {
-        include: {
-          user: { select: { fullName: true } }, // Để biết ai là người ghi chú
-        },
-        orderBy: { createdAt: "desc" }, // Mới nhất hiện lên đầu
+        include: { user: { select: { fullName: true } } },
+        orderBy: { createdAt: "desc" },
       },
     },
     orderBy: { updatedAt: "desc" },
   });
+
   return serializePrisma(customers);
 }
 
