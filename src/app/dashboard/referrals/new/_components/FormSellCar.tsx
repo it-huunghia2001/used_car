@@ -190,7 +190,7 @@ export default function FormSellCar({
             {typeHandel !== "SELL" && (
               <Col xs={24} md={12}>
                 <Form.Item
-                  name="tradeInModel"
+                  name="tradeInModelId"
                   label="Dòng xe khách muốn đổi"
                   rules={[
                     { required: true, message: "Vui lòng chọn dòng xe!" },
@@ -207,7 +207,7 @@ export default function FormSellCar({
                     } // Thêm hàm này để search tiếng Việt không phân biệt hoa thường
                     options={carModels.map((m: any) => ({
                       label: m.name,
-                      value: m.name,
+                      value: m.id,
                     }))}
                   />
                 </Form.Item>

@@ -158,48 +158,59 @@ export async function getEligibleStaffAction() {
  */
 export async function upsertUserAction(data: any) {
   try {
-    const { id, email, ...rest } = data;
+    const { id, email, password, ...rest } = data; // Bóc tách password ra riêng
 
-    // 1. KIỂM TRA TRÙNG EMAIL TRƯỚC KHI THỰC HIỆN
+    // 1. KIỂM TRA TRÙNG EMAIL
     const existingUser = await db.user.findFirst({
       where: {
         email: email,
-        // Nếu là update (có id), thì tìm email trùng nhưng phải khác cái ID hiện tại
         NOT: id ? { id: id } : undefined,
       },
     });
 
     if (existingUser) {
-      // Quăng lỗi cụ thể để catch ở phía giao diện
       throw new Error(
         `Email "${email}" đã được sử dụng. Vui lòng kiểm tra lại.`,
       );
     }
 
+    // 2. XỬ LÝ MẬT KHẨU
+    let hashedPassword = undefined;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
     if (!id) {
       // TRƯỜNG HỢP TẠO MỚI
-      const hashedPassword = await bcrypt.hash("Toyota@123", 10);
+      // Nếu không nhập mật khẩu khi tạo mới, dùng mặc định
+      const finalPassword =
+        hashedPassword || (await bcrypt.hash("Toyota@123", 10));
+
       return await db.user.create({
         data: {
           ...rest,
           email,
-          password: hashedPassword,
+          password: finalPassword,
           tokenVersion: 0,
         },
       });
     } else {
       // TRƯỜNG HỢP CẬP NHẬT
+      const updateData: any = { ...rest, email };
+
+      // Nếu có nhập mật khẩu mới thì mới cập nhật và tăng version
+      if (hashedPassword) {
+        updateData.password = hashedPassword;
+        updateData.tokenVersion = { increment: 1 }; // Đá các thiết bị khác ra nếu Admin đổi pass
+      }
+
       return await db.user.update({
         where: { id: id },
-        data: { ...rest, email },
+        data: updateData,
       });
     }
   } catch (error: any) {
-    // Nếu là lỗi do mình throw ở trên (Email đã sử dụng)
-    if (error.message.includes("đã được sử dụng")) {
-      throw error;
-    }
-    // Nếu là lỗi DB khác (P2002) mà mình sót
+    if (error.message.includes("đã được sử dụng")) throw error;
     if (error.code === "P2002") {
       throw new Error("Dữ liệu bị trùng lặp (Email hoặc Username đã tồn tại).");
     }
