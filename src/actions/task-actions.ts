@@ -960,23 +960,39 @@ export async function requestLoseApproval(
 
 // 7. Lấy danh sách xe sẵn sàng (Giữ nguyên)
 export async function getAvailableCars() {
-  const cars = await db.car.findMany({
-    where: { status: CarStatus.READY_FOR_SALE },
-    select: {
-      id: true,
-      modelName: true,
-      licensePlate: true,
-      sellingPrice: true, // Đây là Decimal
-      stockCode: true,
-      year: true,
-      vin: true,
-      color: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    const cars = await db.car.findMany({
+      where: {
+        status: {
+          in: [CarStatus.READY_FOR_SALE, CarStatus.REFURBISHING],
+        },
+      },
+      select: {
+        id: true,
+        modelName: true,
+        licensePlate: true,
+        sellingPrice: true, // Trường Decimal
+        stockCode: true,
+        year: true,
+        vin: true,
+        color: true,
+        carModelId: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-  // Chuyển đổi Decimal sang Number trước khi gửi xuống Client
-  return serializePrisma(cars);
+    // Chuyển đổi Decimal sang Number thủ công để đảm bảo Client nhận đúng kiểu số
+    const serializedCars = cars.map((car) => ({
+      ...car,
+      sellingPrice: car.sellingPrice ? Number(car.sellingPrice) : 0,
+    }));
+
+    // Một lần nữa dùng JSON parse/stringify để dọn dẹp các trường Date (nếu có)
+    return JSON.parse(JSON.stringify(serializedCars));
+  } catch (error) {
+    console.error("❌ Error fetching available cars:", error);
+    return [];
+  }
 }
 
 export async function updateCustomerStatusAction(
