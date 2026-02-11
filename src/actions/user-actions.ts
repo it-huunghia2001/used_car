@@ -184,6 +184,7 @@ export async function upsertUserAction(data: any) {
           ...rest,
           email,
           password: hashedPassword,
+          tokenVersion: 0,
         },
       });
     } else {
@@ -373,5 +374,54 @@ export async function getMeAction() {
   } catch (error: any) {
     console.error("getMeAction Error:", error);
     return { success: false, error: "Lỗi hệ thống" };
+  }
+}
+
+/**
+ * 7. ĐỔI MẬT KHẨU & VÔ HIỆU HÓA TOKEN CŨ
+ */
+export async function changePasswordAction(data: any) {
+  try {
+    const { userId, oldPassword, newPassword } = data;
+    const auth = await getCurrentUser();
+
+    // 1. Kiểm tra quyền (Phải là chính chủ hoặc Admin mới được đổi)
+    if (!auth || (auth.id !== userId && auth.role !== "ADMIN")) {
+      throw new Error("Bạn không có quyền thực hiện hành động này.");
+    }
+
+    // 2. Tìm User
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error("Người dùng không tồn tại.");
+
+    // 3. Nếu là chính chủ tự đổi, bắt buộc kiểm tra mật khẩu cũ
+    if (auth.id === userId) {
+      const isMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!isMatch) throw new Error("Mật khẩu hiện tại không chính xác.");
+    }
+
+    // 4. Hash mật khẩu mới
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // 5. CẬP NHẬT DATABASE
+    await db.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedNewPassword,
+        // Tăng số phiên bản lên 1.
+        // Khi Middleware thấy số này khác với số trong Token cũ, nó sẽ bắt login lại.
+        tokenVersion: {
+          increment: 1,
+        },
+      },
+    });
+
+    revalidatePath("/dashboard/users");
+    return {
+      success: true,
+      message: "Đổi mật khẩu thành công. Các thiết bị khác sẽ bị đăng xuất.",
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
 }

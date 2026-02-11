@@ -283,7 +283,7 @@ export default function ModalSelfAddCustomer({
               name="carModelId"
               label={
                 <span className="font-semibold text-slate-600">
-                  Dòng xe dự kiến
+                  Model xe khách hàng
                 </span>
               }
             >
@@ -308,11 +308,31 @@ export default function ModalSelfAddCustomer({
               }
             >
               <InputNumber
-                className="w-full rounded-xl border-slate-200"
+                className="w-full! rounded-xl border-slate-200"
                 size="large"
                 placeholder="2024"
                 min={1990}
                 max={2026}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={16}>
+            <Form.Item
+              name="tradeInModelId"
+              label={
+                <span className="font-semibold text-slate-600">
+                  Model khách hàng quan tâm
+                </span>
+              }
+            >
+              <Select
+                size="large"
+                showSearch
+                allowClear
+                placeholder="Tìm kiếm model xe (Innova, Camry...)"
+                optionFilterProp="label"
+                options={carModels.map((m) => ({ label: m.name, value: m.id }))}
+                className="rounded-xl"
               />
             </Form.Item>
           </Col>

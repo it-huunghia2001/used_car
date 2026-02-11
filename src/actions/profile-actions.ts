@@ -41,8 +41,12 @@ export async function updateProfile(values: {
 
     // 1. Nếu đổi Email
     if (values.email) {
+      // Kiểm tra xem email mới có trùng với ai khác không (trừ chính mình)
       const existing = await db.user.findFirst({
-        where: { email: values.email },
+        where: {
+          email: values.email,
+          NOT: { id: user.id }, // Cho phép giữ nguyên email cũ của mình
+        },
       });
       if (existing)
         return { success: false, message: "Email này đã được sử dụng" };
@@ -64,6 +68,9 @@ export async function updateProfile(values: {
         return { success: false, message: "Mật khẩu cũ không chính xác" };
 
       updateData.password = await bcrypt.hash(values.password, 10);
+
+      // ✅ QUAN TRỌNG NHẤT: Tăng version để "đá" các thiết bị khác ra
+      updateData.tokenVersion = { increment: 1 };
     }
 
     if (Object.keys(updateData).length === 0)
@@ -77,6 +84,7 @@ export async function updateProfile(values: {
     revalidatePath("/dashboard/profile");
     return { success: true, message: "Cập nhật thông tin thành công" };
   } catch (error) {
+    console.error("Update profile error:", error);
     return { success: false, message: "Lỗi hệ thống" };
   }
 }

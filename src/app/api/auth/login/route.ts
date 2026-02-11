@@ -8,6 +8,8 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "supersecretkey",
 );
 const APP_NAME = "used-car";
+const LONG_EXPIRY_TOKEN = "3650d"; // 10 năm
+const LONG_EXPIRY_COOKIE = 60 * 60 * 24 * 365 * 10; // 10 năm tính bằng giây
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,10 +25,6 @@ export async function POST(req: NextRequest) {
 
     const user = await db.user.findUnique({
       where: { username },
-      include: {
-        department: true,
-        position: true,
-      },
     });
 
     if (!user || !user.active) {
@@ -44,35 +42,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // TẠO TOKEN VỚI VERSION ĐỂ SAU NÀY ĐỔI PASS THÌ CÁC MÁY KHÁC VĂNG RA
     const token = await new SignJWT({
       id: user.id,
       username: user.username,
       role: user.role,
-      app: APP_NAME,
-      dept: user.department?.name,
+      appName: APP_NAME,
+      version: user.tokenVersion || 0, // <--- THÊM DÒNG NÀY
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime("24h")
+      .setExpirationTime(LONG_EXPIRY_TOKEN)
       .sign(JWT_SECRET);
 
-    // Thay vì redirect, ta trả về JSON
     const response = NextResponse.json(
       {
         message: "Đăng nhập thành công",
         status: 0,
-
         role: user.role,
       },
       { status: 200 },
     );
 
+    // GÁN COOKIE VĨNH VIỄN
     response.cookies.set("used-car", token, {
       httpOnly: true,
-      secure: true, // Bắt buộc true cho iPhone/Safari
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24,
+      maxAge: LONG_EXPIRY_COOKIE,
     });
 
     return response;
