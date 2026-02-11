@@ -308,8 +308,6 @@ export default function CustomerManagementPage() {
             onClick: () => {
               setSelectedCustomer(record);
 
-              console.log(record);
-
               setDetailVisible(true);
             },
             className: "cursor-pointer hover:bg-blue-50 transition-colors",

@@ -129,10 +129,6 @@ export default function ModalSelfAddCustomer({
     }
   };
 
-  useEffect(() => {
-    console.log(isTradeIn);
-  }, []);
-
   return (
     <Modal
       title={

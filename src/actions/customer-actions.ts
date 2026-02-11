@@ -329,7 +329,6 @@ export async function updateCustomerStatusAction(
 
     return { success: true };
   } catch (error: any) {
-    console.log("--- DEBUG ERROR ---");
     console.error(error); // Xem chi tiết lỗi Prisma ở đây
     return { success: false, error: error.message || "Lỗi hệ thống nội bộ" };
   }

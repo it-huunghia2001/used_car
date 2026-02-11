@@ -81,7 +81,6 @@ export default function ModalDetailCustomer({
     try {
       const res = await getLeadDetail(targetId);
       setFullDetail(res);
-      console.log(res);
 
       customerData = res || customerData; // Cập nhật lại customerData với dữ liệu mới
 
@@ -111,7 +110,6 @@ export default function ModalDetailCustomer({
           carModelId: res.carModel?.id || res.leadCar?.carModelId,
         };
         form.setFieldsValue(formValues);
-        console.log(formValues);
       }
     } catch (error) {
       message.error("Lỗi tải dữ liệu chi tiết");
@@ -176,7 +174,6 @@ export default function ModalDetailCustomer({
         carImages: documentUrls,
       };
 
-      console.log("Cleaned Values:", cleanedValues);
       const res = await updateFullLeadDetail(customerData.id, cleanedValues);
 
       if (res.success) {
@@ -194,8 +191,6 @@ export default function ModalDetailCustomer({
       setLoading(false);
     }
   };
-
-  console.log("customerData:", customerData);
 
   if (!selectedLead) return null;
 

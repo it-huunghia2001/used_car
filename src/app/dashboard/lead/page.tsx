@@ -116,7 +116,6 @@ export default function LeadsPage() {
       const res = await getLeadsAction(filters);
       setData(res.data);
       setTotal(res.total);
-      console.log(res.data);
 
       // Tải kèm danh sách quá hạn để hiện Badge thông báo
       const overdueRes = await getOverdueCustomersAction();

@@ -575,8 +575,8 @@ export default function AssignedTasksPage() {
                       <Segmented
                         options={[
                           { label: "TẤT CẢ", value: "ALL" },
-                          { label: "🔥 HOT LEAD", value: "HOT" },
-                          { label: "⏰ QUÁ HẠN", value: "LATE" },
+                          { label: "HOT", value: "HOT" },
+                          { label: "QUÁ HẠN", value: "LATE" },
                         ]}
                         value={filterType}
                         onChange={setFilterType}

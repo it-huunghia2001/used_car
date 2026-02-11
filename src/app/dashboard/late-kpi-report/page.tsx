@@ -12,7 +12,6 @@ export default async function Page() {
     getEligibleStaffAction(),
     getBranchesAction(),
   ]);
-  console.log(staff);
   // 2. Lấy dữ liệu báo cáo mặc định (tháng hiện tại)
   const initialData = await getLateReportAction({});
 

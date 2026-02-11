@@ -65,6 +65,7 @@ import { log } from "console";
 import { getMeAction } from "@/actions/user-actions";
 import { getLeadStatusHelper } from "@/lib/status-helper";
 import ModalAddSelfLead from "@/components/assigned-tasks/ModalAddSelfLead";
+import { getBuyReasons } from "@/actions/sell-reason-actions";
 
 const { Title, Text } = Typography;
 
@@ -90,7 +91,7 @@ export default function SalesTasksPage() {
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [maintenanceTasks, setMaintenanceTasks] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
-
+  const [buyReasons, setBuyReasons] = useState<any[]>([]);
   const [now, setNow] = useState(dayjs());
 
   useEffect(() => {
@@ -107,19 +108,28 @@ export default function SalesTasksPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [leads, cars, models, maintenance, myCustomers, userData]: any =
-        await Promise.all([
-          getMyTasksAction(),
-          getAvailableCars(),
-          getCarModelsAction(),
-          getMaintenanceTasksAction(),
-          getMyCustomersAction(),
-          getMeAction(),
-        ]);
+      const [
+        leads,
+        cars,
+        models,
+        maintenance,
+        myCustomers,
+        userData,
+        bReasons,
+      ]: any = await Promise.all([
+        getMyTasksAction(),
+        getAvailableCars(),
+        getCarModelsAction(),
+        getMaintenanceTasksAction(),
+        getMyCustomersAction(),
+        getMeAction(),
+        getBuyReasons(),
+      ]);
       setTasks(leads);
 
       setInventory(cars);
       setCarModels(models);
+      setBuyReasons(bReasons);
       setMaintenanceTasks(maintenance);
       setCustomers(myCustomers);
       setCurrentUser(userData);
@@ -752,6 +762,7 @@ export default function SalesTasksPage() {
           setIsDetailModalOpen(false);
           setIsContactModalOpen(true);
         }}
+        buyReasons={buyReasons}
         UrgencyBadge={UrgencyBadge}
         carModels={carModels}
         onUpdateSuccess={loadData}

@@ -49,8 +49,6 @@ export default function CarDetailModal({
 }: CarDetailModalProps) {
   if (!car) return null;
 
-  console.log(car);
-
   // Helper để hiển thị label cho Enum
   const getFuelLabel = (f: string) =>
     ({ GASOLINE: "Xăng", DIESEL: "Dầu", HYBRID: "Hybrid", ELECTRIC: "Điện" })[

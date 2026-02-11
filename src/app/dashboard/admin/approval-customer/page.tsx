@@ -102,8 +102,6 @@ export default function ApprovalsPage() {
       const historyRes = await getCustomerHistoryAction(record.customer.id);
       setCustomerHistory(historyRes);
 
-      console.log(historyRes);
-
       // Sau khi có lịch sử mới mở Modal tương ứng
       if (record.status === "PENDING_DEAL_APPROVAL") {
         if (record.customer?.type === "BUY") {
@@ -125,7 +123,6 @@ export default function ApprovalsPage() {
   // --- XỬ LÝ ACTIONS PHÊ DUYỆT ---
   const handleApproveSales = async (updatedData: any) => {
     setLoading(true);
-    console.log(selectedActivity);
 
     try {
       const res = await approveDealAction(

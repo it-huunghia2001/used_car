@@ -257,8 +257,6 @@ export default function ModalApproveLose({
       )}
     </div>
   );
-  console.log("==================================");
-  console.log(history);
 
   return (
     <Modal

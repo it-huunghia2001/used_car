@@ -192,7 +192,6 @@ export default function ModalDetailCustomer({
       }
     } catch (errorInfo) {
       // Nếu là lỗi chưa nhập đủ form, Ant Design sẽ trả về errorInfo
-      console.log("Lỗi form hoặc hệ thống:", errorInfo);
     } finally {
       setLoading(false);
     }

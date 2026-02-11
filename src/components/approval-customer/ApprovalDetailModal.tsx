@@ -62,7 +62,6 @@ export default function ModalApprovalDetail({
   // 🔥 Watcher để hiển thị ảnh ngay lập tức khi Form được set giá trị
   const carImagesWatcher = Form.useWatch("carImages", form);
   const documentsWatcher = Form.useWatch("documents", form);
-  console.log(carImagesWatcher);
 
   const conditionOptions = [
     "Mức 5: Xuất sắc: gần như mới",

@@ -59,9 +59,6 @@ export default function ModalApproveSales({
 
   useEffect(() => {
     if (isOpen && selectedLead) {
-      console.log(selectedLead);
-      console.log(inventory);
-
       // 1. Reset form về trạng thái sạch trước
       form.resetFields();
       setSelectedCar(null);

@@ -46,8 +46,6 @@ export default function LoginPage() {
       const res = await login(username, password); // Gọi API trả về JSON
 
       if (res.status === 0) {
-        console.log((res?.data as any)?.role);
-
         // Đợi một chút (khoảng 100ms) để chắc chắn Cookie đã được set
         if (
           (res?.data as any)?.role === "REFERRER" ||

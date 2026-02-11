@@ -47,7 +47,6 @@ export default function ModalSaleTransaction({
   inventory,
 }: ModalSaleTransactionProps) {
   const [form] = Form.useForm();
-  console.log(inventory);
 
   // Tự động điền giá dự kiến của khách vào ô giá bán khi mở modal
   useEffect(() => {

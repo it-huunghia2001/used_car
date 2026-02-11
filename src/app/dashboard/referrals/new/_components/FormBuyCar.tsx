@@ -70,8 +70,6 @@ export default function FormBuyCar({ carModels, userId, onSuccess }: any) {
     const car = availableCars.find((c) => c.id === carId);
 
     if (car) {
-      console.log("Selected Car Data:", car); // Để debug kiểm tra carModelId có tồn tại không
-
       form.setFieldsValue({
         // Tự động chọn dòng xe tương ứng
         carModelId: car.carModelId,

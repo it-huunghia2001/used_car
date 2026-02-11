@@ -189,13 +189,13 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={24} sm={8}>
-          <Form.Item name="urgencyLevel" label="Mức độ tiềm năng">
+          <Form.Item name="urgencyLevel" label="Trạng thái khách hàng">
             <Select
               placeholder="Chọn độ nóng"
               options={[
-                { value: "HOT", label: "🔥 HOT (Chốt ngay)" },
-                { value: "WARM", label: "☀️ WARM (Đang cân nhắc)" },
-                { value: "COOL", label: "❄️ COOL (Tìm hiểu)" },
+                { value: "HOT", label: "HOT" },
+                { value: "WARM", label: "WARM" },
+                { value: "COOL", label: "COOL" },
               ]}
             />
           </Form.Item>

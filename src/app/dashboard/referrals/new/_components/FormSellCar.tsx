@@ -168,7 +168,7 @@ export default function FormSellCar({
             <Col xs={24} md={12}>
               <Form.Item
                 name="carModelId"
-                label="Dòng xe khách bán"
+                label="Dòng xe cần bán/định giá"
                 rules={[{ required: true, message: "Vui lòng chọn dòng xe!" }]}
               >
                 <Select
