@@ -639,14 +639,32 @@ export async function getPendingApprovalsAction() {
       include: {
         customer: {
           include: {
-            leadCar: true,
+            leadCar: {
+              select: {
+                conditionGrade: true, // Mức độ/Tình trạng (A/B/C)
+                isCertified: true, // Đạt chuẩn T-Sure hay không
+                certificationNote: true, // Ghi chú chi tiết đạt/không đạt
+                odo: true, // Số km thực tế khi giám định
+                description: true, // Mô tả chi tiết của giám định viên
+                hasFine: true,
+                fineNote: true,
+              },
+            },
             carModel: true,
+            // LẤY THÊM THÔNG TIN NGƯỜI GIÁM ĐỊNH
+            inspectorRef: {
+              select: {
+                fullName: true,
+                phone: true,
+                role: true,
+              },
+            },
           },
         },
         user: {
           select: {
             fullName: true,
-            branchId: true, // Lấy để kiểm tra nếu cần
+            branchId: true,
           },
         },
         reason: true,

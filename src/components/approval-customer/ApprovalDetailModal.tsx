@@ -22,6 +22,7 @@ import {
   Tag,
   Empty,
   DatePicker,
+  Switch,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -33,6 +34,7 @@ import {
   FileTextOutlined,
   PictureOutlined,
   FilePdfOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -72,6 +74,8 @@ export default function ModalApprovalDetail({
   ];
 
   useEffect(() => {
+    console.log(selectedActivity);
+
     if (isOpen) setIsSubmitting(false);
   }, [isOpen]);
 
@@ -100,6 +104,19 @@ export default function ModalApprovalDetail({
             : null,
           carImages: realCustomer.carImages || car.carImages || [],
           documents: realCustomer.documents || car.documents || [],
+          conditionGrade: realCustomer.leadCar.conditionGrade || "",
+          features: car.features || "",
+          note: realCustomer.note || "",
+          // Thông tin giám định
+          isCertified: realCustomer.leadCar?.isCertified || false,
+          certificationNote: realCustomer.leadCar?.certificationNote || "",
+          inspectorId: realCustomer.inspectorId,
+          inspectorName: realCustomer.inspectorRef.fullName,
+          hasFine: realCustomer.leadCar?.hasFine || false,
+          fineNote: realCustomer.leadCar?.fineNote || "",
+          // Bảo hiểm
+          insuranceDSCorp: car.insuranceDSCorp || "",
+          insuranceVCCorp: car.insuranceVCCorp || "",
         });
       } catch (e) {
         console.error("Lỗi parse dữ liệu JSON", e);
@@ -532,7 +549,93 @@ export default function ModalApprovalDetail({
                   <Input />
                 </Form.Item>
               </Card>
+              <Card
+                size="small"
+                title={
+                  <Space>
+                    <SafetyCertificateOutlined className="text-blue-600" /> THẨM
+                    ĐỊNH & CHẤT LƯỢNG
+                  </Space>
+                }
+                className="mb-4 bg-blue-50/30 border-blue-100"
+              >
+                <Row gutter={12}>
+                  <Col span={24}>
+                    <Form.Item
+                      name="inspectorName"
+                      label="Nhân viên giám định thực hiện"
+                      className="mb-2"
+                    >
+                      {/* Hiển thị dạng Text Read-only */}
+                      <Input
+                        readOnly
+                        variant="borderless"
+                        className="font-bold text-blue-700 p-0 text-base"
+                      />
+                    </Form.Item>
+                    <Divider className="my-2" />
+                  </Col>
 
+                  <Col span={12}>
+                    <Form.Item
+                      name="isCertified"
+                      label="Chứng nhận T-Sure"
+                      valuePropName="checked"
+                    >
+                      <Switch checkedChildren="ĐẠT" unCheckedChildren="KO" />
+                    </Form.Item>
+                  </Col>
+
+                  <Col span={12}>
+                    <Form.Item
+                      name="hasFine"
+                      label="Phạt nguội"
+                      valuePropName="checked"
+                    >
+                      <Switch
+                        checkedChildren="CÓ LỖI"
+                        unCheckedChildren="SẠCH"
+                      />
+                    </Form.Item>
+                  </Col>
+
+                  <Col span={24}>
+                    <Form.Item
+                      name="certificationNote"
+                      label="Ghi chú đánh giá chất lượng"
+                    >
+                      <Input.TextArea
+                        rows={2}
+                        placeholder="Nhập đánh giá chi tiết về máy móc, khung gầm..."
+                      />
+                    </Form.Item>
+                  </Col>
+
+                  {/* Hiện ghi chú phạt nguội nếu có lỗi */}
+                  <Form.Item
+                    noStyle
+                    shouldUpdate={(prev, curr) => prev.hasFine !== curr.hasFine}
+                  >
+                    {({ getFieldValue }) =>
+                      getFieldValue("hasFine") ? (
+                        <Col span={24}>
+                          <Form.Item
+                            name="fineNote"
+                            label={
+                              <Text type="danger">Chi tiết lỗi phạt nguội</Text>
+                            }
+                          >
+                            <Input
+                              placeholder="Mã lỗi, ngày vi phạm..."
+                              className="border-red-300"
+                            />
+                          </Form.Item>
+                        </Col>
+                      ) : null
+                    }
+                  </Form.Item>
+                </Row>
+              </Card>
               <Card
                 size="small"
                 title={
@@ -543,7 +646,7 @@ export default function ModalApprovalDetail({
                 className="mb-4 shadow-sm"
               >
                 <Form.Item
-                  name="description"
+                  name="conditionGrade"
                   label="Đánh giá tình trạng (CMS)"
                   rules={[{ required: true }]}
                 >

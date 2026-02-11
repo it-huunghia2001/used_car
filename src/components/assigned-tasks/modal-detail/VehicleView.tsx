@@ -120,6 +120,13 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
             </Col>
             <Col xs={12} sm={8}>
               <InfoItem
+                label="Màu Nội thất"
+                value={lc.interiorColor}
+                icon={<BgColorsOutlined />}
+              />
+            </Col>
+            <Col xs={12} sm={8}>
+              <InfoItem
                 label="Hộp số"
                 icon={<SettingOutlined />}
                 value={

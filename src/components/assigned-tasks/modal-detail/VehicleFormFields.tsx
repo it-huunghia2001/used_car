@@ -502,6 +502,31 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={12} md={6}>
+          <Form.Item name="carType" label="Kiểu dáng">
+            <Select
+              options={[
+                { value: "SEDAN", label: "Sedan" },
+                { value: "SUV", label: "SUV" },
+              ]}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={12} md={6}>
+          <Form.Item name="origin" label="Xuất xứ">
+            <Select
+              options={[
+                { value: "VN", label: "Trong nước" },
+                { value: "ID", label: "Indonesia" },
+              ]}
+            />
+          </Form.Item>
+        </Col>
+        <Col xs={12} md={6}>
+          <Form.Item name="engineSize" label="Dung tích động cơ">
+            <Input placeholder="1.5L" />
+          </Form.Item>
+        </Col>
+        <Col xs={12} md={6}>
           <Form.Item
             name="odo"
             label="Số ODO (km)"
@@ -584,6 +609,23 @@ export const VehicleFormFields = ({
             rules={[{ required: isBuyType ? false : true }]}
           >
             <InputNumber className="w-full" />
+          </Form.Item>
+        </Col>
+        <Col xs={12} md={6}>
+          <Form.Item
+            name="driveTrain" // Lưu ý: Schema của bạn là driveTrain (chữ T viết hoa)
+            label="Hệ dẫn động"
+            rules={[{ required: !isBuyType }]}
+          >
+            <Select
+              placeholder="Chọn hệ dẫn động"
+              options={[
+                { value: "FWD", label: "Cầu trước (FWD)" },
+                { value: "RWD", label: "Cầu sau (RWD)" },
+                { value: "AWD", label: "4 bánh toàn thời gian (AWD)" },
+                { value: "4WD", label: "2 cầu (4WD)" },
+              ]}
+            />
           </Form.Item>
         </Col>
       </Row>
