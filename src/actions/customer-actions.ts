@@ -33,6 +33,10 @@ import dayjs from "@/lib/dayjs";
  */
 // Thêm import hàm gửi mail và templates vào đầu file action
 
+/**
+ * HÀM TẠO KHÁCH HÀNG TỪ NGƯỜI GIỚI THIỆU (REFERRAL)
+ * Đã tách biệt luồng MUA và BÁN/ĐỔI để tránh chặn trùng nhầm
+ */
 export async function createCustomerAction(rawData: any) {
   try {
     const now = new Date();
@@ -41,50 +45,75 @@ export async function createCustomerAction(rawData: any) {
     if (!auth) throw new Error("Phiên đăng nhập hết hạn.");
 
     // 1. BÓC TÁCH VÀ CHUẨN HÓA DỮ LIỆU
-    const { selectedCarId, budget, carYear, ...data } = rawData;
+    const {
+      selectedCarId,
+      budget,
+      carYear,
+      expectedPrice,
+      tradeInModelId, // Dòng xe khách muốn đổi sang
+      ...data
+    } = rawData;
 
+    // Ép kiểu dữ liệu để khớp với Prisma Schema (Expected String/Null)
     const finalBudget =
       budget !== undefined && budget !== null ? String(budget) : null;
     const finalYear =
       carYear !== undefined && carYear !== null ? String(carYear) : null;
+    const finalExpectedPrice =
+      expectedPrice !== undefined && expectedPrice !== null
+        ? String(expectedPrice)
+        : null;
 
     // Chuẩn hóa biển số xe
     const cleanPlate = data.licensePlate
       ? data.licensePlate.toUpperCase().replace(/[^A-Z0-9]/g, "")
       : undefined;
 
-    // 2. KIỂM TRA TRÙNG LẶP & LOGIC TÁI SỬ DỤNG LEAD TRỄ
+    // 2. KIỂM TRA TRÙNG LẶP RIÊNG BIỆT (PHÂN LUỒNG MUA VÀ BÁN)
     const activeStatuses = {
       notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED, LeadStatus.LOSE],
     };
 
-    // Tìm kiếm khách hàng cũ dựa trên Phone (BUY) hoặc Biển số (SELL/VALUATION...)
-    const existingCustomer = await db.customer.findFirst({
-      where: {
-        OR: [
-          { phone: data.phone, type: "BUY" },
-          { licensePlate: cleanPlate, type: { not: "BUY" } },
-        ],
-        status: activeStatuses,
-      },
-    });
+    let existingCustomer = null;
 
-    if (existingCustomer) {
-      // Nếu khách KHÔNG bị trễ -> Chặn trùng như bình thường
-      if (!existingCustomer.isLate) {
-        const identity = data.type === "BUY" ? data.phone : cleanPlate;
-        return {
-          success: false,
-          error: `Dữ liệu ${identity} đang có yêu cầu đang xử lý trên hệ thống.`,
-        };
+    if (data.type === "BUY") {
+      // LUỒNG MUA: Chỉ so sánh Số điện thoại + loại BUY
+      existingCustomer = await db.customer.findFirst({
+        where: {
+          phone: data.phone,
+          type: "BUY",
+          status: activeStatuses,
+        },
+      });
+    } else {
+      // LUỒNG BÁN / ĐỔI / ĐỊNH GIÁ: Chỉ so sánh Biển số + loại KHÁC BUY
+      if (cleanPlate) {
+        existingCustomer = await db.customer.findFirst({
+          where: {
+            licensePlate: cleanPlate,
+            type: { not: "BUY" },
+            status: activeStatuses,
+          },
+        });
       }
-      // Nếu có isLate = true -> Cho phép đi tiếp xuống bước Transaction để cập nhật
     }
 
-    // 3. XÁC ĐỊNH CHI NHÁNH & 4. PHÂN BỔ NHÂN VIÊN
+    // Xử lý chặn trùng (Chỉ cho qua nếu hồ sơ cũ đã bị Trễ - isLate)
+    if (existingCustomer) {
+      if (!existingCustomer.isLate) {
+        const identity =
+          data.type === "BUY" ? `SĐT ${data.phone}` : `Biển số ${cleanPlate}`;
+        return {
+          success: false,
+          error: `${identity} hiện đang có yêu cầu đang xử lý trên hệ thống.`,
+        };
+      }
+    }
+
+    // 3. XÁC ĐỊNH CHI NHÁNH & PHÂN BỔ NHÂN VIÊN
     const referrer = await db.user.findUnique({
       where: { id: data.referrerId },
-      select: { branchId: true, fullName: true, username: true },
+      select: { branchId: true },
     });
 
     if (!referrer?.branchId)
@@ -94,22 +123,22 @@ export async function createCustomerAction(rawData: any) {
     let assignmentLog = "";
 
     if (data.type === "BUY") {
+      // Phân bổ theo lịch trực Sales
       const schedules = await db.salesSchedule.findMany({
         where: { date: todayStart, branchId: referrer.branchId },
         select: { userId: true },
       });
       const onDutyIds = schedules.map((s) => s.userId);
-
       const staff = await db.user.findFirst({
         where: { id: { in: onDutyIds }, role: "SALES_STAFF", active: true },
         orderBy: { lastAssignedAt: "asc" },
       });
-
       if (staff) {
         assignedStaffId = staff.id;
         assignmentLog = "Phân bổ tự động theo lịch trực Sales.";
       }
     } else {
+      // Phân bổ xoay vòng cho Thu mua
       const staff = await db.user.findFirst({
         where: {
           branchId: referrer.branchId,
@@ -118,144 +147,135 @@ export async function createCustomerAction(rawData: any) {
         },
         orderBy: { lastAssignedAt: "asc" },
       });
-
       if (staff) {
         assignedStaffId = staff.id;
         assignmentLog = "Phân bổ xoay vòng Thu mua.";
       }
     }
 
-    // 5. TRANSACTION: LƯU DỮ LIỆU (CREATE HOẶC UPDATE)
-    const result = await db.$transaction(
-      async (tx) => {
-        const config = await tx.leadSetting.findFirst();
-        const maxLate = config?.maxLateMinutes || 30;
+    // 4. TRANSACTION: LƯU DỮ LIỆU
+    const result = await db.$transaction(async (tx) => {
+      const config = await tx.leadSetting.findFirst();
+      const maxLate = config?.maxLateMinutes || 30;
 
-        const stockCarInfo = selectedCarId
-          ? await tx.car.findUnique({ where: { id: selectedCarId } })
-          : null;
-        const stockNote = stockCarInfo
-          ? `\n[XE TRONG KHO]: ${stockCarInfo.stockCode} - ${stockCarInfo.modelName}`
-          : "";
+      // Nếu khách chọn xe từ kho
+      const stockCarInfo = selectedCarId
+        ? await tx.car.findUnique({ where: { id: selectedCarId } })
+        : null;
+      const stockNote = stockCarInfo
+        ? `\n[XE TRONG KHO]: ${stockCarInfo.stockCode} - ${stockCarInfo.modelName}`
+        : "";
 
-        const commonData: any = {
-          ...data,
-          licensePlate: cleanPlate,
-          carYear: finalYear,
-          budget: finalBudget,
-          expectedPrice: String(data.expectedPrice),
-          status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
-          assignedToId: assignedStaffId,
-          assignedAt: assignedStaffId ? now : null,
-          isLate: false, // Reset cờ trễ
-          lastFrozenAt: null, // Xóa mốc đóng băng
-          branchId: referrer.branchId,
-          referralDate: now, // Tính lại ngày bắt đầu mới
-          note: data.note ? `${data.note}${stockNote}` : stockNote,
-        };
+      const commonData: any = {
+        ...data,
+        licensePlate: cleanPlate,
+        carYear: finalYear,
+        budget: finalBudget,
+        expectedPrice: finalExpectedPrice,
+        tradeInModelId: tradeInModelId || null,
+        status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
+        assignedToId: assignedStaffId,
+        assignedAt: assignedStaffId ? now : null,
+        isLate: false,
+        lastFrozenAt: null,
+        branchId: referrer.branchId,
+        referralDate: now,
+        note: data.note ? `${data.note}${stockNote}` : stockNote,
+      };
 
-        let customer;
+      let customer;
 
-        if (existingCustomer?.isLate) {
-          // --- KỊCH BẢN TÁI SINH LEAD ---
-          customer = await tx.customer.update({
-            where: { id: existingCustomer.id },
-            data: {
-              ...commonData,
-              referrerId: data.referrerId, // Cập nhật người giới thiệu mới
-              activities: {
-                create: {
-                  status: assignedStaffId
-                    ? LeadStatus.ASSIGNED
-                    : LeadStatus.NEW,
-                  note: `[TÁI SINH]: ${assignmentLog}. Khách cũ bị trễ từ người giới thiệu trước.`,
-                  createdById: data.referrerId,
-                },
+      if (existingCustomer?.isLate) {
+        // --- TÁI SINH LEAD (Dành cho khách bị trễ) ---
+        customer = await tx.customer.update({
+          where: { id: existingCustomer.id },
+          data: {
+            ...commonData,
+            activities: {
+              create: {
+                status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
+                note: `[TÁI SINH]: ${assignmentLog}. Khách cũ bị trễ từ người giới thiệu trước.`,
+                createdById: data.referrerId,
               },
-              tasks: assignedStaffId
-                ? {
-                    create: {
-                      title: "📞 Liên hệ lại khách hàng (Lead tái sinh)",
-                      content: `Khách hàng cũ bị trễ, cần liên hệ lại ngay. Nhu cầu: ${data.type}`,
-                      scheduledAt: now,
-                      deadlineAt: dayjs(now)
-                        .add(Number(maxLate), "minute")
-                        .toDate(),
-                      status: TaskStatus.PENDING,
-                      type: data.type !== "BUY" ? "PURCHASE" : "SALES",
-                      assigneeId: assignedStaffId,
-                    },
-                  }
-                : undefined,
             },
-            include: {
-              carModel: true,
-              assignedTo: true,
-              leadCar: true,
-              referrer: { include: { branch: true } },
-            },
-          });
-        } else {
-          // --- KỊCH BẢN TẠO MỚI HOÀN TOÀN ---
-          customer = await tx.customer.create({
-            data: {
-              ...commonData,
-              leadCar: stockCarInfo
-                ? {
-                    create: {
-                      modelName: stockCarInfo.modelName,
-                      year: stockCarInfo.year,
-                      licensePlate: stockCarInfo.licensePlate,
-                      expectedPrice: stockCarInfo.sellingPrice,
-                      note: "Khách chọn từ kho xe.",
-                    },
-                  }
-                : undefined,
-              activities: {
-                create: {
-                  status: assignedStaffId
-                    ? LeadStatus.ASSIGNED
-                    : LeadStatus.NEW,
-                  note:
-                    assignmentLog || "Khách hàng mới được tạo từ giới thiệu.",
-                  createdById: data.referrerId,
-                },
+            tasks: assignedStaffId
+              ? {
+                  create: {
+                    title: "📞 Liên hệ lại khách hàng (Tái sinh Lead)",
+                    content: `Khách bị trễ, cần xử lý ngay. Nhu cầu: ${data.type}`,
+                    scheduledAt: now,
+                    deadlineAt: dayjs(now)
+                      .add(Number(maxLate), "minute")
+                      .toDate(),
+                    status: TaskStatus.PENDING,
+                    type: data.type === "BUY" ? "SALES" : "PURCHASE",
+                    assigneeId: assignedStaffId,
+                  },
+                }
+              : undefined,
+          },
+        });
+      } else {
+        // --- TẠO MỚI HOÀN TOÀN ---
+        customer = await tx.customer.create({
+          data: {
+            ...commonData,
+            leadCar: {
+              create: {
+                carModelId: stockCarInfo
+                  ? stockCarInfo.carModelId
+                  : data.carModelId,
+                modelName: stockCarInfo ? stockCarInfo.modelName : undefined,
+                licensePlate: stockCarInfo
+                  ? stockCarInfo.licensePlate
+                  : cleanPlate,
+                year: stockCarInfo
+                  ? stockCarInfo.year
+                  : finalYear
+                    ? parseInt(finalYear)
+                    : undefined,
+                expectedPrice: stockCarInfo
+                  ? stockCarInfo.sellingPrice
+                  : finalExpectedPrice,
+                note: stockCarInfo ? "Khách chọn từ kho xe." : undefined,
               },
-              tasks: assignedStaffId
-                ? {
-                    create: {
-                      title: "📞 Liên hệ khách hàng mới",
-                      scheduledAt: now,
-                      deadlineAt: dayjs(now)
-                        .add(Number(maxLate), "minute")
-                        .toDate(),
-                      status: TaskStatus.PENDING,
-                      type: data.type !== "BUY" ? "PURCHASE" : "SALES",
-                      assigneeId: assignedStaffId,
-                    },
-                  }
-                : undefined,
             },
-            include: {
-              carModel: true,
-              assignedTo: true,
-              leadCar: true,
-              referrer: { include: { branch: true } },
+            activities: {
+              create: {
+                status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
+                note: assignmentLog || "Khách hàng mới được tạo từ giới thiệu.",
+                createdById: data.referrerId,
+              },
             },
-          });
-        }
+            tasks: assignedStaffId
+              ? {
+                  create: {
+                    title: "📞 Liên hệ khách hàng mới",
+                    content: `Tiếp nhận khách hàng từ ${assignmentLog}`,
+                    scheduledAt: now,
+                    deadlineAt: dayjs(now)
+                      .add(Number(maxLate), "minute")
+                      .toDate(),
+                    status: TaskStatus.PENDING,
+                    type: data.type === "BUY" ? "SALES" : "PURCHASE",
+                    assigneeId: assignedStaffId,
+                  },
+                }
+              : undefined,
+          },
+        });
+      }
 
-        if (assignedStaffId) {
-          await tx.user.update({
-            where: { id: assignedStaffId },
-            data: { lastAssignedAt: now },
-          });
-        }
+      // Cập nhật lượt phân bổ cho nhân viên
+      if (assignedStaffId) {
+        await tx.user.update({
+          where: { id: assignedStaffId },
+          data: { lastAssignedAt: now },
+        });
+      }
 
-        return customer;
-      },
-      { timeout: 20000 },
-    );
+      return customer;
+    });
 
     revalidatePath("/dashboard/customers");
     revalidatePath("/dashboard/referrals/new");
