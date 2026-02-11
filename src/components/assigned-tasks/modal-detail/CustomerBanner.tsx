@@ -156,13 +156,13 @@ export const CustomerBanner = ({
                       {customerData.licensePlate || "---"}
                     </Tag>
                   </div>
-                  {customerData.tradeInModel && (
+                  {customerData?.tradeInModel?.name && (
                     <div className="flex items-center justify-center sm:justify-start gap-2 text-slate-500 text-xs">
                       <CarOutlined className="text-indigo-500/50" />
                       <span>
                         Xe muốn đổi:{" "}
                         <span className="text-slate-300 font-bold">
-                          {customerData.tradeInModel}
+                          {customerData.tradeInModel?.name}
                         </span>
                       </span>
                     </div>

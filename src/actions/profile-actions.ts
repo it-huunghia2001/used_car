@@ -105,6 +105,8 @@ export async function getLeadDetail(customerId: string) {
         carModel: { select: { id: true, name: true } },
         referrer: { select: { id: true, fullName: true, phone: true } },
         assignedTo: { select: { id: true, fullName: true } },
+        // Lấy thông tin dòng xe muốn đổi (Trade-in)
+        tradeInModel: { select: { id: true, name: true } },
         activities: {
           include: {
             user: { select: { fullName: true, role: true } },
@@ -118,6 +120,7 @@ export async function getLeadDetail(customerId: string) {
             fullName: true,
           },
         },
+        // Chú ý: tradeInModelId KHÔNG để vào đây vì nó là trường dữ liệu phẳng
         notSeenReasonRef: {
           select: {
             name: true,
@@ -145,9 +148,12 @@ export async function getLeadDetail(customerId: string) {
     }
 
     console.log("✅ DB Found data, serializing...");
+
+    // Lưu ý: Trường tradeInModelId sẽ tự động có sẵn trong object 'lead'
+    // mà không cần phải khai báo trong 'include'
     return serializeLead(lead);
   } catch (error) {
-    console.error("🔥 Critical Error in getLeadDetail:", error); // Log lỗi chi tiết ra đây
+    console.error("🔥 Critical Error in getLeadDetail:", error);
     return null;
   }
 }

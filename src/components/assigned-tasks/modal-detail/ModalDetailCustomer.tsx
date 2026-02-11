@@ -195,6 +195,8 @@ export default function ModalDetailCustomer({
     }
   };
 
+  console.log("customerData:", customerData);
+
   if (!selectedLead) return null;
 
   return (
