@@ -182,6 +182,14 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
               label: <Link href="/dashboard/lead">Danh sách tổng</Link>,
             },
             {
+              key: "/dashboard/frozen-leads",
+              label: (
+                <Link href="/dashboard/frozen-leads">
+                  Danh sách khách đóng băng
+                </Link>
+              ),
+            },
+            {
               key: "/dashboard/contract-admin",
               icon: <SnippetsOutlined />,
               label: <Link href="/dashboard/contract">Hợp đồng</Link>,

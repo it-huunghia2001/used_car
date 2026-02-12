@@ -146,6 +146,8 @@ export default function FormValuation({ carModels, userId, onSuccess }: any) {
                 <Input
                   prefix={<AuditOutlined />}
                   placeholder="Vd: 61A12345"
+                  maxLength={9}
+                  max={9}
                   className="font-bold text-orange-600 uppercase"
                 />
               </Form.Item>

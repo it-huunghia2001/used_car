@@ -161,6 +161,8 @@ export default function FormSellCar({
                 <Input
                   prefix={<AuditOutlined />}
                   placeholder="61A12345"
+                  maxLength={9}
+                  max={9}
                   className="font-bold text-blue-600"
                 />
               </Form.Item>
