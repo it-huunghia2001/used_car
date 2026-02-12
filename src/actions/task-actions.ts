@@ -1359,6 +1359,8 @@ export async function approveLoseRequestAction(
               note: activity.note
                 ? `${activity.customer.note}\n[ADMIN DUYỆT ĐÓNG]: ${activity.note}`
                 : activity.customer.note,
+              lastFrozenAt:
+                finalStatus === LeadStatus.FROZEN ? new Date() : null,
             },
           });
 

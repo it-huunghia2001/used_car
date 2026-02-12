@@ -170,8 +170,8 @@ export default function ModalDetailCustomer({
         insuranceTNDSDeadline:
           values.insuranceTNDSDeadline?.toISOString() || null,
         insuranceDeadline: values.insuranceDeadline?.toISOString() || null,
-        documents: carImageUrls,
-        carImages: documentUrls,
+        documents: documentUrls,
+        carImages: carImageUrls,
       };
 
       const res = await updateFullLeadDetail(customerData.id, cleanedValues);

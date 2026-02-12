@@ -1,7 +1,8 @@
+/* eslint-disable react/display-name */
 /* eslint-disable jsx-a11y/alt-text */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React from "react";
+import React, { memo, useMemo } from "react";
 import {
   Row,
   Col,
@@ -33,6 +34,69 @@ import {
 import dayjs from "@/lib/dayjs";
 
 const { Title, Text, Paragraph } = Typography;
+const DocumentItem = memo(({ doc, idx }: { doc: any; idx: number }) => {
+  const url = doc.url || doc.secure_url || doc;
+  const isImage = /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(url);
+
+  return (
+    <Col xs={24} sm={12} md={8} lg={6}>
+      <Card
+        size="small"
+        className="rounded-xl border-slate-200 hover:border-indigo-300 transition-colors group shadow-sm"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
+            {isImage ? (
+              <Image
+                src={url}
+                preview={true}
+                loading="lazy"
+                className="object-cover w-full! h-full!"
+              />
+            ) : (
+              <FilePdfOutlined className="text-xl text-indigo-500" />
+            )}
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <Tooltip title={doc.name || "Tải xuống tài liệu"}>
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[12px] font-bold text-slate-700 truncate block group-hover:text-indigo-600"
+              >
+                {doc.name || `Tài liệu ${idx + 1}`}
+              </a>
+            </Tooltip>
+            <Text type="secondary" className="text-[10px] uppercase">
+              {isImage ? "Hình ảnh" : "File tài liệu"}
+            </Text>
+          </div>
+          <a href={url} download target="_blank" rel="noreferrer">
+            <DownloadOutlined className="text-slate-400 hover:text-indigo-500 cursor-pointer" />
+          </a>
+        </div>
+      </Card>
+    </Col>
+  );
+});
+
+const CarImageItem = memo(({ src, idx }: { src: string; idx: number }) => (
+  <Col xs={8} sm={6} md={4} lg={3}>
+    <div className="relative aspect-square overflow-hidden rounded-2xl border-2 border-white shadow-sm hover:shadow-md transition-all hover:scale-105 z-10 bg-slate-200">
+      <Image
+        src={src}
+        alt={`car-${idx}`}
+        loading="lazy" // Quan trọng để hết lag khi scroll
+        className="object-cover w-full! h-full!"
+        placeholder={
+          <div className="w-full h-full bg-slate-200 animate-pulse" />
+        }
+        fallback="https://placehold.co/400x400?text=No+Image"
+      />
+    </div>
+  </Col>
+));
 
 export const VehicleView = ({ lc, carModels, customerData }: any) => {
   const InfoItem = ({ label, value, icon, color }: any) => (
@@ -47,6 +111,27 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
       </div>
     </div>
   );
+
+  // Helper parse JSON với useMemo để tránh parse lại khi re-render
+  const carImages = useMemo(() => {
+    const data = lc?.images || customerData?.carImages;
+    if (!data) return [];
+    return Array.isArray(data)
+      ? data
+      : typeof data === "string"
+        ? JSON.parse(data)
+        : [];
+  }, [lc?.images, customerData?.carImages]);
+
+  const documents = useMemo(() => {
+    const data = lc?.documents || customerData?.documents;
+    if (!data) return [];
+    return Array.isArray(data)
+      ? data
+      : typeof data === "string"
+        ? JSON.parse(data)
+        : [];
+  }, [lc?.documents, customerData?.documents]);
 
   const modelName =
     carModels.find((m: any) => m.id === lc?.carModelId)?.name ||
@@ -64,9 +149,6 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
     }
     return Array.isArray(data) ? data : [];
   };
-
-  const carImages = parseJsonData(lc?.images || customerData?.carImages);
-  const documents = parseJsonData(lc?.documents || customerData?.documents);
 
   return (
     <div className="p-2 animate-fadeIn max-w-full">
@@ -243,22 +325,14 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
       <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 shadow-inner">
         {carImages.length > 0 ? (
           <Image.PreviewGroup>
-            <Row gutter={[12, 12]}>
-              {carImages.map((img: any, idx: number) => {
-                const src = img.url || img.secure_url || img;
-                return (
-                  <Col key={idx} xs={8} sm={6} md={4} lg={3}>
-                    <div className="relative aspect-square overflow-hidden rounded-2xl border-2 border-white shadow-sm hover:shadow-md transition-all hover:scale-105 z-10">
-                      <Image
-                        src={src}
-                        alt={`car-${idx}`}
-                        className="object-cover w-full! h-full!"
-                        fallback="https://placehold.co/400x400?text=No+Image"
-                      />
-                    </div>
-                  </Col>
-                );
-              })}
+            <Row gutter={[12, 12]} style={{ transform: "translateZ(0)" }}>
+              {carImages.map((img: any, idx: number) => (
+                <CarImageItem
+                  key={idx}
+                  src={img.url || img.secure_url || img}
+                  idx={idx}
+                />
+              ))}
             </Row>
           </Image.PreviewGroup>
         ) : (
@@ -280,54 +354,10 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
       </Divider>
       <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 mb-6">
         {documents.length > 0 ? (
-          <Row gutter={[16, 16]}>
-            {documents.map((doc: any, idx: number) => {
-              const url = doc.url || doc.secure_url || doc;
-              const isImage = /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(url);
-              return (
-                <Col key={idx} xs={24} sm={12} md={8} lg={6}>
-                  <Card
-                    size="small"
-                    className="rounded-xl border-slate-200 hover:border-indigo-300 transition-colors group shadow-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
-                        {isImage ? (
-                          <Image
-                            src={url}
-                            preview={true}
-                            className="object-cover w-full!  h-full!"
-                          />
-                        ) : (
-                          <FilePdfOutlined className="text-xl text-indigo-500" />
-                        )}
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                        <Tooltip title={doc.name || "Tải xuống tài liệu"}>
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[12px] font-bold text-slate-700 truncate block group-hover:text-indigo-600"
-                          >
-                            {doc.name || `Tài liệu ${idx + 1}`}
-                          </a>
-                        </Tooltip>
-                        <Text
-                          type="secondary"
-                          className="text-[10px] uppercase"
-                        >
-                          {isImage ? "Hình ảnh" : "File tài liệu"}
-                        </Text>
-                      </div>
-                      <a href={url} download target="_blank" rel="noreferrer">
-                        <DownloadOutlined className="text-slate-400 hover:text-indigo-500 cursor-pointer" />
-                      </a>
-                    </div>
-                  </Card>
-                </Col>
-              );
-            })}
+          <Row gutter={[16, 16]} style={{ transform: "translateZ(0)" }}>
+            {documents.map((doc: any, idx: number) => (
+              <DocumentItem key={idx} doc={doc} idx={idx} />
+            ))}
           </Row>
         ) : (
           <Empty

@@ -555,41 +555,83 @@ export async function createSelfAssignedLeadAction(formData: any) {
   }
 }
 
-// lấy ds đóng băng
-export async function getFrozenLeadsAction() {
+export async function getFrozenLeadsAction(filters?: {
+  search?: string;
+  staffId?: string;
+}) {
   const auth = await getCurrentUser();
-  if (!auth) throw new Error("Unauthorized");
+  if (!auth) throw new Error("Phiên đăng nhập hết hạn");
 
   try {
-    // 1. Xác định phạm vi quyền hạn
     const isGlobalPower = auth.role === "ADMIN" || auth.isGlobalManager;
 
-    // 2. Xây dựng điều kiện lọc
-    const where: any = { status: "FROZEN" };
+    // Điều kiện mặc định
+    const where: any = {
+      status: "FROZEN",
+    };
 
-    // Nếu không phải quyền Global, chỉ lấy khách thuộc chi nhánh của mình
+    // Phân quyền chi nhánh
     if (!isGlobalPower) {
+      if (!auth.branchId) return [];
       where.branchId = auth.branchId;
     }
 
+    // Lọc theo nhân viên tiếp nhận
+    if (filters?.staffId) {
+      where.assignedToId = filters.staffId;
+    }
+
+    // Lọc theo Tên, SĐT hoặc Biển số xe (Search)
+    if (filters?.search) {
+      where.OR = [
+        { fullName: { contains: filters.search } },
+        { phone: { contains: filters.search } },
+        { licensePlate: { contains: filters.search } },
+        { leadCar: { licensePlate: { contains: filters.search } } },
+      ];
+    }
+
     const leads = await db.customer.findMany({
-      where, // Áp dụng bộ lọc
+      where,
       include: {
-        assignedTo: { select: { id: true, fullName: true } },
-        // Lấy thông tin chi nhánh để hiển thị trên UI cho Admin
-        branch: { select: { name: true } },
-        // Lấy activity cuối cùng để biết lý do tại sao hồ sơ này bị đóng băng
+        assignedTo: { select: { id: true, fullName: true, phone: true } },
+        referrer: { select: { id: true, fullName: true, role: true } },
+        branch: { select: { id: true, name: true } },
+        carModel: { select: { id: true, name: true } },
+        leadCar: { select: { id: true, modelName: true, licensePlate: true } },
         activities: {
+          where: { status: "FROZEN" },
           orderBy: { createdAt: "desc" },
           take: 1,
-          include: { reason: true },
+          include: {
+            reason: true,
+            user: { select: { fullName: true } },
+          },
         },
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { lastFrozenAt: "desc" },
     });
 
-    // 3. Serialize dữ liệu an toàn
-    return JSON.parse(JSON.stringify(leads));
+    // Helper chuyển đổi trạng thái/loại sang tiếng Việt
+    const translateReferralType = (type: string) => {
+      const map: any = {
+        SELL: "Bán xe",
+        BUY: "Mua xe",
+        VALUATION: "Định giá",
+        SELL_TRADE_NEW: "Đổi xe mới",
+        SELL_TRADE_USED: "Đổi xe cũ",
+      };
+      return map[type] || type;
+    };
+
+    const serializedLeads = JSON.parse(JSON.stringify(leads)).map(
+      (item: any) => ({
+        ...item,
+        typeVietnamese: translateReferralType(item.type),
+      }),
+    );
+
+    return serializedLeads;
   } catch (error) {
     console.error("Lỗi lấy danh sách đóng băng:", error);
     return [];

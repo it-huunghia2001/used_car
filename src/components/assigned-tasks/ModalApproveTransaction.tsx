@@ -30,6 +30,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
+import DocumentViewer from "../DocumentViewerProps";
 const { Text } = Typography;
 
 interface ModalApproveTransactionProps {
@@ -593,39 +594,13 @@ export default function ModalApproveTransaction({
                     )}
                   </div>
                 </Col>
-
                 <Col span={24} lg={12}>
                   <Text strong className="block mb-3 text-slate-600">
                     <FilePdfOutlined className="mr-2" /> TÀI LIỆU PHÁP LÝ
                   </Text>
+
                   <div className="bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300 min-h-[160px] flex items-center justify-center">
-                    {documentsWatcher && documentsWatcher.length > 0 ? (
-                      <Image.PreviewGroup>
-                        <div className="grid grid-cols-3 gap-3 w-full">
-                          {documentsWatcher.map((file: any, index: number) => (
-                            <div
-                              key={index}
-                              className="flex flex-col items-center"
-                            >
-                              <Image
-                                width="100%"
-                                height={80}
-                                className="rounded-lg object-cover shadow-sm border-2 border-white"
-                                src={file.url}
-                              />
-                              <Text className="text-[10px] mt-1 text-slate-400 truncate w-full text-center">
-                                Tài liệu {index + 1}
-                              </Text>
-                            </div>
-                          ))}
-                        </div>
-                      </Image.PreviewGroup>
-                    ) : (
-                      <Empty
-                        image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description="Chưa có hồ sơ"
-                      />
-                    )}
+                    <DocumentViewer files={documentsWatcher} />
                   </div>
                 </Col>
               </Row>
@@ -661,20 +636,31 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
 
-                {/* 2. TRẠNG THÁI ĐẠT CHUẨN (SWITCH) */}
                 <Col xs={24} md={12}>
+                  {/* Sử dụng shouldUpdate để Switch không làm lag form */}
                   <Form.Item
-                    name="isCertified"
-                    label="Chứng nhận xe đạt chuẩn?"
-                    valuePropName="checked"
-                    initialValue={false}
+                    noStyle
+                    shouldUpdate={(prev, curr) =>
+                      prev.isCertified !== curr.isCertified
+                    }
                   >
-                    <Switch
-                      checkedChildren="ĐẠT CHUẨN"
-                      unCheckedChildren="KHÔNG ĐẠT"
-                      // 3. Sử dụng biến đã khai báo ở trên, không gọi hook tại đây nữa
-                      className={isCertified ? "bg-green-600" : "bg-red-500"}
-                    />
+                    {({ getFieldValue }) => (
+                      <Form.Item
+                        name="isCertified"
+                        label="Chứng nhận xe đạt chuẩn?"
+                        valuePropName="checked"
+                      >
+                        <Switch
+                          checkedChildren="ĐẠT CHUẨN"
+                          unCheckedChildren="KHÔNG ĐẠT"
+                          className={
+                            getFieldValue("isCertified")
+                              ? "bg-green-600"
+                              : "bg-red-500"
+                          }
+                        />
+                      </Form.Item>
+                    )}
                   </Form.Item>
                 </Col>
 

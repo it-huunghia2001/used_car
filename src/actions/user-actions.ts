@@ -255,12 +255,11 @@ export async function toggleUserStatusAction(
   }
 }
 
-// lấy nhân viên trong chi nhánh
 export async function getStaffByBranchAction() {
   const auth = await getCurrentUser();
 
   if (!auth) {
-    return { success: false, error: "Unauthorized", data: [] };
+    return { success: false, error: "Phiên đăng nhập hết hạn", data: [] };
   }
 
   // Quyền Admin hoặc Quản trị toàn cầu
@@ -269,28 +268,44 @@ export async function getStaffByBranchAction() {
   try {
     const staff = await db.user.findMany({
       where: {
-        role: "PURCHASE_STAFF",
         active: true,
-        // Nếu không phải SuperUser thì mới lọc theo chi nhánh
-        ...(isSuperUser ? {} : { branchId: auth.branchId }),
+        // 1. Lấy cả nhân viên Sale và Thu mua vì khách đóng băng có thể là khách Mua hoặc Bán
+        role: {
+          in: ["SALES_STAFF", "PURCHASE_STAFF"],
+        },
+        // 2. Nếu không phải SuperUser, chỉ lấy nhân viên cùng chi nhánh
+        ...(isSuperUser
+          ? {}
+          : {
+              branchId: auth.branchId || "UNDEFINED", // Tránh trường hợp branchId null gây lỗi logic
+            }),
       },
       select: {
         id: true,
         fullName: true,
         username: true,
-        // Thêm thông tin chi nhánh để Admin biết nhân viên đó thuộc đâu
+        role: true, // Thêm role để UI hiển thị phân biệt
         branch: {
           select: { name: true },
         },
       },
-      orderBy: {
-        fullName: "asc",
-      },
+      orderBy: [
+        { branchId: "asc" }, // Sắp xếp theo chi nhánh trước để Admin dễ nhìn
+        { fullName: "asc" },
+      ],
     });
 
-    return { success: true, data: staff };
+    // 3. Serialize dữ liệu trước khi trả về Client
+    const serializedStaff = JSON.parse(JSON.stringify(staff));
+
+    return { success: true, data: serializedStaff };
   } catch (error: any) {
-    return { success: false, error: error.message, data: [] };
+    console.error("Lỗi lấy danh sách nhân viên:", error);
+    return {
+      success: false,
+      error: "Không thể lấy danh sách nhân viên",
+      data: [],
+    };
   }
 }
 
