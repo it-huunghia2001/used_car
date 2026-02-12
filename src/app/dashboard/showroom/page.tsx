@@ -74,6 +74,8 @@ export default function AdvancedShowroomPage() {
       search,
     });
     setCars(res.data);
+    console.log(res.data);
+
     setHasMore(res.hasMore ?? false);
     setPage(1);
     setLoading(false);

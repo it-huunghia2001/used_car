@@ -96,6 +96,7 @@ export async function getAdvancedReportAction(
       hot: monthData.filter((c) => c.urgencyLevel === "HOT").length,
       warm: monthData.filter((c) => c.urgencyLevel === "WARM").length,
       cool: monthData.filter((c) => c.urgencyLevel === "COOL").length,
+      unknown: monthData.filter((c) => !c.urgencyLevel).length,
     };
   });
 
@@ -146,7 +147,7 @@ export async function getAdvancedReportAction(
         },
         growthChart: monthlyUrgency.map((m) => ({
           name: m.month,
-          count: m.hot + m.warm + m.cool,
+          count: m.hot + m.warm + m.cool + m.unknown,
         })),
         inventoryStatus: inventory,
         staffPerformance: staff,

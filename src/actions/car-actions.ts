@@ -236,26 +236,24 @@ export async function getInventoryAdvancedAction({
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
+
     const skip = (page - 1) * limit;
 
     // 1. ĐIỀU KIỆN LỌC TỔNG THỂ
     const whereCondition: any = {
-      // CHỈ lấy những xe đã được bấm "Công bố" (isPublished = true)
       isPublished: true,
     };
 
-    // 2. BỘ LỌC TRẠNG THÁI (LOẠI BỎ SOLD)
+    // 2. BỘ LỌC TRẠNG THÁI
     if (status && status !== "ALL" && status !== "SOLD") {
       whereCondition.status = status;
     } else {
-      // Mặc định cho Showroom: Không hiện xe đã bán (SOLD)
-      // và xe mới thu chưa duyệt (PENDING)
       whereCondition.status = {
         in: ["REFURBISHING", "READY_FOR_SALE", "BOOKED"],
       };
     }
 
-    // 3. LỌC THEO MODEL (Nếu có chọn từ Dropdown)
+    // 3. LỌC THEO MODEL
     if (carModelId && carModelId !== "ALL") {
       whereCondition.carModelId = carModelId;
     }
@@ -276,22 +274,16 @@ export async function getInventoryAdvancedAction({
     const [cars, total] = await Promise.all([
       db.car.findMany({
         where: whereCondition,
-        select: {
-          id: true,
-          modelName: true,
-          stockCode: true,
-          year: true,
-          odo: true,
-          transmission: true,
-          fuelType: true,
-          sellingPrice: true,
-          images: true,
-          status: true,
-          isPromoted: true,
-          promotionNote: true,
-          carModel: { select: { name: true, grade: true } },
-          branch: { select: { name: true } },
-          // ... lấy các trường khác nếu cần
+        // Bỏ 'select' và thay bằng 'include' để lấy toàn bộ trường của Car
+        // + thông tin từ các bảng liên quan
+        include: {
+          carModel: true,
+          branch: {
+            select: { name: true }, // Chỉ lấy tên chi nhánh cho gọn, hoặc true để lấy hết
+          },
+          purchaser: {
+            select: { fullName: true },
+          },
         },
         orderBy: { updatedAt: "desc" },
         skip: skip,
@@ -300,7 +292,7 @@ export async function getInventoryAdvancedAction({
       db.car.count({ where: whereCondition }),
     ]);
 
-    // Xử lý Decimal để tránh lỗi Serialization
+    // Xử lý Decimal (sellingPrice, costPrice...) để tránh lỗi Serialization khi truyền qua Server Actions
     const serializedCars = JSON.parse(JSON.stringify(cars));
 
     return {

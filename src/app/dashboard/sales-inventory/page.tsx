@@ -688,6 +688,14 @@ export default function SalesTasksPage() {
                 ),
               },
               {
+                title: "SĐT KHÁCH HÀNG",
+                render: (t) => (
+                  <Text strong className="text-[12px]">
+                    {t.customer?.phone}
+                  </Text>
+                ),
+              },
+              {
                 title: "HẠN KPI",
                 render: (t) => (
                   <Text
@@ -701,17 +709,31 @@ export default function SalesTasksPage() {
                 title: "",
                 align: "right",
                 render: (t) => (
-                  <Button
-                    type="primary"
-                    size="small"
-                    className="bg-blue-600 rounded-lg text-[10px]"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCompleteMaintenance(t.id);
-                    }}
-                  >
-                    GỌI XONG
-                  </Button>
+                  <>
+                    <Button
+                      type="primary"
+                      size="small"
+                      className="bg-blue-600 rounded-lg text-[10px] mr-2"
+                      onClick={() => {
+                        console.log(t);
+
+                        handleMakeCall(t.customer?.phone || "");
+                      }}
+                    >
+                      GỌI
+                    </Button>
+                    <Button
+                      type="primary"
+                      size="small"
+                      className="bg-blue-600 rounded-lg text-[10px]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCompleteMaintenance(t.id);
+                      }}
+                    >
+                      DONE
+                    </Button>
+                  </>
                 ),
               },
             ]}
