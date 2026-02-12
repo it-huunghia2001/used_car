@@ -440,6 +440,7 @@ export async function approveCarPurchase(
             adminNote,
             carImages, // Bóc tách ra để loại bỏ khỏi spread
             documents, // Bóc tách ra để loại bỏ khỏi spread
+            inspectorName, // Bóc tách ra để loại bỏ khỏi spread
             ...validCarFields
           } = carData;
 

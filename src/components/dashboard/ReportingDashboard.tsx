@@ -110,7 +110,7 @@ export default function ReportingDashboard({
                 <div className="flex justify-between items-center p-3 bg-white rounded-2xl border border-slate-100">
                   <Space>
                     <CheckCircleOutlined className="text-green-500" />{" "}
-                    <Text strong>Đã cho xem xe</Text>
+                    <Text strong>Đã xem xe</Text>
                   </Space>
                   <Text strong className="text-lg">
                     {stats.yearStats.inspected}
@@ -125,15 +125,7 @@ export default function ReportingDashboard({
                     {stats.yearStats.notInspected}
                   </Text>
                 </div>
-                <div className="flex justify-between items-center p-3 bg-white rounded-2xl border border-slate-100">
-                  <Space>
-                    <ClockCircleOutlined className="text-blue-500" />{" "}
-                    <Text strong>Chờ xem xe</Text>
-                  </Space>
-                  <Text strong className="text-lg">
-                    {stats.yearStats.pendingView}
-                  </Text>
-                </div>
+
                 <div className="flex justify-between items-center p-3 bg-white rounded-2xl border border-slate-100">
                   <Space>
                     <ScheduleOutlined className="text-orange-500" />{" "}
@@ -153,7 +145,7 @@ export default function ReportingDashboard({
           {/* THEO THÁNG */}
           <Col xs={24} md={12}>
             <Card
-              className="rounded-[2.5rem] border-none shadow-sm h-full"
+              className="rounded-[2.5rem] border-none shadow-sm h-full mt-2!"
               title={
                 <Space>
                   <CalendarOutlined className="text-purple-600" />{" "}
@@ -249,7 +241,7 @@ export default function ReportingDashboard({
           </Col>
 
           {/* THEO NGÀY */}
-          <Col xs={24} md={12}>
+          {/* <Col xs={24} md={12}>
             <Card
               className="rounded-[2.5rem] border-none shadow-xl bg-slate-900 text-white h-full mt-4!"
               title={
@@ -299,7 +291,7 @@ export default function ReportingDashboard({
                 </Col>
               </Row>
             </Card>
-          </Col>
+          </Col> */}
         </Row>
       </div>
 

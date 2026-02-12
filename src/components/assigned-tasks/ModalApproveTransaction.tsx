@@ -488,7 +488,6 @@ export default function ModalApproveTransaction({
                   <Form.Item
                     name="registrationDeadline"
                     label="Thời hạn đăng kiểm"
-                    rules={[{ required: true }]}
                   >
                     <DatePicker
                       classNames={{
@@ -503,11 +502,7 @@ export default function ModalApproveTransaction({
                   </Form.Item>
                 </Col>
                 <Col xs={12} md={6}>
-                  <Form.Item
-                    name="insuranceVCDeadline"
-                    label="Thời hạn BHVC"
-                    rules={[{ required: true }]}
-                  >
+                  <Form.Item name="insuranceVCDeadline" label="Thời hạn BHVC">
                     <DatePicker
                       classNames={{
                         popup: {
@@ -542,7 +537,6 @@ export default function ModalApproveTransaction({
                   <Form.Item
                     name="insuranceDeadline"
                     label="Thời gian bảo hành"
-                    rules={[{ required: true }]}
                   >
                     <DatePicker
                       classNames={{
@@ -699,11 +693,7 @@ export default function ModalApproveTransaction({
         </Divider>
         <Row gutter={16}>
           <Col xs={12} md={8}>
-            <Form.Item
-              name="contractNo"
-              label="Số hợp đồng"
-              rules={[{ required: true }]}
-            >
+            <Form.Item name="contractNo" label="Số hợp đồng">
               <Input placeholder="HĐ-2024/..." />
             </Form.Item>
           </Col>

@@ -35,36 +35,60 @@ function serializeContract(contract: any) {
   };
 }
 
-export async function getContractsAction() {
+export async function getContractsAction(filters?: {
+  contractNumber?: string;
+  customerName?: string;
+  licensePlate?: string;
+  staffId?: string;
+}) {
   const auth = await getCurrentUser();
   if (!auth) throw new Error("Chưa đăng nhập");
 
-  // 1. Khởi tạo điều kiện lọc (where clause)
-  let where: any = {};
-
-  // 2. Logic phân quyền
   const isGlobalManager = auth.role === "ADMIN" || auth.isGlobalManager;
+
+  // 1. Khởi tạo điều kiện lọc cơ bản (Phân quyền)
+  const baseWhere: any = {};
 
   if (!isGlobalManager) {
     if (auth.role === "MANAGER") {
-      // Manager chi nhánh: Thấy toàn bộ hợp đồng của chi nhánh mình
-      // Lưu ý: Hợp đồng liên kết với Car, và Car có branchId
-      where = {
-        car: {
-          branchId: auth.branchId,
-        },
-      };
+      // Manager chi nhánh: Thấy hợp đồng thuộc chi nhánh mình
+      baseWhere.car = { branchId: auth.branchId };
     } else {
-      // Nhân viên bình thường (PURCHASE_STAFF, SALES_STAFF): Chỉ thấy hợp đồng mình tạo
-      where = {
-        staffId: auth.id,
-      };
+      // Nhân viên bình thường: Chỉ thấy hợp đồng của mình
+      baseWhere.staffId = auth.id;
     }
   }
 
-  // 3. Thực hiện truy vấn với đầy đủ thông tin (bao gồm ảnh từ customer)
+  // 2. Kết hợp với các bộ lọc từ UI (Filters)
+  const filterWhere: any = { AND: [baseWhere] };
+
+  if (filters) {
+    if (filters.contractNumber) {
+      filterWhere.AND.push({
+        contractNumber: { contains: filters.contractNumber },
+      });
+    }
+    if (filters.customerName) {
+      filterWhere.AND.push({
+        customer: { fullName: { contains: filters.customerName } },
+      });
+    }
+    if (filters.licensePlate) {
+      filterWhere.AND.push({
+        car: { licensePlate: { contains: filters.licensePlate } },
+      });
+    }
+    // Chỉ áp dụng lọc theo staffId nếu là sếp (Admin/Manager)
+    if (isGlobalManager || auth.role === "MANAGER") {
+      if (filters.staffId) {
+        filterWhere.AND.push({ staffId: filters.staffId });
+      }
+    }
+  }
+
+  // 3. Thực hiện truy vấn
   const contracts = await db.contract.findMany({
-    where,
+    where: filterWhere,
     include: {
       customer: {
         select: {
@@ -72,8 +96,8 @@ export async function getContractsAction() {
           phone: true,
           address: true,
           type: true,
-          carImages: true, // Lấy mảng ảnh xe
-          documents: true, // Lấy mảng tài liệu gốc
+          carImages: true,
+          documents: true,
         },
       },
       car: {
@@ -98,7 +122,6 @@ export async function getContractsAction() {
     orderBy: { createdAt: "desc" },
   });
 
-  // 4. Serialize dữ liệu (loại bỏ lỗi Decimal/Date của Prisma)
   return JSON.parse(JSON.stringify(contracts));
 }
 
@@ -228,5 +251,48 @@ export async function uploadContractFileAction(
     return { success: true };
   } catch (error) {
     return { success: false, error: "Không thể lưu file" };
+  }
+}
+
+/**
+ * Lấy danh sách nhân viên (Sale/Thu mua) phục vụ bộ lọc Select.
+ * Phân quyền dựa trên vai trò của người đang đăng nhập.
+ */
+export async function getStaffForFilterAction() {
+  try {
+    const auth = await getCurrentUser();
+    if (!auth) return [];
+
+    // Quyền tối cao hoặc Quản lý tổng
+    const isGlobalPower = auth.role === "ADMIN" || auth.isGlobalManager;
+
+    const staff = await db.user.findMany({
+      where: {
+        active: true,
+        // Chỉ lấy những người có vai trò liên quan đến giao dịch hợp đồng
+        role: {
+          in: ["SALES_STAFF", "PURCHASE_STAFF", "MANAGER"],
+        },
+        // Nếu không có quyền Global, chỉ lấy nhân viên cùng chi nhánh
+        ...(!isGlobalPower ? { branchId: auth.branchId } : {}),
+      },
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        branch: {
+          select: { name: true },
+        },
+      },
+      orderBy: {
+        fullName: "asc",
+      },
+    });
+
+    // Chuyển đổi thành Plain Object để tránh lỗi truyền dữ liệu Client Component
+    return JSON.parse(JSON.stringify(staff));
+  } catch (error) {
+    console.error("Lỗi getStaffForFilterAction:", error);
+    return [];
   }
 }

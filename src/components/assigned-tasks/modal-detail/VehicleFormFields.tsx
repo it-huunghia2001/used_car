@@ -303,9 +303,14 @@ export const VehicleFormFields = ({
                 ]}
               >
                 <DatePicker
+                  classNames={{
+                    popup: {
+                      root: "mobile-center-picker", // Thay cho dropdownClassName
+                    },
+                  }}
                   className="w-full"
                   showTime
-                  format="DD/MM/YYYY HH:mm"
+                  format="DD/MM/YYYY"
                 />
               </Form.Item>
             </Col>
@@ -771,7 +776,15 @@ export const VehicleFormFields = ({
               label="Hạn đăng kiểm"
               rules={[{ required: isBuyType ? false : true }]}
             >
-              <DatePicker className="w-full" format="DD/MM/YYYY" />
+              <DatePicker
+                classNames={{
+                  popup: {
+                    root: "mobile-center-picker", // Thay cho dropdownClassName
+                  },
+                }}
+                className="w-full"
+                format="DD/MM/YYYY"
+              />
             </Form.Item>
           )}
         </Col>
@@ -805,6 +818,11 @@ export const VehicleFormFields = ({
                 rules={[{ required: true, message: "Nhập ngày hết hạn TNDS" }]}
               >
                 <DatePicker
+                  classNames={{
+                    popup: {
+                      root: "mobile-center-picker", // Thay cho dropdownClassName
+                    },
+                  }}
                   className="w-full"
                   format="DD/MM/YYYY"
                   placeholder="Chọn ngày"
@@ -842,6 +860,11 @@ export const VehicleFormFields = ({
                 rules={[{ required: true, message: "Nhập ngày hết hạn VC" }]}
               >
                 <DatePicker
+                  classNames={{
+                    popup: {
+                      root: "mobile-center-picker", // Thay cho dropdownClassName
+                    },
+                  }}
                   className="w-full"
                   format="DD/MM/YYYY"
                   placeholder="Chọn ngày"
