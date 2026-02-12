@@ -100,6 +100,10 @@ export default function ModalApproveTransaction({
         description: values.description,
         features: values.features,
 
+        conditionGrade: values.conditionGrade,
+        isCertified: values.isCertified,
+        certificationNote: values.certificationNote,
+
         carImages: carImageUrls,
         documents: documentUrls,
         // Xử lý Date
@@ -154,6 +158,10 @@ export default function ModalApproveTransaction({
         interiorColor: leadCar?.interiorColor,
         engineSize: leadCar?.engineSize,
         ownerType: leadCar?.ownerType,
+
+        conditionGrade: leadCar?.conditionGrade,
+        isCertified: leadCar?.isCertified ?? false, // Mặc định false nếu null
+        certificationNote: leadCar?.certificationNote,
 
         // Cập nhật ảnh và tài liệu vào Form
         carImages: mapUrlsToFiles(customer.carImages || leadCar?.images),
