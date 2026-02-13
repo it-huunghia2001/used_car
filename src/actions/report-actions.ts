@@ -236,3 +236,45 @@ export async function getAdvancedReportAction(
     },
   };
 }
+
+export async function getLateReportAction(filters: {
+  fromDate?: Date;
+  toDate?: Date;
+  userId?: string;
+  branchId?: string;
+}) {
+  const auth = await getCurrentUser();
+  if (!auth) throw new Error("Chưa đăng nhập");
+  const whereClause: any = {
+    isLate: true,
+    createdAt: { gte: filters.fromDate, lte: filters.toDate },
+  };
+
+  if (auth.role === "ADMIN" || auth.isGlobalManager) {
+    if (filters.branchId) whereClause.user = { branchId: filters.branchId };
+  } else if (auth.role === "MANAGER") {
+    whereClause.user = { branchId: auth.branchId };
+  } else {
+    whereClause.createdById = auth.id;
+  }
+  if (filters.userId) whereClause.createdById = filters.userId;
+
+  return await db.leadActivity.findMany({
+    where: whereClause,
+    select: {
+      id: true,
+      lateMinutes: true,
+      note: true,
+      createdAt: true,
+      customer: { select: { fullName: true, phone: true } },
+      user: {
+        select: {
+          id: true,
+          fullName: true,
+          branch: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
