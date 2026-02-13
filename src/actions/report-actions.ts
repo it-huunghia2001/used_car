@@ -1,92 +1,73 @@
-"use server"; // Cánh cửa bảo vệ
-import dayjs from "@/lib/dayjs";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+"use server";
+import dayjs from "@/lib/dayjs";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session-server";
+import { LeadStatus } from "@prisma/client";
 
-// actions/report-actions.ts
-export async function getLateReportAction(filters: {
-  fromDate?: Date;
-  toDate?: Date;
-  userId?: string;
-  branchId?: string; // Thêm lọc theo chi nhánh
-}) {
-  const auth = await getCurrentUser();
-  if (!auth) throw new Error("Chưa đăng nhập");
-
-  const whereClause: any = {
-    isLate: true,
-    createdAt: { gte: filters.fromDate, lte: filters.toDate },
+// --- INTERFACES CHUẨN CHO MA TRẬN LEAD ---
+interface UrgencyMatrix {
+  HOT: number;
+  WARM: number;
+  COOL: number;
+  total: number;
+}
+interface InspectionMatrix {
+  INSPECTED: UrgencyMatrix;
+  APPOINTED: UrgencyMatrix;
+  NOT_INSPECTED: UrgencyMatrix;
+  total: number;
+}
+interface MonthReport {
+  monthIdx: number;
+  monthName: string;
+  SUCCESS: InspectionMatrix;
+  LOSE: InspectionMatrix;
+  FROZEN: InspectionMatrix;
+  REMAINING: InspectionMatrix;
+  trend: {
+    SUCCESS: number;
+    LOSE: number;
+    FROZEN: number;
+    REMAINING: number;
+    HOT: number;
   };
-
-  // --- LOGIC PHÂN QUYỀN VÀ LỌC CHI NHÁNH ---
-
-  if (auth.role === "ADMIN" || auth.isGlobalManager) {
-    // Admin & Toàn cầu: Có quyền lọc theo chi nhánh bất kỳ nếu được truyền lên
-    if (filters.branchId) {
-      whereClause.user = { branchId: filters.branchId };
-    }
-  } else if (auth.role === "MANAGER") {
-    // Manager: Ép buộc chỉ được xem chi nhánh của mình, không cho phép lọc branchId khác
-    whereClause.user = { branchId: auth.branchId };
-  } else {
-    // Nhân viên thường: Chỉ thấy của chính mình
-    whereClause.createdById = auth.id;
-  }
-
-  // Lọc theo nhân viên cụ thể (nếu có và nằm trong phạm vi quyền hạn đã set ở trên)
-  if (filters.userId) {
-    whereClause.createdById = filters.userId;
-  }
-
-  return await db.leadActivity.findMany({
-    where: whereClause,
-    select: {
-      id: true,
-      lateMinutes: true,
-      note: true,
-      createdAt: true,
-      customer: { select: { fullName: true, phone: true } },
-      user: {
-        select: {
-          id: true,
-          fullName: true,
-          branch: { select: { name: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
 }
 
 export async function getAdvancedReportAction(
   month?: number,
   year?: number,
   selectedBranchId?: string,
+  selectedUserId?: string,
 ) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { role, id: userId, branchId: userBranchId, isGlobalManager } = user;
+  const { role, id: authId, branchId: userBranchId, isGlobalManager } = user;
   const isHighLevel = role === "ADMIN" || isGlobalManager;
 
-  // --- 1. XỬ LÝ THỜI GIAN ---
-  let timeQuery: any = {};
-  let salesRange: any = {};
-  let purchaseRange: any = {};
+  // --- 1. XỬ LÝ PHÂN QUYỀN VÀ PHẠM VI (SCOPE) ---
+  const effectiveBranchId = isHighLevel ? selectedBranchId : userBranchId;
+  let effectiveUserId = selectedUserId;
 
-  if (month && year) {
-    const start = dayjs(`${year}-${month}-01`).startOf("month").toDate();
-    const end = dayjs(start).endOf("month").toDate();
-    timeQuery = { createdAt: { gte: start, lte: end } };
-    salesRange = { soldAt: { gte: start, lte: end } };
-    purchaseRange = { purchasedAt: { gte: start, lte: end } };
+  if (!isHighLevel) {
+    if (role === "MANAGER") {
+      effectiveUserId = selectedUserId || undefined;
+    } else {
+      effectiveUserId = authId; // Nhân viên chỉ xem chính mình
+    }
   }
 
-  // --- 2. XỬ LÝ SCOPE PHÂN QUYỀN ---
-  const effectiveBranchId = isHighLevel ? selectedBranchId : userBranchId;
+  // Lọc thời gian năm hiện tại cho ma trận
+  const yearQuery = {
+    createdAt: {
+      gte: dayjs().startOf("year").toDate(),
+      lte: dayjs().endOf("year").toDate(),
+    },
+  };
 
-  // --- 3. TRUY VẤN SONG SONG ---
+  // --- 2. TRUY VẤN SONG SONG TẤT CẢ CÁC BÁO CÁO ---
   const [
     totalSales,
     totalPurchased,
@@ -99,166 +80,159 @@ export async function getAdvancedReportAction(
     inventoryStatus,
     myPending,
     allDepartments,
+    allLeadsForMatrix,
   ] = await Promise.all([
-    // Tính tổng xe bán dựa trên chi nhánh của NHÂN VIÊN BÁN (soldBy)
     db.car.count({
       where: {
         status: "SOLD",
-        ...salesRange,
         soldBy: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       },
     }),
-
-    // Tính tổng xe mua dựa trên chi nhánh của NHÂN VIÊN MUA (purchaser)
     db.car.count({
       where: {
         purchasedAt: { not: null },
-        ...purchaseRange,
         purchaser: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       },
     }),
-
-    // Đếm Lead trễ dựa trên chi nhánh của nhân viên tạo
     db.leadActivity.count({
       where: {
-        ...timeQuery,
         isLate: true,
         user: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       },
     }),
-
-    // Đếm Task trễ dựa trên chi nhánh của người được giao
     db.task.count({
       where: {
-        ...timeQuery,
         isLate: true,
         assignee: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       },
     }),
-
-    // Lấy danh sách chi nhánh để map biểu đồ
-    db.branch.findMany({
-      where: effectiveBranchId ? { id: effectiveBranchId } : {},
-      select: { id: true, name: true },
-    }),
-
-    // Thống kê BÁN: GroupBy theo chi nhánh của User thực hiện soldCars
+    db.branch.findMany({ select: { id: true, name: true } }),
     db.user.groupBy({
       by: ["branchId"],
-      where: {
-        soldCars: { some: { status: "SOLD", ...salesRange } },
-        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
-      },
+      where: { soldCars: { some: { status: "SOLD" } } },
       _count: { id: true },
     }),
-
-    // Thống kê MUA: GroupBy theo chi nhánh của User thực hiện purchases
     db.user.groupBy({
       by: ["branchId"],
-      where: {
-        purchases: { some: { purchasedAt: { not: null }, ...purchaseRange } },
-        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
-      },
+      where: { purchases: { some: { purchasedAt: { not: null } } } },
       _count: { id: true },
     }),
-
-    // Hiệu suất nhân viên
     db.user.findMany({
       where: {
         ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
-        role: { in: ["SALES_STAFF", "PURCHASE_STAFF", "MANAGER"] },
         active: true,
       },
       select: {
         id: true,
         fullName: true,
         role: true,
-        branch: { select: { name: true } },
-        _count: {
-          select: {
-            assignedLeads: { where: timeQuery },
-            leadActivities: { where: { ...timeQuery, isLate: true } },
-            tasks: { where: { ...timeQuery, isLate: true } },
-            soldCars: { where: { status: "SOLD", ...salesRange } },
-            purchases: {
-              where: { purchasedAt: { not: null }, ...purchaseRange },
-            },
-          },
-        },
+        _count: { select: { soldCars: true, purchases: true } },
       },
       orderBy: { soldCars: { _count: "desc" } },
-      take: 20,
+      take: 10,
     }),
-
-    // Tình trạng kho (Vẫn tính theo chi nhánh của XE vì xe đang nằm ở kho đó)
     db.car.groupBy({
       by: ["status"],
       where: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       _count: true,
     }),
-
-    db.task.count({ where: { assigneeId: userId, status: "PENDING" } }),
-
-    // Thống kê theo phòng ban
+    db.task.count({ where: { assigneeId: authId, status: "PENDING" } }),
     isHighLevel || role === "MANAGER"
       ? db.department.findMany({
           select: {
             name: true,
             users: {
               where: effectiveBranchId ? { branchId: effectiveBranchId } : {},
-              select: {
-                _count: { select: { createdReferrals: { where: timeQuery } } },
-              },
+              select: { _count: { select: { createdReferrals: true } } },
             },
           },
         })
       : [],
+
+    // TRUY VẤN CHÍNH CHO MA TRẬN 3 TẦNG (Sửa lỗi createdById -> userId)
+    db.customer.findMany({
+      where: {
+        ...yearQuery,
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+        ...(effectiveUserId ? { userId: effectiveUserId } : {}),
+      },
+      select: {
+        status: true,
+        inspectStatus: true,
+        urgencyLevel: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
-  // --- 4. XỬ LÝ GỘP DỮ LIỆU BIỂU ĐỒ ---
+  // --- 3. XỬ LÝ MA TRẬN DỮ LIỆU ---
+  const categories = {
+    SUCCESS: [LeadStatus.DEAL_DONE] as LeadStatus[],
+    LOSE: [
+      LeadStatus.LOSE,
+      LeadStatus.CANCELLED,
+      LeadStatus.REJECTED_APPROVAL,
+    ] as LeadStatus[],
+    FROZEN: [LeadStatus.FROZEN] as LeadStatus[],
+  };
 
-  // Ghép dữ liệu dựa trên danh sách chi nhánh
-  const branchStats = branchesForChart.map((b: any) => {
-    // Đếm số lượng xe bán: lấy từ mảng groupBy của User
-    // salesByBranchRaw trả về số lượng USER có giao dịch bán,
-    // để chính xác số XE ta dùng sum hoặc đếm trực tiếp từ query xe ở trên nếu cần.
-    // Ở đây dùng count từ query xe theo branch của user là chuẩn nhất:
-    const sales =
-      salesByBranchRaw.find((s: any) => s.branchId === b.id)?._count.id || 0;
-    const buys =
-      purchasesByBranchRaw.find((p: any) => p.branchId === b.id)?._count.id ||
-      0;
-
-    return {
-      name: b.name,
-      soldCount: sales,
-      purchasedCount: buys,
-    };
+  const createEmptyMatrix = (): InspectionMatrix => ({
+    INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+    APPOINTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+    NOT_INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+    total: 0,
   });
 
-  const departmentStats = allDepartments
-    .map((d: any) => ({
-      name: d.name,
-      count: d.users.reduce(
-        (sum: number, u: any) => sum + (u._count?.createdReferrals || 0),
-        0,
-      ),
-    }))
-    .filter((d: any) => d.count > 0);
+  const monthlyData: MonthReport[] = Array.from({ length: 12 }, (_, i) => ({
+    monthIdx: i,
+    monthName: `Tháng ${i + 1}`,
+    SUCCESS: createEmptyMatrix(),
+    LOSE: createEmptyMatrix(),
+    FROZEN: createEmptyMatrix(),
+    REMAINING: createEmptyMatrix(),
+    trend: { SUCCESS: 0, LOSE: 0, FROZEN: 0, REMAINING: 0, HOT: 0 },
+  }));
+
+  allLeadsForMatrix.forEach((lead) => {
+    const mIdx = dayjs(lead.createdAt).month();
+    const mData = monthlyData[mIdx];
+    let catKey: "SUCCESS" | "LOSE" | "FROZEN" | "REMAINING" = "REMAINING";
+
+    if (categories.SUCCESS.includes(lead.status)) catKey = "SUCCESS";
+    else if (categories.LOSE.includes(lead.status)) catKey = "LOSE";
+    else if (categories.FROZEN.includes(lead.status)) catKey = "FROZEN";
+
+    const insKey =
+      (lead.inspectStatus as keyof InspectionMatrix) || "NOT_INSPECTED";
+    const urgKey = (lead.urgencyLevel as keyof UrgencyMatrix) || "COOL";
+
+    mData[catKey].total++;
+    (mData[catKey][insKey] as UrgencyMatrix).total++;
+    (mData[catKey][insKey] as any)[urgKey]++;
+    mData.trend[catKey]++;
+    if (urgKey === "HOT") mData.trend.HOT++;
+  });
 
   return {
     role,
     isGlobal: isHighLevel,
+    leadAnalytics: monthlyData,
+    branches: branchesForChart,
     stats: {
       totalSales,
       totalPurchased,
       lateLeads,
-      lateTasks,
-      branchStats,
-      departmentStats,
       staffPerformance,
       inventoryStatus,
-      myPending,
+      yearStats: {
+        inspected: totalSales,
+        notInspected: lateLeads,
+        appointed: myPending,
+      },
+      growthChart: monthlyData.map((m) => ({
+        name: m.monthName,
+        count: m.trend.SUCCESS + m.trend.REMAINING,
+      })),
     },
   };
 }
