@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable jsx-a11y/alt-text */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -19,6 +20,8 @@ import {
   Empty,
   Upload,
   Badge,
+  Card,
+  Statistic,
 } from "antd";
 import {
   UserOutlined,
@@ -35,10 +38,19 @@ import {
   UploadOutlined,
   CloseOutlined,
   CheckCircleFilled,
-  InfoCircleOutlined,
-  SolutionOutlined,
+  BarcodeOutlined,
+  SafetyCertificateOutlined,
+  DashboardOutlined,
+  CalendarOutlined,
+  IdcardOutlined,
+  ContainerOutlined,
+  ThunderboltOutlined,
+  SettingOutlined,
+  SecurityScanOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
+import { getOwnerTypeVn } from "@/lib/status-helper";
 
 const { Title, Text } = Typography;
 
@@ -62,431 +74,502 @@ export default function ModalContractDetail({
   if (!data) return null;
 
   const isCompleted = data.status === "COMPLETED";
-  const remainingAmount = data.totalAmount - data.depositAmount;
+  const total = Number(data.totalAmount || 0);
+  const deposit = Number(data.depositAmount || 0);
+  const remainingAmount = total - deposit;
 
   return (
     <Modal
       open={isOpen}
       onCancel={onClose}
-      width={1200}
+      width={1300}
       centered
       footer={null}
       closeIcon={
-        <div className="bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-all">
+        <div className="bg-white/20 hover:bg-white/40 p-2 rounded-full text-white transition-all">
           <CloseOutlined />
         </div>
       }
-      className="contract-detail-modal"
+      className="modern-contract-modal"
       destroyOnClose
     >
-      {/* HEADER: Phân loại theo màu sắc trạng thái */}
+      {/* 1. HEADER: GRADIENT & IDENTITY */}
       <div
-        className={`-mx-6 -mt-6 p-8 rounded-t-3xl flex justify-between items-end ${isCompleted ? "bg-emerald-50" : "bg-indigo-50"}`}
+        className={`-mx-6 -mt-6 p-8 mb-8 rounded-t-[2.5rem] relative overflow-hidden overflow-x-hidden ${isCompleted ? "bg-gradient-to-br from-emerald-800 to-teal-600" : "bg-gradient-to-br from-slate-900 via-indigo-950 to-indigo-900"}`}
       >
-        <Space direction="vertical" size={0}>
-          <Space>
-            <Badge status={isCompleted ? "success" : "processing"} />
-            <Text
-              strong
-              className="uppercase tracking-widest text-[10px] text-slate-500"
-            >
-              Hồ sơ hợp đồng điện tử
-            </Text>
-          </Space>
-          <Title level={2} className="m-0! font-black font-mono">
-            {data.contractNumber}
-          </Title>
-        </Space>
-
-        <div className="flex gap-4 items-center bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
-          <div className="px-4 border-r border-slate-100">
-            <Text
-              type="secondary"
-              className="text-[10px] block uppercase font-bold"
-            >
-              Trạng thái
-            </Text>
-            <Tag
-              color={isCompleted ? "green" : "blue"}
-              className="m-0 border-none font-bold"
-            >
-              {isCompleted ? "ĐÃ QUYẾT TOÁN" : "ĐANG THỰC HIỆN"}
-            </Tag>
-          </div>
-          <div className="px-4">
-            <Text
-              type="secondary"
-              className="text-[10px] block uppercase font-bold"
-            >
-              Ngày ký
-            </Text>
-            <Text strong>
-              {data.signedAt
-                ? dayjs(data.signedAt).format("DD/MM/YYYY")
-                : "---"}
-            </Text>
-          </div>
-        </div>
-      </div>
-
-      <div className="py-8 space-y-8 max-h-[75vh] overflow-y-auto custom-scrollbar pr-2">
-        {/* SECTION 1: ĐỐI TÁC & NHÂN SỰ */}
-        <Row gutter={24}>
-          <Col span={15}>
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm relative overflow-hidden h-full">
-              <div className="absolute top-0 right-0 p-4">
-                <UserOutlined className="text-slate-50 text-6xl" />
-              </div>
-              <Title level={4} className="mb-6 flex items-center gap-2">
-                <div className="w-2 h-6 bg-indigo-500 rounded-full" /> Thông tin
-                khách hàng (Bên A)
-              </Title>
-              <Row gutter={[16, 24]}>
-                <Col span={12}>
-                  <Space align="start" size={12}>
-                    <Avatar
-                      size={48}
-                      className="bg-indigo-600 shadow-lg"
-                      icon={<UserOutlined />}
-                    />
-                    <div>
-                      <Text className="text-slate-400 text-xs block">
-                        Họ và tên
-                      </Text>
-                      <Text strong className="text-lg block">
-                        {data.customer?.fullName}
-                      </Text>
-                    </div>
-                  </Space>
-                </Col>
-                <Col span={12}>
-                  <Space align="start" size={12}>
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-indigo-600">
-                      <PhoneOutlined />
-                    </div>
-                    <div>
-                      <Text className="text-slate-400 text-xs block">
-                        Hotline liên hệ
-                      </Text>
-                      <Text strong className="text-lg block">
-                        {data.customer?.phone}
-                      </Text>
-                    </div>
-                  </Space>
-                </Col>
-                <Col span={24}>
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
-                    <Text className="text-slate-400 text-xs block mb-1">
-                      <EnvironmentOutlined /> Địa chỉ thường trú
+        <div className="relative z-10">
+          <Row justify="space-between" align="bottom" gutter={[24, 24]}>
+            <Col xs={24} md={16}>
+              <Space direction="vertical" size={0}>
+                <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-1 rounded-full border border-white/20 mb-3 w-fit">
+                  <ContainerOutlined className="text-emerald-400" />
+                  <Text className="text-white! text-[10px] font-black uppercase tracking-[0.25em]">
+                    Hợp đồng mua bán
+                  </Text>
+                </div>
+                <Title
+                  level={1}
+                  className="m-0! text-white! font-black tracking-tighter drop-shadow-lg"
+                >
+                  {data.contractNumber}
+                </Title>
+                <Text className="text-white/60! text-xs italic mt-2 block">
+                  Ghi chú: {data.note}
+                </Text>
+              </Space>
+            </Col>
+            <Col xs={24} md={8} className="text-right">
+              <div className="bg-white/5 backdrop-blur-xl p-5 rounded-[2rem] border border-white/10 inline-block shadow-2xl">
+                <Space size="large">
+                  <div className="text-center">
+                    <Text className="text-white/40! text-[10px] block uppercase font-black mb-1">
+                      Ngày ký kết
                     </Text>
-                    <Text className="text-slate-700">
-                      {data.customer?.address ||
-                        "Chưa cung cấp địa chỉ chi tiết"}
+                    <Text className="text-white! font-bold text-lg">
+                      {data.signedAt
+                        ? dayjs(data.signedAt).format("DD/MM/YYYY")
+                        : "---"}
                     </Text>
                   </div>
-                </Col>
-              </Row>
-            </div>
-          </Col>
-
-          <Col span={9}>
-            <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200 h-full">
-              <Title level={4} className="mb-6 flex items-center gap-2">
-                <TeamOutlined className="text-slate-400" /> Nhân sự phụ trách
-              </Title>
-              <Space direction="vertical" className="w-full" size={16}>
-                <div className="flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm">
-                  <Space>
-                    <Avatar src="https://api.dicebear.com/7.x/avataaars/svg?seed=1" />
-                    <Text strong className="text-xs">
-                      Sale chốt HĐ
+                  <Divider type="vertical" className="bg-white/20 h-10" />
+                  <div className="text-center px-2">
+                    <Text className="text-white/40! text-[10px] block uppercase font-black mb-1">
+                      Trạng thái hồ sơ
                     </Text>
-                  </Space>
-                  <Text className="text-indigo-600 font-bold">
-                    {data.staff?.fullName}
-                  </Text>
-                </div>
-                <div className="flex items-center justify-between bg-white p-3 rounded-2xl shadow-sm">
-                  <Space>
-                    <Avatar
-                      icon={<AuditOutlined />}
-                      className="bg-emerald-500"
-                    />
-                    <Text strong className="text-xs">
-                      Giám định viên
-                    </Text>
-                  </Space>
-                  <Text className="text-slate-600">
-                    {data.customer?.inspectorRef?.fullName || "N/A"}
-                  </Text>
-                </div>
-              </Space>
-            </div>
-          </Col>
-        </Row>
-
-        {/* SECTION 2: CHI TIẾT PHƯƠNG TIỆN */}
-        <div className="p-8 rounded-3xl border border-slate-200 relative">
-          <div className="absolute -top-3 left-8 bg-white px-4">
-            <Space>
-              <CarOutlined className="text-indigo-500" />
-              <Text strong className="uppercase tracking-widest text-xs">
-                Thông tin phương tiện giám định
-              </Text>
-            </Space>
-          </div>
-
-          <Row gutter={40} align="middle">
-            <Col span={10}>
-              <Descriptions
-                column={1}
-                className="custom-descriptions"
-                labelStyle={{ color: "#94a3b8" }}
-              >
-                <Descriptions.Item label="Mẫu xe">
-                  {data.car?.modelName}
-                </Descriptions.Item>
-                <Descriptions.Item label="Biển kiểm soát">
-                  <Tag color="blue" className="font-mono font-bold">
-                    {data.car?.licensePlate || "CHƯA BIỂN"}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Số khung (VIN)">
-                  <Text copyable className="font-mono">
-                    {data.car?.vin || "---"}
-                  </Text>
-                </Descriptions.Item>
-                <Descriptions.Item label="ODO giám định">
-                  {data.customer?.leadCar?.odo?.toLocaleString()} KM
-                </Descriptions.Item>
-                <Descriptions.Item label="Nội thất">
-                  {data.customer?.leadCar?.interiorColor}
-                </Descriptions.Item>
-              </Descriptions>
-            </Col>
-            <Col span={14} className="border-l border-slate-100 pl-10">
-              <div className="mb-4 flex justify-between items-center">
-                <Text strong className="text-xs text-slate-500">
-                  <CameraOutlined /> ALBUM ẢNH HIỆN TRƯỜNG
-                </Text>
-                <Text type="secondary" className="text-[10px]">
-                  {data.customer?.carImages?.length || 0} file ảnh
-                </Text>
+                    <Tag
+                      color={isCompleted ? "green" : "blue"}
+                      className="m-0 border-none font-black px-5 py-1 rounded-full uppercase text-[11px]"
+                    >
+                      {isCompleted ? "Đã Quyết Toán" : "Đang thực hiện"}
+                    </Tag>
+                  </div>
+                </Space>
               </div>
-              <Image.PreviewGroup>
-                <div className="grid grid-cols-4 gap-3">
-                  {data.customer?.carImages
-                    ?.slice(0, 8)
-                    .map((src: string, i: number) => (
-                      <div
-                        key={i}
-                        className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100 border border-slate-200 group cursor-zoom-in"
-                      >
-                        <Image
-                          src={src}
-                          className="object-cover h-full w-full transition-transform group-hover:scale-110"
-                        />
-                      </div>
-                    ))}
-                  {(!data.customer?.carImages ||
-                    data.customer.carImages.length === 0) && (
-                    <div className="col-span-4 py-10 border-2 border-dashed rounded-3xl flex flex-col items-center">
-                      <Empty description="Không có ảnh giám định" />
-                    </div>
-                  )}
-                </div>
-              </Image.PreviewGroup>
             </Col>
           </Row>
         </div>
+      </div>
 
-        {/* SECTION 3: TÀI CHÍNH & HỢP ĐỒNG SCAN */}
-        <Row gutter={24}>
-          <Col span={14}>
-            <div className="p-8 rounded-[2.5rem] bg-slate-900 text-white shadow-2xl h-full relative overflow-hidden">
-              <div className="absolute -bottom-10 -right-10 opacity-5">
-                <DollarOutlined style={{ fontSize: 250 }} />
-              </div>
-
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <Text className="text-slate-500 uppercase text-[10px] font-black tracking-widest block mb-2">
-                    Giá trị quyết toán
-                  </Text>
-                  <div className="text-4xl font-black text-rose-500 font-mono">
-                    {data.totalAmount?.toLocaleString()}{" "}
-                    <span className="text-lg">đ</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <Text className="text-slate-500 uppercase text-[10px] font-black tracking-widest block mb-2">
-                    Đã đặt cọc
-                  </Text>
-                  <div className="text-2xl font-black text-emerald-400 font-mono">
-                    {data.depositAmount?.toLocaleString()}{" "}
-                    <span className="text-sm">đ</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/5 p-6 rounded-3xl border border-white/10 mb-6">
-                <Row align="middle">
-                  <Col span={14}>
-                    <Text className="text-blue-400 text-xs font-black uppercase tracking-widest block mb-1">
-                      Cần thu thêm
+      <div className="max-h-[72vh] overflow-y-auto custom-scrollbar px-2 pb-6 overflow-x-hidden">
+        <Row gutter={[24, 24]}>
+          {/* CỘT TRÁI: DỮ LIỆU XE & TÀI CHÍNH */}
+          <Col xs={24} lg={16} className="space-y-6">
+            {/* 2. FINANCIAL MATRIX */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="rounded-3xl border-none bg-rose-50 shadow-sm">
+                <Statistic
+                  title={
+                    <Text className="text-rose-400 font-black text-[10px] uppercase">
+                      Tổng trị giá (Bên B mua)
                     </Text>
-                    <div className="text-5xl font-black text-blue-400 font-mono tracking-tighter">
-                      {remainingAmount.toLocaleString()}
-                    </div>
-                  </Col>
-                  <Col span={10}>
-                    <Progress
-                      type="circle"
-                      percent={Math.round(
-                        (data.depositAmount / data.totalAmount) * 100,
-                      )}
-                      size={80}
-                      strokeColor="#3b82f6"
-                      trailColor="rgba(255,255,255,0.1)"
-                      format={(p) => (
-                        <span className="text-white text-xs font-bold">
-                          {p}%
-                        </span>
-                      )}
-                    />
-                  </Col>
-                </Row>
-              </div>
+                  }
+                  value={total}
+                  suffix="đ"
+                  valueStyle={{ color: "#e11d48", fontWeight: 900 }}
+                />
+              </Card>
+              <Card className="rounded-3xl border-none bg-emerald-50 shadow-sm">
+                <Statistic
+                  title={
+                    <Text className="text-emerald-400 font-black text-[10px] uppercase">
+                      Đã đặt cọc
+                    </Text>
+                  }
+                  value={deposit}
+                  suffix="đ"
+                  valueStyle={{ color: "#059669", fontWeight: 900 }}
+                />
+              </Card>
+              <Card className="rounded-3xl border-none bg-indigo-600 shadow-xl">
+                <Statistic
+                  title={
+                    <Text className="text-white/60 font-black text-[10px] uppercase">
+                      Số tiền còn lại
+                    </Text>
+                  }
+                  value={remainingAmount}
+                  suffix="đ"
+                  valueStyle={{ color: "#3b82f6", fontWeight: 900 }}
+                />
+              </Card>
             </div>
+
+            {/* 3. CHI TIẾT PHƯƠNG TIỆN (LẤY TỪ CAR OBJECT) */}
+            <Card
+              className="rounded-[2rem] shadow-sm border-slate-200"
+              title={
+                <Space>
+                  <CarOutlined className="text-indigo-600" />{" "}
+                  <Text strong className="uppercase text-xs">
+                    Thông số phương tiện chi tiết
+                  </Text>
+                </Space>
+              }
+              extra={
+                <Tag
+                  color="blue"
+                  className="rounded-lg font-black border-none px-6 m-0 bg-indigo-50 text-indigo-700 text-base"
+                >
+                  {data.car?.licensePlate || "N/A"}
+                </Tag>
+              }
+            >
+              <Row gutter={[32, 32]}>
+                <Col xs={24} md={12}>
+                  <Descriptions
+                    column={1}
+                    labelStyle={{
+                      color: "#94a3b8",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                    }}
+                    contentStyle={{ fontWeight: 700, color: "#1e293b" }}
+                  >
+                    <Descriptions.Item label="Tên mẫu xe">
+                      {data.car?.modelName}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Số khung (VIN)">
+                      <Text copyable className="font-mono text-indigo-600">
+                        {data.car?.vin}
+                      </Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Số máy">
+                      {data.car?.engineNumber}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Năm sản xuất">
+                      {data.car?.year}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Nguồn gốc">
+                      {data.car?.origin === "VN" ? "Trong nước" : "Nhập khẩu"}
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Col>
+                <Col xs={24} md={12}>
+                  <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 grid grid-cols-2 gap-y-6">
+                    <Statistic
+                      title={
+                        <Text className="text-[10px] uppercase font-bold text-slate-400">
+                          ODO
+                        </Text>
+                      }
+                      value={data.car?.odo}
+                      suffix=" km"
+                      valueStyle={{ fontSize: 18, fontWeight: 900 }}
+                      prefix={<DashboardOutlined />}
+                    />
+                    <Statistic
+                      title={
+                        <Text className="text-[10px] uppercase font-bold text-slate-400">
+                          Nhiên liệu
+                        </Text>
+                      }
+                      value={data.car?.fuelType}
+                      valueStyle={{ fontSize: 16, fontWeight: 900 }}
+                      prefix={<ThunderboltOutlined />}
+                    />
+                    <Statistic
+                      title={
+                        <Text className="text-[10px] uppercase font-bold text-slate-400">
+                          Hộp số
+                        </Text>
+                      }
+                      value={
+                        data.car?.transmission === "AUTOMATIC"
+                          ? "Số tự động"
+                          : "Số sàn"
+                      }
+                      valueStyle={{ fontSize: 16, fontWeight: 900 }}
+                      prefix={<SettingOutlined />}
+                    />
+                    <Statistic
+                      title={
+                        <Text className="text-[10px] uppercase font-bold text-slate-400">
+                          Ngoại thất
+                        </Text>
+                      }
+                      value={data.car?.color}
+                      valueStyle={{ fontSize: 16, fontWeight: 900 }}
+                    />
+                  </div>
+                </Col>
+                <Col span={24}>
+                  <Divider className="m-0" />
+                  <div className="pt-4">
+                    <Text
+                      strong
+                      className="text-[10px] text-slate-400 uppercase block mb-3"
+                    >
+                      Tình trạng pháp lý & Chứng nhận
+                    </Text>
+                    <Space wrap>
+                      <Tag icon={<CheckCircleFilled />} color="processing">
+                        TSure Certified: {data.car?.conditionGrade}
+                      </Tag>
+                      {data.car?.hasFine && (
+                        <Tag icon={<WarningOutlined />} color="error">
+                          Phạt nguội: {data.car?.fineNote}
+                        </Tag>
+                      )}
+                      <Tag
+                        color={getOwnerTypeVn(data.car?.ownerType).color}
+                        className="rounded-md font-bold border-none px-3"
+                      >
+                        Hình thức: {getOwnerTypeVn(data.car?.ownerType).label}
+                      </Tag>
+                    </Space>
+                  </div>
+                </Col>
+              </Row>
+            </Card>
+
+            {/* 4. HÌNH ẢNH GIÁM ĐỊNH */}
+            <Card
+              className="rounded-[2.5rem] shadow-sm border-slate-200"
+              title={
+                <Space>
+                  <CameraOutlined className="text-indigo-600" />{" "}
+                  <Text strong className="uppercase text-xs text-slate-500">
+                    Album ảnh giám định thực tế
+                  </Text>
+                </Space>
+              }
+            >
+              <Image.PreviewGroup>
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+                  {data.customer?.carImages?.map((src: string, i: number) => (
+                    <div
+                      key={i}
+                      className="aspect-square rounded-2xl overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-all cursor-zoom-in group"
+                    >
+                      <Image src={src} className="object-cover w-full h-full" />
+                    </div>
+                  ))}
+                </div>
+              </Image.PreviewGroup>
+            </Card>
           </Col>
 
-          <Col span={10}>
-            <div className="p-8 rounded-[2.5rem] border-2 border-dashed border-slate-200 bg-slate-50 h-full flex flex-col items-center justify-center text-center">
-              {data.contractFile ? (
-                <div className="animate-fadeIn">
-                  <div className="w-24 h-32 bg-white rounded-2xl shadow-xl flex flex-col items-center justify-center p-4 border border-slate-100 mx-auto mb-6">
-                    <FilePdfOutlined className="text-5xl text-rose-500 mb-2" />
-                    <Text className="text-[10px] font-black text-slate-400">
-                      SIGN_CONTRACT
+          {/* CỘT PHẢI: KHÁCH HÀNG - NHÂN SỰ - FILE */}
+          <Col xs={24} lg={8} className="space-y-6">
+            {/* 5. THẺ KHÁCH HÀNG (SANG TRỌNG) */}
+            <Card className="rounded-[2.5rem] border-none bg-slate-900! text-white shadow-2xl relative overflow-hidden">
+              <div className="relative z-10">
+                <Space align="center" className="mb-6">
+                  <Avatar
+                    size={64}
+                    className="bg-indigo-500! border-2 border-indigo-400/30! shadow-xl"
+                    icon={<UserOutlined />}
+                  />
+                  <div>
+                    <Text className="text-white/40! text-[10px] font-black uppercase tracking-[0.2em] block">
+                      Chủ xe (Bên A)
+                    </Text>
+                    <Title level={3} className="text-white!  font-black m-0!">
+                      {data.customer?.fullName}
+                    </Title>
+                  </div>
+                </Space>
+                <div className="space-y-3 mt-2">
+                  <div className="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                    <PhoneOutlined className="text-indigo-400! text-lg" />
+                    <Text className="text-white! font-bold">
+                      {data.customer?.phone}
                     </Text>
                   </div>
-                  <Space size="middle">
-                    <Button
-                      size="large"
-                      className="rounded-xl font-bold h-11"
-                      icon={<EyeOutlined />}
-                      href={data.contractFile}
-                      target="_blank"
-                    >
-                      Xem
-                    </Button>
-                    <Button
-                      size="large"
-                      type="primary"
-                      className="rounded-xl font-bold h-11"
-                      icon={<DownloadOutlined />}
-                      href={data.contractFile}
-                      download
-                    >
-                      Tải về
-                    </Button>
-                  </Space>
-                </div>
-              ) : (
-                <div className="py-6">
-                  <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mb-4 mx-auto">
-                    <SolutionOutlined className="text-3xl text-slate-400" />
+                  <div className="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-white/10">
+                    <EnvironmentOutlined className="text-indigo-400! text-lg" />
+                    <Text className="text-white/70! text-xs leading-relaxed">
+                      {data.customer?.address}
+                    </Text>
                   </div>
-                  <Text type="secondary" className="italic block mb-6">
-                    Chưa có bản scan hợp đồng đóng dấu
+                </div>
+              </div>
+            </Card>
+
+            {/* 6. ĐỘI NGŨ NHÂN SỰ PHỤ TRÁCH (SALE & GIÁM ĐỊNH) */}
+            <Card
+              className="rounded-[2.5rem] shadow-sm border-slate-100! mt-4!"
+              title={
+                <Space>
+                  <TeamOutlined className="text-indigo-600!" />{" "}
+                  <Text strong className="uppercase text-xs text-slate-500!">
+                    Nhân sự thực hiện
+                  </Text>
+                </Space>
+              }
+            >
+              <div className="space-y-4 mt-4!">
+                <div className="flex justify-between items-center p-3 rounded-2xl bg-indigo-50/50! border border-indigo-100/50!">
+                  <Space>
+                    <Avatar
+                      size="small"
+                      className="bg-indigo-600!"
+                      icon={<UserOutlined />}
+                    />
+                    <Text className="text-xs font-bold text-slate-500 uppercase">
+                      Sale phụ trách
+                    </Text>
+                  </Space>
+                  <Text className="text-indigo-700 font-black">
+                    {data.staff?.fullName}
                   </Text>
                 </div>
-              )}
 
-              <Divider className="my-6">
-                <Text
-                  type="secondary"
-                  className="text-[10px] uppercase font-bold tracking-widest"
-                >
-                  Hành động
-                </Text>
-              </Divider>
+                <div className="flex justify-between items-center p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100/50">
+                  <Space>
+                    <Avatar
+                      size="small"
+                      className="bg-emerald-600"
+                      icon={<SecurityScanOutlined />}
+                    />
+                    <Text className="text-xs font-bold text-slate-500 uppercase">
+                      Giám định viên
+                    </Text>
+                  </Space>
+                  <Text className="text-emerald-700 font-black">
+                    {data.customer?.inspectorRef?.fullName || "Chưa có"}
+                  </Text>
+                </div>
 
-              <Upload
-                showUploadList={false}
-                beforeUpload={(file) => {
-                  onFileUpload(file);
-                  return false;
-                }}
-              >
-                <Button
-                  loading={uploading}
-                  icon={<UploadOutlined />}
-                  className="rounded-2xl border-none bg-indigo-600 text-white font-black hover:bg-indigo-700 h-12 px-8 shadow-lg shadow-indigo-100 transition-all active:scale-95"
+                <div className="flex justify-between items-center p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <Space>
+                    <Avatar
+                      size="small"
+                      className="bg-slate-400"
+                      icon={<IdcardOutlined />}
+                    />
+                    <Text className="text-xs font-bold text-slate-500 uppercase">
+                      Người giới thiệu
+                    </Text>
+                  </Space>
+                  <Text className="text-slate-700 font-bold text-xs">
+                    {data.customer?.referrer?.fullName || "N/A"}
+                  </Text>
+                </div>
+              </div>
+            </Card>
+
+            {/* 7. QUẢN LÝ TẬP TIN HỢP ĐỒNG */}
+            <Card
+              className="rounded-[2.5rem] border-slate-200 shadow-sm bg-slate-50 border-2 border-dashed mt-4!"
+              title={
+                <Space>
+                  <FilePdfOutlined className="text-rose-500!" />{" "}
+                  <Text strong className="uppercase text-xs text-slate-500!">
+                    Hợp đồng điện tử (Scan)
+                  </Text>
+                </Space>
+              }
+            >
+              <div className="flex flex-col items-center py-2 text-center">
+                {data.contractFile ? (
+                  <div className="w-full">
+                    <div className="bg-white p-6 rounded-3xl shadow-md inline-block border border-slate-100 mb-5">
+                      <FilePdfOutlined className="text-6xl text-rose-500!" />
+                    </div>
+                    <div className="flex gap-2 justify-center mb-6">
+                      <Button
+                        block
+                        icon={<EyeOutlined />}
+                        shape="round"
+                        href={data.contractFile}
+                        target="_blank"
+                      >
+                        XEM FILE
+                      </Button>
+                      <Button
+                        block
+                        icon={<DownloadOutlined />}
+                        shape="round"
+                        type="primary"
+                      >
+                        TẢI VỀ
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-6 opacity-40 italic flex flex-col items-center">
+                    <FilePdfOutlined className="text-4xl mb-2" />
+                    <Text className="text-xs">
+                      Chưa có bản quét hồ sơ đóng dấu
+                    </Text>
+                  </div>
+                )}
+
+                <Upload
+                  showUploadList={false}
+                  beforeUpload={(file) => {
+                    onFileUpload(file);
+                    return false;
+                  }}
                 >
-                  {data.contractFile ? "CẬP NHẬT BẢN MỚI" : "TẢI LÊN BẢN SCAN"}
-                </Button>
-              </Upload>
-            </div>
+                  <Button
+                    loading={uploading}
+                    icon={<UploadOutlined />}
+                    block
+                    className="rounded-2xl h-14 font-black bg-white shadow-sm hover:border-indigo-500 transition-all uppercase text-[11px] tracking-tighter"
+                  >
+                    {data.contractFile
+                      ? "Thay thế bản quét mới"
+                      : "Tải lên bản scan đóng dấu"}
+                  </Button>
+                </Upload>
+              </div>
+            </Card>
           </Col>
         </Row>
       </div>
 
-      {/* FOOTER ACTIONS */}
-      <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-100">
-        <Space>
-          <InfoCircleOutlined className="text-slate-400" />
-          <Text type="secondary" className="text-xs italic">
-            Người thực hiện: {data.staff?.fullName} |{" "}
-            {dayjs(data.updatedAt).format("DD/MM/YYYY HH:mm")}
+      {/* FOOTER: STICKY ACTIONS */}
+      <div className="bg-white pt-6 border-t border-slate-100 flex flex-col md:flex-row overflow-x-hidden justify-between items-center gap-6">
+        <Space direction="vertical" size={0}>
+          <Text className="text-[10px] font-black uppercase text-slate-300 tracking-[0.3em]">
+            Hệ thống ghi nhận vào lúc
+          </Text>
+          <Text className="text-[11px] font-bold text-slate-400">
+            {dayjs(data.createdAt).format("DD/MM/YYYY HH:mm:ss")}
           </Text>
         </Space>
-        <Space size="large">
+
+        <Space size="middle" className="w-full md:w-auto">
           <Button
             size="large"
-            className="rounded-2xl font-bold px-10 h-12"
+            className="rounded-2xl font-bold px-10 h-14 border-slate-200 hover:bg-slate-50 transition-all"
             onClick={onClose}
           >
-            ĐÓNG LẠI
+            HỦY BỎ
           </Button>
           {!isCompleted && data.status === "SIGNED" && (
             <Button
               size="large"
               type="primary"
-              className="rounded-2xl font-black h-12 px-12 bg-emerald-600 shadow-xl shadow-emerald-100 flex items-center gap-2 hover:bg-emerald-700"
+              className="rounded-2xl font-black h-14 px-12 bg-emerald-600 shadow-2xl shadow-emerald-200 border-none hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-3"
               onClick={() => onComplete(data.id, data.contractNumber)}
             >
-              <CheckCircleFilled /> HOÀN TẤT & SOLD XE
+              <CheckCircleFilled className="text-xl" /> XÁC NHẬN HOÀN TẤT & SOLD
+              XE
             </Button>
           )}
         </Space>
       </div>
 
       <style jsx global>{`
-        .contract-detail-modal .ant-modal-content {
+        .modern-contract-modal .ant-modal-content {
           padding: 24px !important;
-          border-radius: 2rem !important;
+          border-radius: 3rem !important;
+          background: #f8fafc !important;
         }
-        .custom-descriptions .ant-descriptions-item-label {
-          font-weight: 600;
-          color: #64748b;
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
         }
-        .custom-descriptions .ant-descriptions-item-content {
-          font-weight: 700;
-          color: #1e293b;
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
         }
-        .animate-fadeIn {
-          animation: fadeIn 0.4s ease-out;
-        }
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        .ant-descriptions-item-label {
+          font-size: 11px !important;
+          color: #94a3b8 !important;
         }
       `}</style>
     </Modal>

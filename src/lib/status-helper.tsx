@@ -149,3 +149,18 @@ export const getReferralTypeTag = (type: string) => {
       );
   }
 };
+
+export const getOwnerTypeVn = (type: string) => {
+  switch (type) {
+    case "PERSONAL":
+      return { label: "Cá nhân", color: "blue" };
+    case "AUTHORIZATION_L1":
+      return { label: "Ủy quyền Lần 1", color: "orange" };
+    case "AUTHORIZATION_L2":
+      return { label: "Ủy quyền Lần 2", color: "warning" };
+    case "COMPANY_Vat": // Hoặc COMPANY_VAT tùy dữ liệu thực tế
+      return { label: "Công ty xuất hóa đơn (VAT)", color: "purple" };
+    default:
+      return { label: type, color: "default" };
+  }
+};
