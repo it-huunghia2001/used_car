@@ -71,6 +71,70 @@ export default function ContractPage() {
     }
   }, [filters]);
 
+  const uploadToCloudinary = async (file: File) => {
+    const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", UPLOAD_PRESET!);
+    formData.append("folder", "used_car_contracts");
+
+    // ✅ LUÔN ĐỂ LÀ IMAGE cho cả Ảnh và PDF để có thể xem trực tiếp (Preview)
+    const resourceType = "image";
+
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`,
+      { method: "POST", body: formData },
+    );
+
+    return await res.json();
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!selectedContract) return;
+
+    // 1. Kiểm tra định dạng (Hợp đồng thường là PDF hoặc Ảnh scan)
+    const isDoc =
+      file.type === "application/pdf" || file.type.startsWith("image/");
+    if (!isDoc) {
+      return message.error("Chỉ chấp nhận tệp PDF hoặc hình ảnh scan");
+    }
+
+    setUploading(true);
+
+    try {
+      // 2. Tải trực tiếp lên Cloudinary
+      const data = await uploadToCloudinary(file);
+
+      if (data.secure_url) {
+        // 3. Gọi Server Action để lưu URL vào Database
+        // Lưu ý: data.secure_url là link vĩnh viễn từ Cloudinary
+        await uploadContractFileAction(selectedContract.id, data.secure_url);
+
+        message.success("Bản scan đã được lưu trữ trên hệ thống");
+
+        // 4. Refresh dữ liệu Modal
+        const updatedDetail = await getContractDetailAction(
+          selectedContract.id,
+        );
+        setSelectedContract(updatedDetail);
+
+        // Load lại danh sách bên ngoài nếu cần
+        if (typeof loadData === "function") loadData();
+      } else {
+        throw new Error("Cloudinary response error");
+      }
+    } catch (error) {
+      console.error("Upload Error:", error);
+      message.error(
+        "Không thể tải tệp lên Cloudinary. Vui lòng kiểm tra lại cấu hình.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(loadData, 500); // Debounce tìm kiếm
     return () => clearTimeout(timer);
@@ -98,34 +162,6 @@ export default function ContractPage() {
       setIsDetailOpen(false);
     } else {
       message.error(res.error || "Giao dịch thất bại");
-    }
-  };
-
-  const handleFileUpload = async (file: File) => {
-    if (!selectedContract) return;
-    setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.url) {
-        await uploadContractFileAction(selectedContract.id, data.url);
-        message.success("Đã lưu bản scan dấu đỏ");
-        // Refresh detail để hiện file vừa upload
-        const updatedDetail = await getContractDetailAction(
-          selectedContract.id,
-        );
-        setSelectedContract(updatedDetail);
-        loadData();
-      }
-    } catch (e) {
-      message.error("Lỗi tải lên tệp tin");
-    } finally {
-      setUploading(false);
     }
   };
 

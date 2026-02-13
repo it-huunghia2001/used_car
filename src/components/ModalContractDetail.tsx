@@ -78,6 +78,22 @@ export default function ModalContractDetail({
   const deposit = Number(data.depositAmount || 0);
   const remainingAmount = total - deposit;
 
+  const getContractDisplayUrl = (url: string) => {
+    if (!url) return "";
+    // Đổi raw thành image để sử dụng trình xem PDF của trình duyệt
+    return url.replace("/raw/upload/", "/image/upload/");
+  };
+
+  // Hàm xử lý URL để tải về (Force Download)
+  const getContractDownloadUrl = (url: string) => {
+    if (!url) return "";
+    // Thêm flag fl_attachment để ép trình duyệt tải xuống thay vì mở xem
+    return getContractDisplayUrl(url).replace(
+      "/upload/",
+      "/upload/fl_attachment/",
+    );
+  };
+
   return (
     <Modal
       open={isOpen}
@@ -470,21 +486,19 @@ export default function ModalContractDetail({
                     </div>
                     <div className="flex gap-2 justify-center mb-6">
                       <Button
-                        block
-                        icon={<EyeOutlined />}
-                        shape="round"
-                        href={data.contractFile}
+                        href={getContractDisplayUrl(data.contractFile)}
                         target="_blank"
+                        icon={<EyeOutlined />}
                       >
-                        XEM FILE
+                        XEM HỢP ĐỒNG
                       </Button>
+
                       <Button
-                        block
+                        href={getContractDownloadUrl(data.contractFile)}
                         icon={<DownloadOutlined />}
-                        shape="round"
                         type="primary"
                       >
-                        TẢI VỀ
+                        TẢI BẢN SCAN
                       </Button>
                     </div>
                   </div>
