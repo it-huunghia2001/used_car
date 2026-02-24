@@ -73,14 +73,15 @@ export default function ContractPage() {
 
   const uploadToCloudinary = async (file: File) => {
     const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    const UPLOAD_PRESET = "used_car"; // Tên preset bạn đang dùng
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", UPLOAD_PRESET!);
+    formData.append("upload_preset", UPLOAD_PRESET);
     formData.append("folder", "used_car_contracts");
 
-    // ✅ LUÔN ĐỂ LÀ IMAGE cho cả Ảnh và PDF để có thể xem trực tiếp (Preview)
+    // RẤT QUAN TRỌNG: Ép kiểu 'image' để Cloudinary cho phép render PDF trực tuyến
+    // và tạo link có dạng /image/upload/...
     const resourceType = "image";
 
     const res = await fetch(

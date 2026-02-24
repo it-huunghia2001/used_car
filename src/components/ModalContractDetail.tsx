@@ -78,22 +78,21 @@ export default function ModalContractDetail({
   const deposit = Number(data.depositAmount || 0);
   const remainingAmount = total - deposit;
 
+  // Hàm xử lý hiển thị chuẩn xác
+  // 1. Link để xem trực tiếp (Fix lỗi render và lỗi 401)
   const getContractDisplayUrl = (url: string) => {
     if (!url) return "";
-    // Đổi raw thành image để sử dụng trình xem PDF của trình duyệt
+    // Đảm bảo link luôn ở định dạng /image/ để trình duyệt có thể đọc PDF
     return url.replace("/raw/upload/", "/image/upload/");
   };
 
-  // Hàm xử lý URL để tải về (Force Download)
+  // 2. Link để tải về (Thêm fl_attachment để ép trình duyệt download)
   const getContractDownloadUrl = (url: string) => {
     if (!url) return "";
-    // Thêm flag fl_attachment để ép trình duyệt tải xuống thay vì mở xem
-    return getContractDisplayUrl(url).replace(
-      "/upload/",
-      "/upload/fl_attachment/",
-    );
+    const displayUrl = getContractDisplayUrl(url);
+    // Thêm tham số fl_attachment vào giữa URL
+    return displayUrl.replace("/upload/", "/upload/fl_attachment/");
   };
-
   return (
     <Modal
       open={isOpen}
@@ -480,27 +479,27 @@ export default function ModalContractDetail({
             >
               <div className="flex flex-col items-center py-2 text-center">
                 {data.contractFile ? (
-                  <div className="w-full">
-                    <div className="bg-white p-6 rounded-3xl shadow-md inline-block border border-slate-100 mb-5">
-                      <FilePdfOutlined className="text-6xl text-rose-500!" />
-                    </div>
-                    <div className="flex gap-2 justify-center mb-6">
-                      <Button
-                        href={getContractDisplayUrl(data.contractFile)}
-                        target="_blank"
-                        icon={<EyeOutlined />}
-                      >
-                        XEM HỢP ĐỒNG
-                      </Button>
+                  <div className="flex gap-2 justify-center mb-6">
+                    <Button
+                      size="large"
+                      icon={<EyeOutlined />}
+                      className="rounded-xl font-bold border-slate-200"
+                      href={getContractDisplayUrl(data.contractFile)}
+                      target="_blank" // Mở tab mới để render PDF
+                    >
+                      XEM FILE
+                    </Button>
 
-                      <Button
-                        href={getContractDownloadUrl(data.contractFile)}
-                        icon={<DownloadOutlined />}
-                        type="primary"
-                      >
-                        TẢI BẢN SCAN
-                      </Button>
-                    </div>
+                    <Button
+                      size="large"
+                      type="primary"
+                      icon={<DownloadOutlined />}
+                      className="rounded-xl font-bold bg-indigo-600 border-none shadow-md"
+                      href={getContractDownloadUrl(data.contractFile)}
+                      download={`${data.contractNumber}.pdf`} // Gợi ý tên file khi tải
+                    >
+                      TẢI VỀ
+                    </Button>
                   </div>
                 ) : (
                   <div className="py-6 opacity-40 italic flex flex-col items-center">
