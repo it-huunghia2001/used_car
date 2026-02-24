@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
+  ControlOutlined,
+  CrownOutlined,
   KeyOutlined,
   SafetyCertificateOutlined,
   ShoppingCartOutlined,
@@ -35,6 +37,17 @@ export const getRoleTag = (role: string) => {
       label: "Nhân viên giám định",
       color: "orange",
       icon: <UsergroupAddOutlined />,
+    },
+    // --- THÊM 2 ROLE MỚI ---
+    SALE_MANAGER: {
+      label: "Quản lý bán hàng",
+      color: "geekblue",
+      icon: <CrownOutlined />,
+    },
+    ADMIN_MANAGER: {
+      label: "Quản lý Admin",
+      color: "volcano",
+      icon: <ControlOutlined />,
     },
   };
 

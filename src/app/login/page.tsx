@@ -49,7 +49,8 @@ export default function LoginPage() {
         // Đợi một chút (khoảng 100ms) để chắc chắn Cookie đã được set
         if (
           (res?.data as any)?.role === "REFERRER" ||
-          (res?.data as any)?.role === "APPRAISER"
+          (res?.data as any)?.role === "APPRAISER" ||
+          (res?.data as any)?.role === "SALE_MANAGER"
         ) {
           setTimeout(() => {
             window.location.href = "/dashboard/referrals/new"; // Dùng cái này sẽ ép trình duyệt load lại hoàn toàn, an toàn hơn router.push

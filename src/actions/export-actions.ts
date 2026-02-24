@@ -24,7 +24,9 @@ export async function getExportCustomerData(startDate?: Date, endDate?: Date) {
     where: {
       ...dateFilter, // Áp dụng lọc ngày tiếp nhận
       branchId:
-        user.role !== "ADMIN" && !user.isGlobalManager
+        user.role !== "ADMIN" &&
+        !user.isGlobalManager &&
+        user.role !== "SALE_MANAGER"
           ? user.branchId
           : undefined,
     },

@@ -9,17 +9,17 @@ const APP_NAME = "used-car";
 // 🔐 ĐỊNH NGHĨA QUYỀN TRUY CẬP DỰA TRÊN SIDEBAR
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   // --- NHÂN SỰ & HỆ THỐNG ---
-  "/dashboard/users": ["ADMIN", "MANAGER"],
-  "/dashboard/schedules": ["ADMIN", "MANAGER"],
+  "/dashboard/users": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
+  "/dashboard/schedules": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
   "/dashboard/settings": ["ADMIN"], // isGlobal check thêm ở UI
 
-  // --- QUẢN TRỊ VẬN HÀNH (ADMIN/MANAGER) ---
-  "/dashboard/customers": ["ADMIN", "MANAGER"],
-  "/dashboard/lead": ["ADMIN", "MANAGER"],
-  "/dashboard/late-kpi-report": ["ADMIN", "MANAGER"],
-  "/dashboard/cars": ["ADMIN", "MANAGER"],
-  "/dashboard/admin/approval-customer": ["ADMIN", "MANAGER"],
-  "/dashboard/inventory-report": ["ADMIN", "MANAGER"],
+  // --- QUẢN TRỊ VẬN HÀNH (ADMIN/MANAGER),"ADMIN_MANAGER" ---
+  "/dashboard/customers": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
+  "/dashboard/lead": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
+  "/dashboard/late-kpi-report": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
+  "/dashboard/cars": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
+  "/dashboard/admin/approval-customer": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
+  "/dashboard/inventory-report": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
 
   // --- NGHIỆP VỤ SALE ---
   "/dashboard/sales-inventory": ["ADMIN", "SALES_STAFF"],
@@ -35,34 +35,42 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   "/dashboard/referrals/new": [
     "ADMIN",
     "MANAGER",
+    "ADMIN_MANAGER",
     "SALES_STAFF",
     "PURCHASE_STAFF",
     "APPRAISER",
     "REFERRER",
+    "SALE_MANAGER",
   ],
   "/dashboard/my-referrals": [
     "ADMIN",
     "MANAGER",
+    "ADMIN_MANAGER",
     "SALES_STAFF",
     "PURCHASE_STAFF",
     "APPRAISER",
     "REFERRER",
+    "SALE_MANAGER",
   ],
   "/dashboard/showroom": [
     "ADMIN",
     "MANAGER",
+    "ADMIN_MANAGER",
     "SALES_STAFF",
     "PURCHASE_STAFF",
     "APPRAISER",
     "REFERRER",
+    "SALE_MANAGER",
   ],
   "/dashboard/profile": [
     "ADMIN",
     "MANAGER",
+    "ADMIN_MANAGER",
     "SALES_STAFF",
     "PURCHASE_STAFF",
     "APPRAISER",
     "REFERRER",
+    "SALE_MANAGER",
   ],
 
   // --- TRANG CHỦ & HỢP ĐỒNG DÙNG CHUNG ---
@@ -70,10 +78,10 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   "/": [
     "ADMIN",
     "MANAGER",
+    "ADMIN_MANAGER",
     "SALES_STAFF",
     "PURCHASE_STAFF",
     "APPRAISER",
-    "REFERRER",
   ],
 };
 

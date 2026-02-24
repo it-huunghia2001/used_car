@@ -12,7 +12,9 @@ type Role =
   | "PURCHASE_STAFF"
   | "SALES_STAFF"
   | "REFERRER"
-  | "APPRAISER";
+  | "APPRAISER"
+  | "SALE_MANAGER"
+  | "ADMIN_MANAGER";
 interface AppLayoutProps {
   children: React.ReactNode;
   role: Role;

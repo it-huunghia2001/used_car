@@ -140,6 +140,12 @@ export default function UserFormModal({
                       </Select.Option>
                       <Select.Option value="APPRAISER">Giám định</Select.Option>
                       <Select.Option value="REFERRER">Giới thiệu</Select.Option>
+                      <Select.Option value="SALE_MANAGER">
+                        Quản lý bán hàng
+                      </Select.Option>
+                      <Select.Option value="ADMIN_MANAGER">
+                        Quản lý Admin
+                      </Select.Option>
                     </Select>
                   </Form.Item>
                 </Col>

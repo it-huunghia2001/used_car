@@ -36,7 +36,9 @@ type Role =
   | "PURCHASE_STAFF"
   | "SALES_STAFF"
   | "REFERRER"
-  | "APPRAISER";
+  | "APPRAISER"
+  | "SALE_MANAGER"
+  | "ADMIN_MANAGER";
 
 interface SidebarProps {
   role: Role;
@@ -66,6 +68,8 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
     SALES_STAFF: { label: "NV Bán hàng", color: "#52c41a" },
     REFERRER: { label: "Người giới thiệu", color: "#8c8c8c" },
     APPRAISER: { label: "Định giá viên", color: "#722ed1" },
+    SALE_MANAGER: { label: "Quản lý bán hàng", color: "#13c2c2" },
+    ADMIN_MANAGER: { label: "Quản lý Admin", color: "#eb2f96" },
   };
 
   // Helper check quyền
@@ -84,6 +88,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
       icon: <DashboardOutlined />,
       label: <Link href="/">Bảng hiệu suất</Link>,
     },
+
     {
       key: "/dashboard/showroom",
       icon: <HomeOutlined />,
@@ -293,7 +298,13 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         },
       ].filter(Boolean),
     },
-
+    hasAccess(["SALE_MANAGER"]) && {
+      key: "/sale-manager/customer-list",
+      icon: <DashboardOutlined />,
+      label: (
+        <Link href="/sale-manager/customer-list">Danh sách khách hàng</Link>
+      ),
+    },
     // 5. CÁ NHÂN
     {
       key: "account-group",

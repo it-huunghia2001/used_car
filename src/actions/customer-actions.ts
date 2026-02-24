@@ -901,3 +901,123 @@ export async function freezeOverdueCustomersAction(customerIds: string[]) {
     return { success: false };
   }
 }
+
+export async function getLeadsWithoutSensitiveAction(params: {
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { role, id: userId, branchId, isGlobalManager } = user;
+  const { search, status, page = 1, limit = 10 } = params;
+
+  let whereClause: any = {};
+
+  // --- 1. PHÂN QUYỀN ---
+  if (role === "ADMIN" || role === "SALE_MANAGER" || isGlobalManager) {
+    whereClause = {};
+  } else if (role === "MANAGER") {
+    whereClause = { branchId };
+  } else {
+    whereClause = {
+      OR: [{ assignedToId: userId }, { referrerId: userId }],
+    };
+  }
+
+  // --- 2. LỌC ---
+  if (status && status !== "ALL") {
+    whereClause.status = status;
+  }
+
+  if (search) {
+    whereClause.AND = [
+      {
+        OR: [
+          { fullName: { contains: search } },
+          // ❌ bỏ phone
+          // ❌ bỏ licensePlate
+        ],
+      },
+    ];
+  }
+
+  // --- 3. QUERY ---
+  const [data, total] = await Promise.all([
+    db.customer.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        fullName: true,
+        status: true,
+        createdAt: true,
+        urgencyLevel: true,
+        inspectStatus: true,
+        type: true,
+
+        // ❌ KHÔNG có phone
+        // ❌ KHÔNG có licensePlate
+
+        assignedTo: {
+          select: { fullName: true },
+        },
+        referrer: {
+          select: { fullName: true, role: true },
+        },
+        branch: {
+          select: { name: true },
+        },
+        carModel: {
+          select: { name: true },
+        },
+        leadCar: {
+          select: {
+            id: true,
+            tSurePrice: true,
+            expectedPrice: true,
+            finalPrice: true,
+          },
+        },
+        activities: {
+          orderBy: { createdAt: "desc" },
+          take: 3,
+          select: {
+            id: true,
+            note: true,
+            createdAt: true,
+            user: {
+              select: { fullName: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    db.customer.count({ where: whereClause }),
+  ]);
+
+  // --- 4. FIX DECIMAL ---
+  const serializedData = data.map((customer) => ({
+    ...customer,
+    leadCar: customer.leadCar
+      ? {
+          ...customer.leadCar,
+          tSurePrice: customer.leadCar.tSurePrice
+            ? Number(customer.leadCar.tSurePrice)
+            : null,
+          expectedPrice: customer.leadCar.expectedPrice
+            ? Number(customer.leadCar.expectedPrice)
+            : null,
+          finalPrice: customer.leadCar.finalPrice
+            ? Number(customer.leadCar.finalPrice)
+            : null,
+        }
+      : null,
+  }));
+
+  return { data: serializedData, total };
+}

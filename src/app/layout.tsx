@@ -16,7 +16,15 @@ import "dayjs/locale/vi";
 // Thiết lập locale cho dayjs toàn cục
 dayjs.locale("vi");
 
-type Role = "ADMIN" | "MANAGER" | "PURCHASE_STAFF" | "SALES_STAFF" | "REFERRER";
+type Role =
+  | "ADMIN"
+  | "MANAGER"
+  | "PURCHASE_STAFF"
+  | "SALES_STAFF"
+  | "REFERRER"
+  | "APPRAISER"
+  | "SALE_MANAGER"
+  | "ADMIN_MANAGER";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

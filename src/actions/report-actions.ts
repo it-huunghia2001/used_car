@@ -59,97 +59,94 @@ export async function getAdvancedReportAction(
     }
   }
 
-  // Lọc thời gian năm hiện tại cho ma trận
+  // Lọc thời gian năm hiện tại
+  const yearStart = dayjs().startOf("year").toDate();
+  const yearEnd = dayjs().endOf("year").toDate();
   const yearQuery = {
-    createdAt: {
-      gte: dayjs().startOf("year").toDate(),
-      lte: dayjs().endOf("year").toDate(),
-    },
+    createdAt: { gte: yearStart, lte: yearEnd },
   };
 
   // --- 2. TRUY VẤN SONG SONG TẤT CẢ CÁC BÁO CÁO ---
   const [
-    totalSales,
-    totalPurchased,
-    lateLeads,
-    lateTasks,
+    totalSales, // Tổng xe đã bán (Sales)
+    totalPurchased, // Tổng xe đã mua (Purchase)
+    lateSalesLeads, // Lead mua xe bị trễ
+    latePurchaseLeads, // Lead bán xe bị trễ
     branchesForChart,
-    salesByBranchRaw,
-    purchasesByBranchRaw,
-    staffPerformance,
+    staffSalesPerformance, // Top nhân viên bán hàng
+    staffPurchasePerformance, // Top nhân viên thu mua
     inventoryStatus,
-    myPending,
-    allDepartments,
-    allLeadsForMatrix,
+    allLeadsForMatrix, // Dữ liệu khách hàng để phân loại ma trận
   ] = await Promise.all([
+    // 1. Tổng xe đã bán (Mảng Sales)
     db.car.count({
       where: {
         status: "SOLD",
         soldBy: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       },
     }),
+    // 2. Tổng xe đã mua vào (Mảng Purchase)
     db.car.count({
       where: {
         purchasedAt: { not: null },
         purchaser: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       },
     }),
+    // 3. Lead trễ của mảng Bán hàng (Type BUY)
     db.leadActivity.count({
       where: {
         isLate: true,
+        customer: { type: { in: ["BUY", "SELL_TRADE_USED"] } },
         user: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       },
     }),
-    db.task.count({
+    // 4. Lead trễ của mảng Thu mua (Type SELL)
+    db.leadActivity.count({
       where: {
         isLate: true,
-        assignee: effectiveBranchId ? { branchId: effectiveBranchId } : {},
+        customer: { type: { in: ["SELL", "VALUATION", "SELL_TRADE_NEW"] } },
+        user: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       },
     }),
+    // 5. Danh sách chi nhánh
     db.branch.findMany({ select: { id: true, name: true } }),
-    db.user.groupBy({
-      by: ["branchId"],
-      where: { soldCars: { some: { status: "SOLD" } } },
-      _count: { id: true },
-    }),
-    db.user.groupBy({
-      by: ["branchId"],
-      where: { purchases: { some: { purchasedAt: { not: null } } } },
-      _count: { id: true },
-    }),
+    // 6. Hiệu suất nhân viên Bán hàng (Sắp xếp theo soldCars)
     db.user.findMany({
       where: {
         ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+        role: { in: ["SALES_STAFF", "ADMIN", "MANAGER"] },
         active: true,
       },
       select: {
         id: true,
         fullName: true,
-        role: true,
-        _count: { select: { soldCars: true, purchases: true } },
+        _count: { select: { soldCars: true } },
       },
       orderBy: { soldCars: { _count: "desc" } },
-      take: 10,
+      take: 5,
     }),
+    // 7. Hiệu suất nhân viên Thu mua (Sắp xếp theo purchases)
+    db.user.findMany({
+      where: {
+        ...(effectiveBranchId ? { branchId: effectiveBranchId } : {}),
+        role: { in: ["PURCHASE_STAFF", "APPRAISER"] },
+        active: true,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        _count: { select: { purchases: true } },
+      },
+      orderBy: { purchases: { _count: "desc" } },
+      take: 5,
+    }),
+    // 8. Trạng thái kho xe
     db.car.groupBy({
       by: ["status"],
       where: effectiveBranchId ? { branchId: effectiveBranchId } : {},
       _count: true,
     }),
-    db.task.count({ where: { assigneeId: authId, status: "PENDING" } }),
-    isHighLevel || role === "MANAGER"
-      ? db.department.findMany({
-          select: {
-            name: true,
-            users: {
-              where: effectiveBranchId ? { branchId: effectiveBranchId } : {},
-              select: { _count: { select: { createdReferrals: true } } },
-            },
-          },
-        })
-      : [],
-
-    // TRUY VẤN CHÍNH CHO MA TRẬN 3 TẦNG (Sửa lỗi createdById -> userId)
+    // 9. Dữ liệu thô cho Ma trận (Tách theo Type)
     db.customer.findMany({
       where: {
         ...yearQuery,
@@ -157,6 +154,7 @@ export async function getAdvancedReportAction(
         ...(effectiveUserId ? { userId: effectiveUserId } : {}),
       },
       select: {
+        type: true, // Để phân biệt mua/bán
         status: true,
         inspectStatus: true,
         urgencyLevel: true,
@@ -165,25 +163,21 @@ export async function getAdvancedReportAction(
     }),
   ]);
 
-  // --- 3. XỬ LÝ MA TRẬN DỮ LIỆU ---
+  // --- 3. XỬ LÝ TÁCH BIỆT MA TRẬN DỮ LIỆU ---
   const categories = {
-    SUCCESS: [LeadStatus.DEAL_DONE] as LeadStatus[],
-    LOSE: [
-      LeadStatus.LOSE,
-      LeadStatus.CANCELLED,
-      LeadStatus.REJECTED_APPROVAL,
-    ] as LeadStatus[],
-    FROZEN: [LeadStatus.FROZEN] as LeadStatus[],
+    SUCCESS: [LeadStatus.DEAL_DONE],
+    LOSE: [LeadStatus.LOSE, LeadStatus.CANCELLED, LeadStatus.REJECTED_APPROVAL],
+    FROZEN: [LeadStatus.FROZEN],
   };
 
-  const createEmptyMatrix = (): InspectionMatrix => ({
+  const createEmptyMatrix = () => ({
     INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
     APPOINTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
     NOT_INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
     total: 0,
   });
 
-  const monthlyData: MonthReport[] = Array.from({ length: 12 }, (_, i) => ({
+  const createEmptyMonth = (i: number) => ({
     monthIdx: i,
     monthName: `Tháng ${i + 1}`,
     SUCCESS: createEmptyMatrix(),
@@ -191,24 +185,42 @@ export async function getAdvancedReportAction(
     FROZEN: createEmptyMatrix(),
     REMAINING: createEmptyMatrix(),
     trend: { SUCCESS: 0, LOSE: 0, FROZEN: 0, REMAINING: 0, HOT: 0 },
-  }));
+  });
+
+  // Tách 2 luồng báo cáo
+  const purchaseAnalytics = Array.from({ length: 12 }, (_, i) =>
+    createEmptyMonth(i),
+  );
+  const salesAnalytics = Array.from({ length: 12 }, (_, i) =>
+    createEmptyMonth(i),
+  );
 
   allLeadsForMatrix.forEach((lead) => {
     const mIdx = dayjs(lead.createdAt).month();
-    const mData = monthlyData[mIdx];
+
+    // Phân loại luồng dữ liệu
+    const isPurchaseLead = ["SELL", "VALUATION", "SELL_TRADE_NEW"].includes(
+      lead.type,
+    );
+    const mData = isPurchaseLead
+      ? purchaseAnalytics[mIdx]
+      : salesAnalytics[mIdx];
+
+    // Xác định nhóm trạng thái
     let catKey: "SUCCESS" | "LOSE" | "FROZEN" | "REMAINING" = "REMAINING";
+    if (categories.SUCCESS.includes(lead.status as any)) catKey = "SUCCESS";
+    else if (categories.LOSE.includes(lead.status as any)) catKey = "LOSE";
+    else if (categories.FROZEN.includes(lead.status as any)) catKey = "FROZEN";
 
-    if (categories.SUCCESS.includes(lead.status)) catKey = "SUCCESS";
-    else if (categories.LOSE.includes(lead.status)) catKey = "LOSE";
-    else if (categories.FROZEN.includes(lead.status)) catKey = "FROZEN";
+    const insKey = (lead.inspectStatus as string) || "NOT_INSPECTED";
+    const urgKey = (lead.urgencyLevel as string) || "COOL";
 
-    const insKey =
-      (lead.inspectStatus as keyof InspectionMatrix) || "NOT_INSPECTED";
-    const urgKey = (lead.urgencyLevel as keyof UrgencyMatrix) || "COOL";
-
+    // Cập nhật ma trận
     mData[catKey].total++;
-    (mData[catKey][insKey] as UrgencyMatrix).total++;
-    (mData[catKey][insKey] as any)[urgKey]++;
+    if (mData[catKey][insKey as keyof typeof mData.SUCCESS]) {
+      (mData[catKey][insKey as keyof typeof mData.SUCCESS] as any).total++;
+      (mData[catKey][insKey as keyof typeof mData.SUCCESS] as any)[urgKey]++;
+    }
     mData.trend[catKey]++;
     if (urgKey === "HOT") mData.trend.HOT++;
   });
@@ -216,22 +228,26 @@ export async function getAdvancedReportAction(
   return {
     role,
     isGlobal: isHighLevel,
-    leadAnalytics: monthlyData,
+    purchaseAnalytics, // Ma trận cho luồng Thu Mua
+    salesAnalytics, // Ma trận cho luồng Bán Hàng
     branches: branchesForChart,
     stats: {
-      totalSales,
-      totalPurchased,
-      lateLeads,
-      staffPerformance,
-      inventoryStatus,
-      yearStats: {
-        inspected: totalSales,
-        notInspected: lateLeads,
-        appointed: myPending,
+      sales: {
+        total: totalSales,
+        late: lateSalesLeads,
+        performance: staffSalesPerformance,
       },
-      growthChart: monthlyData.map((m) => ({
+      purchase: {
+        total: totalPurchased,
+        late: latePurchaseLeads,
+        performance: staffPurchasePerformance,
+      },
+      inventoryStatus,
+      // Dữ liệu biểu đồ tăng trưởng chung
+      growthChart: salesAnalytics.map((m, idx) => ({
         name: m.monthName,
-        count: m.trend.SUCCESS + m.trend.REMAINING,
+        sales: m.trend.SUCCESS,
+        purchase: purchaseAnalytics[idx].trend.SUCCESS,
       })),
     },
   };
