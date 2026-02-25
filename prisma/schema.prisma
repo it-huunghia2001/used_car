@@ -22,13 +22,14 @@ model LeadSetting {
 // 2. CƠ CẤU TỔ CHỨC
 // ==========================================
 model Branch {
-  id             String          @id @default(cuid())
-  name           String          @unique
-  address        String
-  cars           Car[]
-  users          User[]
-  salesSchedules SalesSchedule[]
-  customers      Customer[]      @relation("BranchCustomers")
+  id               String            @id @default(cuid())
+  name             String            @unique
+  address          String
+  cars             Car[]
+  users            User[]
+  salesSchedules   SalesSchedule[]
+  customers        Customer[]        @relation("BranchCustomers")
+  dailyCarInbounds DailyCarInbound[]
 }
 
 model Department {
@@ -115,13 +116,14 @@ model User {
   salesSchedules   SalesSchedule[]
   tasks            Task[]          @relation("UserTasks")
 
-  lastAssignedAt DateTime?  @default(now())
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  tokenVersion   Int        @default(0)
-  cars           Car[]
-  customers      Customer[]
-  contracts      Contract[]
+  lastAssignedAt   DateTime?         @default(now())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  tokenVersion     Int               @default(0)
+  cars             Car[]
+  customers        Customer[]
+  contracts        Contract[]
+  dailyCarInbounds DailyCarInbound[] @relation("InboundCreator")
 
   @@index([branchId])
 }
@@ -619,4 +621,33 @@ enum InspectStatus {
   INSPECTED // Đã xem xe
   NOT_INSPECTED // Chưa xem xe
   APPOINTED // Hẹn xem xe
+}
+
+// Nhập xe mới theo ngày (Daily Inbound / Daily Receipt)
+model DailyCarInbound {
+  id       String   @id @default(cuid())
+  date     DateTime // Ngày nhập xe (thường là ngày làm việc)
+  branchId String
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  // Số lượng xe nhập trong ngày đó
+  totalCars Int @default(0)
+
+  // Phân loại theo nguồn (tùy chọn - giúp báo cáo chi tiết hơn)
+
+  // Ghi chú chung cho ngày nhập (ví dụ: lô xe từ đại lý X, từ sự kiện Y...)
+  note String? @db.Text
+
+  // Người nhập / xác nhận
+  createdById String
+  createdBy   User   @relation("InboundCreator", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Để dễ lọc và báo cáo
+  @@unique([date, branchId]) // Mỗi chi nhánh chỉ có 1 bản ghi mỗi ngày
+  @@index([date])
+  @@index([branchId])
+  @@index([createdById])
 }

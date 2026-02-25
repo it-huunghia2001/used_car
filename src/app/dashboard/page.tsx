@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 import { getAdvancedReportAction } from "@/actions/report-actions";
 import ReportingDashboard from "@/components/dashboard/ReportingDashboard";
 import { getCurrentUser } from "@/lib/session-server";
@@ -28,16 +29,15 @@ export default async function DashboardPage(props: PageProps) {
       select: { id: true, fullName: true },
     }),
   ]);
+  console.log(reportData);
 
   return (
     <ReportingDashboard
-      // API mới trả về 2 mảng riêng biệt
-      purchaseAnalytics={reportData.purchaseAnalytics}
-      salesAnalytics={reportData.salesAnalytics}
-      stats={reportData.stats}
+      reportData={reportData} // ← truyền toàn bộ object
       branches={branches}
       users={users}
-      user={user}
+      currentUser={user}
+      selectedBranchId={branchId || null}
     />
   );
 }

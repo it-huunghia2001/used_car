@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 import { getAdvancedReportAction } from "@/actions/report-actions";
 import ReportingDashboard from "@/components/dashboard/ReportingDashboard";
 import { getCurrentUser } from "@/lib/session-server";
@@ -16,7 +17,7 @@ export default async function DashboardPage(props: PageProps) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  // Truy vấn dữ liệu song song
+  // Truy vấn song song
   const [reportData, branches, users] = await Promise.all([
     getAdvancedReportAction(undefined, undefined, branchId, userId),
     db.branch.findMany({ select: { id: true, name: true } }),
@@ -29,15 +30,16 @@ export default async function DashboardPage(props: PageProps) {
     }),
   ]);
 
+  // Debug (xóa sau khi test xong)
+  console.log("Report Data:", JSON.stringify(reportData, null, 2));
+
   return (
     <ReportingDashboard
-      // API mới trả về 2 mảng riêng biệt
-      purchaseAnalytics={reportData.purchaseAnalytics}
-      salesAnalytics={reportData.salesAnalytics}
-      stats={reportData.stats}
+      reportData={reportData}
       branches={branches}
       users={users}
-      user={user}
+      currentUser={user}
+      selectedBranchId={branchId || null}
     />
   );
 }
