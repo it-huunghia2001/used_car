@@ -158,17 +158,14 @@ export default function ReportingDashboard({
       {
         label: "Đã xem xe",
         data: groupData.INSPECTED,
-        icon: <FireOutlined className="text-red-500" />,
       },
       {
         label: "Hẹn xem xe",
         data: groupData.APPOINTED,
-        icon: <CalendarOutlined className="text-blue-500" />,
       },
       {
         label: "Chưa xem xe",
         data: groupData.NOT_INSPECTED,
-        icon: <UserOutlined className="text-gray-400" />,
       },
     ];
 
@@ -180,7 +177,6 @@ export default function ReportingDashboard({
             className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-xl gap-3"
           >
             <Space className="w-full sm:w-auto">
-              {item.icon}
               <Text strong className="text-xs md:text-sm">
                 {item.label}
               </Text>
@@ -281,7 +277,7 @@ export default function ReportingDashboard({
               className={`!rounded-xl flex-1 sm:flex-none sm:px-8 transition-all ${activeTab === tab.key ? "shadow-md" : "text-slate-500"}`}
               size="large"
             >
-              <span className="hidden xs:inline">{tab.label}</span>
+              <span className="hidden sm:block!">{tab.label}</span>
             </Button>
           ))}
         </div>
@@ -612,7 +608,7 @@ export default function ReportingDashboard({
           },
           {
             key: "LOSE",
-            label: "Thất bại",
+            label: "LOST",
             color: THEME.LOSE,
             icon: <Badge status="error" />,
           },
