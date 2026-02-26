@@ -367,7 +367,7 @@ export default function ReportingDashboard({
       </Card>
 
       {/* MAIN ANALYSIS SECTION */}
-      <Row gutter={[20, 20]}>
+      <Row gutter={[20, 20]} className="mt-4!">
         {/* BIG CHART */}
         <Col xs={24} xl={16}>
           <Card
@@ -458,7 +458,7 @@ export default function ReportingDashboard({
                   />
                   <Bar
                     dataKey="LOSE"
-                    name="Rớt"
+                    name="LOST"
                     stackId="stk"
                     fill={THEME.LOSE}
                     radius={[6, 6, 0, 0]}
@@ -468,7 +468,7 @@ export default function ReportingDashboard({
                     <Line
                       type="monotone"
                       dataKey="inboundCount"
-                      name="Xe mới về"
+                      name="IM mới"
                       stroke={THEME.inbound}
                       strokeWidth={3}
                       dot={{
@@ -586,17 +586,11 @@ export default function ReportingDashboard({
       </Row>
 
       {/* DETAILED MATRIX GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-6">
         {[
           {
-            key: "SUCCESS",
-            label: "Chốt đơn",
-            color: THEME.SUCCESS,
-            icon: <Badge status="success" />,
-          },
-          {
             key: "REMAINING",
-            label: "Đang chăm",
+            label: "Đang chăm sóc",
             color: THEME.REMAINING,
             icon: <Badge status="processing" />,
           },

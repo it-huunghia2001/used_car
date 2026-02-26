@@ -2,65 +2,50 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
-  Table,
-  Button,
+  Calendar,
+  Badge,
   Modal,
   Form,
   Input,
   InputNumber,
-  DatePicker,
   message,
-  Popconfirm,
-  Tag,
-  Space,
   Card,
   Typography,
+  Button,
+  Tag,
+  Tooltip,
+  Space,
+  Select,
 } from "antd";
 import {
   PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  EyeOutlined,
+  HistoryOutlined,
   CalendarOutlined,
-  UserOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
 import {
-  deleteDailyInbound,
-  getDailyInboundDetail,
   getDailyInbounds,
   upsertDailyInbound,
 } from "@/actions/daily-carInbound-actions";
 
-const { RangePicker } = DatePicker;
-const { Text } = Typography;
+const { Title, Text } = Typography;
 
-export default function NewCarInboundPage() {
+export default function CalendarInboundPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [isEdit, setIsEdit] = useState(false);
-  const [currentRecord, setCurrentRecord] = useState<any>(null);
   const [form] = Form.useForm();
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(
-    null,
-  );
+  const [selectedDate, setSelectedDate] = useState(dayjs());
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const params: any = {};
-      if (dateRange) {
-        params.startDate = dateRange[0].toISOString();
-        params.endDate = dateRange[1].toISOString();
-      }
-      const res = await getDailyInbounds(params);
+      const res = await getDailyInbounds({});
       if (res.success) {
         setData(res.data || []);
-      } else {
-        message.error(res.message || "Không tải được dữ liệu");
       }
     } catch (err) {
       message.error("Lỗi khi tải dữ liệu");
@@ -71,68 +56,28 @@ export default function NewCarInboundPage() {
 
   useEffect(() => {
     fetchData();
-  }, [dateRange]);
+  }, []);
 
-  const handleAdd = () => {
-    setIsEdit(false);
-    setCurrentRecord(null);
-    form.resetFields();
-    form.setFieldsValue({ date: dayjs() });
-    setModalVisible(true);
-  };
+  const dataMap = useMemo(() => {
+    const map = new Map();
+    data.forEach((item) => {
+      const dateStr = dayjs(item.date).format("YYYY-MM-DD");
+      map.set(dateStr, item);
+    });
+    return map;
+  }, [data]);
 
-  const handleEdit = async (record: any) => {
-    setIsEdit(true);
-    setCurrentRecord(record);
+  const onSelectDate = (date: dayjs.Dayjs) => {
+    const dateStr = date.format("YYYY-MM-DD");
+    const existingData = dataMap.get(dateStr);
+
+    setSelectedDate(date);
     form.setFieldsValue({
-      date: dayjs(record.date),
-      totalCars: record.totalCars,
-      note: record.note,
+      date: date,
+      totalCars: existingData ? existingData.totalCars : 0,
+      note: existingData ? existingData.note : "",
     });
     setModalVisible(true);
-  };
-
-  const handleView = async (record: any) => {
-    const res = await getDailyInboundDetail({ id: record.id });
-    if (res.success && res.data) {
-      Modal.info({
-        title: `Chi tiết ngày ${dayjs(res.data.date).format("DD/MM/YYYY")}`,
-        content: (
-          <div className="space-y-2 pt-4">
-            <p>
-              <strong>Số lượng:</strong>{" "}
-              <Tag color="blue">{res.data.totalCars} xe</Tag>
-            </p>
-            <p>
-              <strong>Ghi chú:</strong> {res.data.note || "Không có"}
-            </p>
-            <p>
-              <strong>Chi nhánh:</strong> {res.data.branch?.name}
-            </p>
-            <p>
-              <strong>Người nhập:</strong> {res.data.createdBy?.fullName}
-            </p>
-            <p>
-              <Text type="secondary" className="text-xs">
-                Cập nhật: {dayjs(res.data.updatedAt).format("DD/MM/YYYY HH:mm")}
-              </Text>
-            </p>
-          </div>
-        ),
-        okText: "Đóng",
-        maskClosable: true,
-      });
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    const res = await deleteDailyInbound(id);
-    if (res.success) {
-      message.success(res.message);
-      fetchData();
-    } else {
-      message.error(res.message);
-    }
   };
 
   const onFinish = async (values: any) => {
@@ -144,7 +89,7 @@ export default function NewCarInboundPage() {
 
     const res = await upsertDailyInbound(payload);
     if (res.success) {
-      message.success(res.message);
+      message.success(`Đã cập nhật ngày ${dayjs(values.date).format("DD/MM")}`);
       setModalVisible(false);
       fetchData();
     } else {
@@ -152,181 +97,130 @@ export default function NewCarInboundPage() {
     }
   };
 
-  const columns = [
-    {
-      title: "Ngày",
-      dataIndex: "date",
-      render: (text: string) => dayjs(text).format("DD/MM/YYYY"),
-      sorter: (a: any, b: any) => dayjs(a.date).unix() - dayjs(b.date).unix(),
-    },
-    {
-      title: "Số lượng",
-      dataIndex: "totalCars",
-      render: (val: number) => (
-        <Tag color="blue" className="font-bold">
-          {val} xe
-        </Tag>
-      ),
-    },
-    {
-      title: "Ghi chú",
-      dataIndex: "note",
-      ellipsis: true,
-    },
-    {
-      title: "Hành động",
-      key: "action",
-      align: "right" as any,
-      render: (_: any, record: any) => (
-        <Space>
-          <Button
-            type="text"
-            icon={<EyeOutlined />}
-            onClick={() => handleView(record)}
-          />
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          />
-          <Popconfirm
-            title="Xác nhận xóa?"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <Button type="text" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const dateCellRender = (value: dayjs.Dayjs) => {
+    const dateStr = value.format("YYYY-MM-DD");
+    const dayData = dataMap.get(dateStr);
+    if (!dayData) return null;
+
+    return (
+      <div className="mt-1">
+        <Tooltip title={dayData.note || "Đã nhập"}>
+          <div className="bg-indigo-50 border border-indigo-100 rounded p-1 flex flex-col items-center">
+            <span className="text-indigo-600 font-black text-sm">
+              {dayData.totalCars}
+            </span>
+            <span className="text-[9px] text-indigo-400 uppercase leading-none">
+              Xe IM
+            </span>
+          </div>
+        </Tooltip>
+      </div>
+    );
+  };
 
   return (
-    <div className="p-3 md:p-6 bg-slate-50 min-h-screen">
-      <div className="max-w-6xl mx-auto">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-          <h1 className="text-xl md:text-2xl font-black text-slate-800 m-0">
-            EM XE MỚI
-          </h1>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            <RangePicker
-              className="w-full sm:w-[250px]"
-              placeholder={["Từ ngày", "Đến"]}
-              onChange={(dates) => setDateRange(dates as any)}
-              allowClear
-            />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAdd}
-              className="h-10 font-bold rounded-lg shadow-md"
-              block
+    <div className="p-4 md:p-8 bg-[#f8fafc] min-h-screen">
+      <div className="max-w-[1200px] mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <Title
+              level={3}
+              className="!m-0 uppercase tracking-tighter font-black"
             >
-              NHẬP HÔM NAY
-            </Button>
+              <CalendarOutlined className="mr-2 text-indigo-600" /> Lịch nhập xe
+              IM
+            </Title>
+            <Text type="secondary">Chọn ngày để cập nhật số lượng xe</Text>
           </div>
+          <Button
+            icon={<HistoryOutlined />}
+            onClick={fetchData}
+            loading={loading}
+            className="rounded-xl font-bold"
+          >
+            LÀM MỚI
+          </Button>
         </div>
 
-        {/* Desktop View */}
-        <div className="hidden md:block">
-          <Card className="shadow-sm rounded-xl overflow-hidden border-none">
-            <Table
-              columns={columns}
-              dataSource={data}
-              rowKey="id"
-              loading={loading}
-              pagination={{ pageSize: 15 }}
-            />
-          </Card>
-        </div>
+        <Card className="shadow-xl rounded-[2rem] border-none overflow-hidden p-2 md:p-4 bg-white">
+          <Calendar
+            headerRender={({ value, onChange }) => {
+              const start = 2020;
+              const end = dayjs().year() + 2;
+              const monthOptions = [];
+              for (let i = 0; i < 12; i++) {
+                monthOptions.push(
+                  <Select.Option key={i} value={i}>
+                    Tháng {i + 1}
+                  </Select.Option>,
+                );
+              }
 
-        {/* Mobile View */}
-        <div className="md:hidden space-y-3">
-          {loading ? (
-            <Card loading className="rounded-xl" />
-          ) : data.length > 0 ? (
-            data.map((record) => (
-              <Card
-                key={record.id}
-                className="rounded-xl shadow-sm border-none"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex flex-col">
-                    <Text className="text-[10px] uppercase font-bold text-slate-400">
-                      Ngày nhập
-                    </Text>
-                    <Text strong className="text-lg">
-                      <CalendarOutlined className="mr-2 text-indigo-500" />
-                      {dayjs(record.date).format("DD/MM/YYYY")}
-                    </Text>
-                  </div>
+              const yearOptions = [];
+              for (let i = start; i < end; i++) {
+                yearOptions.push(
+                  <Select.Option key={i} value={i}>
+                    {i}
+                  </Select.Option>,
+                );
+              }
+
+              return (
+                <div className="flex flex-wrap justify-between p-4 items-center gap-4">
+                  <Space size="middle">
+                    <Select
+                      size="large"
+                      className="w-32 font-bold"
+                      value={value.month()}
+                      onChange={(newMonth) => onChange(value.month(newMonth))}
+                    >
+                      {monthOptions}
+                    </Select>
+                    <Select
+                      size="large"
+                      className="w-28 font-bold"
+                      value={value.year()}
+                      onChange={(newYear) => onChange(value.year(newYear))}
+                    >
+                      {yearOptions}
+                    </Select>
+                  </Space>
+
                   <Tag
-                    color="blue"
-                    className="m-0 px-3 py-1 rounded-lg font-black text-sm"
+                    color="indigo"
+                    className="m-0 rounded-full px-4 py-1 font-black text-base shadow-sm"
                   >
-                    {record.totalCars} XE
+                    TỔNG THÁNG:{" "}
+                    {Array.from(dataMap.values())
+                      .filter((item) => dayjs(item.date).isSame(value, "month"))
+                      .reduce((a, b) => a + b.totalCars, 0)}{" "}
+                    XE
                   </Tag>
                 </div>
+              );
+            }}
+            onSelect={onSelectDate}
+            cellRender={dateCellRender}
+          />
+        </Card>
 
-                <div className="bg-slate-50 p-3 rounded-lg mb-4">
-                  <Text type="secondary" className="text-xs block mb-1">
-                    Ghi chú:
-                  </Text>
-                  <Text className="italic">
-                    {record.note || "Không có ghi chú"}
-                  </Text>
-                </div>
-
-                <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                  <Space>
-                    <UserOutlined className="text-slate-300" />
-                    <Text className="text-xs text-slate-500">
-                      {record.createdBy?.fullName}
-                    </Text>
-                  </Space>
-                  <Space>
-                    <Button
-                      size="small"
-                      icon={<EyeOutlined />}
-                      onClick={() => handleView(record)}
-                      className="rounded-md"
-                    />
-                    <Button
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => handleEdit(record)}
-                      className="rounded-md"
-                    />
-                    <Popconfirm
-                      title="Xóa bản ghi này?"
-                      onConfirm={() => handleDelete(record.id)}
-                    >
-                      <Button
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
-                        className="rounded-md"
-                      />
-                    </Popconfirm>
-                  </Space>
-                </div>
-              </Card>
-            ))
-          ) : (
-            <Card className="text-center p-10 rounded-xl">
-              <Text type="secondary">Không có dữ liệu</Text>
-            </Card>
-          )}
+        <div className="mt-4 flex gap-4 justify-center">
+          <Space>
+            <Badge status="success" /> <Text className="text-xs">Đã nhập</Text>
+          </Space>
+          <Space>
+            <Badge status="default" />{" "}
+            <Text className="text-xs">Chưa nhập</Text>
+          </Space>
         </div>
       </div>
 
-      {/* Modal - Tối ưu Responsive Form */}
       <Modal
         title={
-          <span className="font-bold">
-            {isEdit ? "CHỈNH SỬA" : "NHẬP DỮ LIỆU MỚI"}
-          </span>
+          <div className="flex items-center gap-2">
+            <PlusOutlined className="text-indigo-600" />
+            <span>CẬP NHẬT NGÀY {selectedDate.format("DD/MM/YYYY")}</span>
+          </div>
         }
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
@@ -340,61 +234,69 @@ export default function NewCarInboundPage() {
           layout="vertical"
           onFinish={onFinish}
           className="pt-4"
+          initialValues={{ totalCars: 0 }}
         >
-          <Form.Item
-            name="date"
-            label="Ngày"
-            rules={[{ required: true, message: "Vui lòng chọn ngày" }]}
-          >
-            <DatePicker
-              format="DD/MM/YYYY"
-              style={{ width: "100%" }}
-              className="h-10"
-              disabledDate={(d) => d > dayjs().endOf("day")}
-            />
+          <Form.Item name="date" hidden>
+            <Input />
           </Form.Item>
-
+          <div className="bg-blue-50 p-4 rounded-2xl mb-6 flex items-start gap-3">
+            <InfoCircleOutlined className="mt-1 text-blue-500" />
+            <Text className="text-blue-800 text-sm italic">
+              Hệ thống sẽ cộng dồn hoặc ghi đè nếu ngày này đã tồn tại dữ liệu.
+            </Text>
+          </div>
           <Form.Item
             name="totalCars"
-            label="Số lượng xe mới bán ra"
-            rules={[
-              { required: true, message: "Vui lòng nhập số lượng" },
-              { type: "number", min: 0, message: "Số lượng không được âm" },
-            ]}
+            label={<Text strong>Số lượng xe</Text>}
+            rules={[{ required: true, message: "Vui lòng nhập số" }]}
           >
             <InputNumber
               min={0}
+              autoFocus
               style={{ width: "100%" }}
-              className="h-10 flex items-center"
-              placeholder="Nhập số lượng (Ví dụ: 10)"
+              className="h-14 flex items-center text-2xl font-black rounded-xl"
+              placeholder="0"
             />
           </Form.Item>
-
-          <Form.Item name="note" label="Ghi chú">
+          <Form.Item name="note" label={<Text strong>Ghi chú</Text>}>
             <Input.TextArea
               rows={3}
-              placeholder="Nhập thông tin bổ sung nếu có..."
-              className="rounded-lg"
+              placeholder="Ghi chú nhanh..."
+              className="rounded-xl p-3"
             />
           </Form.Item>
-
-          <div className="flex gap-2 mt-6">
+          <div className="flex gap-3 mt-8">
             <Button
               onClick={() => setModalVisible(false)}
-              className="flex-1 h-10 rounded-lg"
+              className="flex-1 h-12 rounded-xl font-bold"
             >
               HỦY
             </Button>
             <Button
               type="primary"
               htmlType="submit"
-              className="flex-1 h-10 rounded-lg font-bold"
+              className="flex-1 h-12 rounded-xl font-bold bg-indigo-600"
             >
-              {isEdit ? "CẬP NHẬT" : "LƯU DỮ LIỆU"}
+              LƯU
             </Button>
           </div>
         </Form>
       </Modal>
+
+      <style jsx global>{`
+        .ant-picker-calendar-full .ant-picker-cell-inner {
+          height: 100px !important;
+        }
+        @media (max-width: 768px) {
+          .ant-picker-calendar-full .ant-picker-cell-inner {
+            height: 60px !important;
+          }
+        }
+        .ant-picker-calendar-date-today {
+          border-top: 2px solid #4f46e5 !important;
+          background: #f5f3ff !important;
+        }
+      `}</style>
     </div>
   );
 }
