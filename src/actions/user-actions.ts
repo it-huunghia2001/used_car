@@ -58,9 +58,9 @@ export async function getUsersAction(params: {
     // 2. CÁC ĐIỀU KIỆN LỌC KHÁC
     if (search) {
       where.OR = [
-        { username: { contains: search, mode: "insensitive" } },
-        { fullName: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
+        { username: { contains: search } },
+        { fullName: { contains: search } },
+        { email: { contains: search } },
       ];
     }
 

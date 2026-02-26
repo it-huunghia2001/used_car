@@ -41,7 +41,9 @@ const { Title, Text } = Typography;
 export default function UserManagementPage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
-
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10; // Hoặc limit bạn muốn
   // State quản lý danh sách
   const [users, setUsers] = useState<any[]>([]);
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
@@ -65,12 +67,18 @@ export default function UserManagementPage() {
     setLoading(true);
     try {
       const [resAppr, resPend, resRej] = await Promise.all([
-        getUsersAction({ status: "APPROVED", search: searchText }),
+        getUsersAction({
+          status: "APPROVED",
+          search: searchText,
+          page: currentPage, // Truyền page hiện tại
+          limit: pageSize, // Truyền limit
+        }),
         getUsersAction({ status: "PENDING" }),
         getUsersAction({ status: "REJECTED" }),
       ]);
 
       setUsers(resAppr.data || []);
+      setTotal(resAppr.total || 0); // Lưu tổng số để AntD hiển thị phân trang
       setPendingUsers(resPend.data || []);
       setRejectedUsers(resRej.data || []);
     } catch (err) {
@@ -78,7 +86,7 @@ export default function UserManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchText]); // Chỉ re-create hàm khi searchText đổi
+  }, [searchText, currentPage]); // Thêm currentPage vào dependency
 
   // ✅ 2. Tách useEffect khởi tạo (Chỉ chạy 1 lần)
   useEffect(() => {
@@ -244,6 +252,11 @@ export default function UserManagementPage() {
                 activeTab === "ACTIVE" ? u.active : !u.active,
               )}
               loading={loading}
+              // Bổ sung các props sau:
+              total={total}
+              current={currentPage}
+              pageSize={pageSize}
+              onChangePage={(page: number) => setCurrentPage(page)}
               onEdit={handleEdit}
               onDelete={(id: string) =>
                 deleteUserAction(id).then(() => {

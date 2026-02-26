@@ -20,10 +20,19 @@ import { getRoleTag } from "@/components/role";
 
 const { Text } = Typography;
 
-// Hàm hỗ trợ dịch và hiển thị Tag vai trò
-
-export default function UserTable({ users, loading, onEdit, onDelete }: any) {
+// ✅ THÊM CÁC PROPS PHÂN TRANG VÀO ĐÂY
+export default function UserTable({
+  users,
+  loading,
+  onEdit,
+  onDelete,
+  total, // Tổng số nhân viên từ DB
+  current, // Trang hiện tại
+  pageSize, // Số lượng mỗi trang
+  onChangePage, // Hàm xử lý khi bấm chuyển trang
+}: any) {
   const columns = [
+    // ... (Giữ nguyên các columns của bạn)
     {
       title: "NHÂN VIÊN",
       render: (record: any) => (
@@ -92,12 +101,22 @@ export default function UserTable({ users, loading, onEdit, onDelete }: any) {
 
   return (
     <Table
-      columns={columns}
       dataSource={users}
-      rowKey="id"
       loading={loading}
-      pagination={{ pageSize: 10, className: "p-6" }}
+      columns={columns}
+      rowKey="id"
       scroll={{ x: 800 }}
+      // ✅ CẤU HÌNH PHÂN TRANG
+      pagination={{
+        current: current,
+        pageSize: pageSize,
+        total: total,
+        onChange: (page) => onChangePage(page),
+        showSizeChanger: false,
+        position: ["bottomCenter"],
+        // Hiển thị text cho người dùng biết đang ở đâu
+        showTotal: (total) => `Tổng số ${total} nhân sự`,
+      }}
     />
   );
 }
