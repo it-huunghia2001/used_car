@@ -730,7 +730,7 @@ export const loseResultEmailTemplate = (data: {
       </div>
       `
           : `
-      <p style="text-align: center; color: #64748b; font-size: 14px;">Hồ sơ đã được lưu trữ vào danh sách khách hàng ${data.targetStatus === "FROZEN" ? "tạm đóng" : "thất bại"}.</p>
+      <p style="text-align: center; color: #64748b; font-size: 14px;">Hồ sơ đã được lưu trữ vào danh sách khách hàng ${data.targetStatus === "FROZEN" ? "tạm đóng" : "LOST"}.</p>
       `
       }
 

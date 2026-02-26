@@ -142,7 +142,7 @@ export default function AdminReasonsPage() {
         > = {
           LOSE: {
             color: "error",
-            text: "Thất bại (Lose)",
+            text: "LOST",
             icon: <StopOutlined />,
           },
           FROZEN: {
@@ -319,8 +319,8 @@ export default function AdminReasonsPage() {
                 onChange={setFilterType}
                 options={[
                   { label: "Tất cả trạng thái", value: "ALL" },
-                  { label: "Thất bại (Lose)", value: "LOSE" },
-                  { label: "Tạm dừng (Frozen)", value: "FROZEN" },
+                  { label: "LOST", value: "LOSE" },
+                  { label: "Đóng băng (Frozen)", value: "FROZEN" },
                   { label: "Chờ xem xe (Pending)", value: "PENDING_VIEW" },
                 ]}
               />

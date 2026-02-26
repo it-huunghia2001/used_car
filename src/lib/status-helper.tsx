@@ -58,7 +58,7 @@ export const getLeadStatusHelper = (status: string) => {
       };
     case "LOSE":
       return {
-        label: "Thất bại (Lose)",
+        label: "LOST",
         color: "error",
         icon: <StopOutlined />,
       };

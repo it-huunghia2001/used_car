@@ -11,7 +11,11 @@ export async function getBranchesAction() {
     if (!auth) throw new Error("Chưa đăng nhập");
 
     // Nếu là Admin hoặc Quản lý toàn cầu -> Lấy tất cả
-    if (auth.role === "ADMIN" || auth.isGlobalManager) {
+    if (
+      auth.role === "ADMIN" ||
+      auth.isGlobalManager ||
+      auth.role === "SALE_MANAGER"
+    ) {
       return await db.branch.findMany({
         select: {
           id: true,

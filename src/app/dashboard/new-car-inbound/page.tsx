@@ -16,12 +16,15 @@ import {
   Tag,
   Space,
   Card,
+  Typography,
 } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
+  CalendarOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
 import {
@@ -32,6 +35,7 @@ import {
 } from "@/actions/daily-carInbound-actions";
 
 const { RangePicker } = DatePicker;
+const { Text } = Typography;
 
 export default function NewCarInboundPage() {
   const [data, setData] = useState<any[]>([]);
@@ -94,9 +98,10 @@ export default function NewCarInboundPage() {
       Modal.info({
         title: `Chi tiết ngày ${dayjs(res.data.date).format("DD/MM/YYYY")}`,
         content: (
-          <div>
+          <div className="space-y-2 pt-4">
             <p>
-              <strong>Số lượng xe mới bán ra:</strong> {res.data.totalCars}
+              <strong>Số lượng:</strong>{" "}
+              <Tag color="blue">{res.data.totalCars} xe</Tag>
             </p>
             <p>
               <strong>Ghi chú:</strong> {res.data.note || "Không có"}
@@ -108,15 +113,15 @@ export default function NewCarInboundPage() {
               <strong>Người nhập:</strong> {res.data.createdBy?.fullName}
             </p>
             <p>
-              <strong>Cập nhật lúc:</strong>{" "}
-              {dayjs(res.data.updatedAt).format("DD/MM/YYYY HH:mm")}
+              <Text type="secondary" className="text-xs">
+                Cập nhật: {dayjs(res.data.updatedAt).format("DD/MM/YYYY HH:mm")}
+              </Text>
             </p>
           </div>
         ),
         okText: "Đóng",
+        maskClosable: true,
       });
-    } else {
-      message.error(res.message);
     }
   };
 
@@ -151,32 +156,29 @@ export default function NewCarInboundPage() {
     {
       title: "Ngày",
       dataIndex: "date",
-      key: "date",
       render: (text: string) => dayjs(text).format("DD/MM/YYYY"),
       sorter: (a: any, b: any) => dayjs(a.date).unix() - dayjs(b.date).unix(),
     },
     {
-      title: "Số lượng xe mới bán ra",
+      title: "Số lượng",
       dataIndex: "totalCars",
-      key: "totalCars",
-      render: (val: number) => <Tag color="blue">{val} xe</Tag>,
+      render: (val: number) => (
+        <Tag color="blue" className="font-bold">
+          {val} xe
+        </Tag>
+      ),
     },
     {
       title: "Ghi chú",
       dataIndex: "note",
-      key: "note",
       ellipsis: true,
-    },
-    {
-      title: "Người nhập",
-      key: "createdBy",
-      render: (_: any, record: any) => record.createdBy?.fullName || "N/A",
     },
     {
       title: "Hành động",
       key: "action",
+      align: "right" as any,
       render: (_: any, record: any) => (
-        <Space size="middle">
+        <Space>
           <Button
             type="text"
             icon={<EyeOutlined />}
@@ -190,8 +192,6 @@ export default function NewCarInboundPage() {
           <Popconfirm
             title="Xác nhận xóa?"
             onConfirm={() => handleDelete(record.id)}
-            okText="Xóa"
-            cancelText="Hủy"
           >
             <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -201,44 +201,146 @@ export default function NewCarInboundPage() {
   ];
 
   return (
-    <div className="p-6">
-      <Card>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">
-            Nhập số lượng xe mới bán ra hàng ngày
+    <div className="p-3 md:p-6 bg-slate-50 min-h-screen">
+      <div className="max-w-6xl mx-auto">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+          <h1 className="text-xl md:text-2xl font-black text-slate-800 m-0">
+            EM XE MỚI
           </h1>
-          <Space>
+
+          <div className="flex flex-col sm:flex-row gap-2">
             <RangePicker
-              placeholder={["Từ ngày", "Đến ngày"]}
+              className="w-full sm:w-[250px]"
+              placeholder={["Từ ngày", "Đến"]}
               onChange={(dates) => setDateRange(dates as any)}
               allowClear
-              style={{ width: 300 }}
             />
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-              Nhập hôm nay
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAdd}
+              className="h-10 font-bold rounded-lg shadow-md"
+              block
+            >
+              NHẬP HÔM NAY
             </Button>
-          </Space>
+          </div>
         </div>
 
-        <Table
-          columns={columns}
-          dataSource={data}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 20 }}
-          scroll={{ x: "max-content" }}
-        />
-      </Card>
+        {/* Desktop View */}
+        <div className="hidden md:block">
+          <Card className="shadow-sm rounded-xl overflow-hidden border-none">
+            <Table
+              columns={columns}
+              dataSource={data}
+              rowKey="id"
+              loading={loading}
+              pagination={{ pageSize: 15 }}
+            />
+          </Card>
+        </div>
 
-      {/* Modal Form */}
+        {/* Mobile View */}
+        <div className="md:hidden space-y-3">
+          {loading ? (
+            <Card loading className="rounded-xl" />
+          ) : data.length > 0 ? (
+            data.map((record) => (
+              <Card
+                key={record.id}
+                className="rounded-xl shadow-sm border-none"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex flex-col">
+                    <Text className="text-[10px] uppercase font-bold text-slate-400">
+                      Ngày nhập
+                    </Text>
+                    <Text strong className="text-lg">
+                      <CalendarOutlined className="mr-2 text-indigo-500" />
+                      {dayjs(record.date).format("DD/MM/YYYY")}
+                    </Text>
+                  </div>
+                  <Tag
+                    color="blue"
+                    className="m-0 px-3 py-1 rounded-lg font-black text-sm"
+                  >
+                    {record.totalCars} XE
+                  </Tag>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-lg mb-4">
+                  <Text type="secondary" className="text-xs block mb-1">
+                    Ghi chú:
+                  </Text>
+                  <Text className="italic">
+                    {record.note || "Không có ghi chú"}
+                  </Text>
+                </div>
+
+                <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                  <Space>
+                    <UserOutlined className="text-slate-300" />
+                    <Text className="text-xs text-slate-500">
+                      {record.createdBy?.fullName}
+                    </Text>
+                  </Space>
+                  <Space>
+                    <Button
+                      size="small"
+                      icon={<EyeOutlined />}
+                      onClick={() => handleView(record)}
+                      className="rounded-md"
+                    />
+                    <Button
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => handleEdit(record)}
+                      className="rounded-md"
+                    />
+                    <Popconfirm
+                      title="Xóa bản ghi này?"
+                      onConfirm={() => handleDelete(record.id)}
+                    >
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        className="rounded-md"
+                      />
+                    </Popconfirm>
+                  </Space>
+                </div>
+              </Card>
+            ))
+          ) : (
+            <Card className="text-center p-10 rounded-xl">
+              <Text type="secondary">Không có dữ liệu</Text>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Modal - Tối ưu Responsive Form */}
       <Modal
-        title={isEdit ? "Sửa số lượng xe mới" : "Nhập số lượng xe mới bán ra"}
+        title={
+          <span className="font-bold">
+            {isEdit ? "CHỈNH SỬA" : "NHẬP DỮ LIỆU MỚI"}
+          </span>
+        }
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         footer={null}
+        centered
+        width={400}
         destroyOnClose
       >
-        <Form form={form} layout="vertical" onFinish={onFinish}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          className="pt-4"
+        >
           <Form.Item
             name="date"
             label="Ngày"
@@ -247,6 +349,7 @@ export default function NewCarInboundPage() {
             <DatePicker
               format="DD/MM/YYYY"
               style={{ width: "100%" }}
+              className="h-10"
               disabledDate={(d) => d > dayjs().endOf("day")}
             />
           </Form.Item>
@@ -262,25 +365,34 @@ export default function NewCarInboundPage() {
             <InputNumber
               min={0}
               style={{ width: "100%" }}
-              placeholder="Ví dụ: 15"
+              className="h-10 flex items-center"
+              placeholder="Nhập số lượng (Ví dụ: 10)"
             />
           </Form.Item>
 
           <Form.Item name="note" label="Ghi chú">
             <Input.TextArea
               rows={3}
-              placeholder="Ví dụ: Xe từ đại lý A, chương trình khuyến mãi..."
+              placeholder="Nhập thông tin bổ sung nếu có..."
+              className="rounded-lg"
             />
           </Form.Item>
 
-          <Form.Item className="text-right">
-            <Button onClick={() => setModalVisible(false)} className="mr-2">
-              Hủy
+          <div className="flex gap-2 mt-6">
+            <Button
+              onClick={() => setModalVisible(false)}
+              className="flex-1 h-10 rounded-lg"
+            >
+              HỦY
             </Button>
-            <Button type="primary" htmlType="submit">
-              {isEdit ? "Cập nhật" : "Lưu"}
+            <Button
+              type="primary"
+              htmlType="submit"
+              className="flex-1 h-10 rounded-lg font-bold"
+            >
+              {isEdit ? "CẬP NHẬT" : "LƯU DỮ LIỆU"}
             </Button>
-          </Form.Item>
+          </div>
         </Form>
       </Modal>
     </div>

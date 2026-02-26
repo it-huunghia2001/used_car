@@ -56,7 +56,7 @@ export default function StaffHistoryTimeline() {
         return {
           color: "red",
           icon: <CloseCircleOutlined />,
-          label: "Thất bại/Hủy",
+          label: "LOST/Hủy",
         };
       case "PENDING_VIEW":
         return {

@@ -81,7 +81,7 @@ export default function LeadStatusReasonsTab() {
         const configs: any = {
           LOSE: {
             color: "red",
-            text: "Thất bại (Lose)",
+            text: "LOST",
             icon: <StopOutlined />,
           },
           FROZEN: {

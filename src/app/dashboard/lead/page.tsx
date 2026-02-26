@@ -18,7 +18,6 @@ import {
   Input,
   Select,
   Button,
-  Empty,
   Modal,
   Tabs,
   Timeline,
@@ -35,16 +34,13 @@ import {
   SearchOutlined,
   ReloadOutlined,
   SolutionOutlined,
-  UserSwitchOutlined,
   PhoneOutlined,
-  FileSearchOutlined,
-  SwapOutlined,
   AlertOutlined,
   MailOutlined,
   ManOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
   FileExcelOutlined,
+  EnvironmentOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import {
   getLeadsAction,
@@ -65,11 +61,9 @@ export default function LeadsPage() {
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
 
-  // States cho Modal Chi tiết
+  // States
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // States cho Quản lý Quá hạn
   const [overdueData, setOverdueData] = useState<any[]>([]);
   const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
   const [overdueLoading, setOverdueLoading] = useState(false);
@@ -77,23 +71,29 @@ export default function LeadsPage() {
     [],
   );
   const [exportLoading, setExportLoading] = useState(false);
-  const [dateRange, setDateRange] = useState<any>(null); // State cho RangePicker
+  const [dateRange, setDateRange] = useState<any>(null);
 
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
     search: "",
     status: "ALL",
+    branch: "ALL", // Thêm lọc chi nhánh
   });
+
+  // Giả lập danh sách chi nhánh (Bạn có thể fetch từ API)
+  const branches = [
+    { id: "ALL", name: "Tất cả chi nhánh" },
+    { id: "MienNam", name: "Chi nhánh Miền Nam" },
+    { id: "MienBac", name: "Chi nhánh Miền Bắc" },
+    { id: "MienTrung", name: "Chi nhánh Miền Trung" },
+  ];
 
   const onExportExcel = async () => {
     setExportLoading(true);
     try {
-      // Lấy ngày từ state dateRange
       const startDate = dateRange ? dateRange[0].toDate() : undefined;
       const endDate = dateRange ? dateRange[1].toDate() : undefined;
-
-      // Truyền tham số ngày vào action
       const exportData = await getExportCustomerData(startDate, endDate);
 
       if (exportData.length === 0) {
@@ -109,7 +109,6 @@ export default function LeadsPage() {
     }
   };
 
-  // --- TẢI DỮ LIỆU CHÍNH ---
   const loadData = async () => {
     setLoading(true);
     try {
@@ -117,7 +116,6 @@ export default function LeadsPage() {
       setData(res.data);
       setTotal(res.total);
 
-      // Tải kèm danh sách quá hạn để hiện Badge thông báo
       const overdueRes = await getOverdueCustomersAction();
       setOverdueData(overdueRes);
     } catch (error) {
@@ -131,7 +129,6 @@ export default function LeadsPage() {
     loadData();
   }, [filters]);
 
-  // --- XỬ LÝ GỬI MAIL & ĐÓNG BĂNG ---
   const handleSendMail = async (ids: string[]) => {
     setOverdueLoading(true);
     const res = await sendReminderEmailAction(ids);
@@ -149,7 +146,7 @@ export default function LeadsPage() {
     Modal.confirm({
       title: "Xác nhận đóng băng hàng loạt?",
       icon: <ManOutlined className="text-blue-500" />,
-      content: `Hệ thống sẽ chuyển ${ids.length} hồ sơ sang trạng thái ĐÓNG BĂNG và ghi lại lịch sử lý do: "Quá hạn 60 ngày".`,
+      content: `Hệ thống sẽ chuyển ${ids.length} hồ sơ sang trạng thái ĐÓNG BĂNG.`,
       okText: "Đồng ý Đóng băng",
       okButtonProps: { danger: true },
       onOk: async () => {
@@ -158,7 +155,7 @@ export default function LeadsPage() {
         if (res.success) {
           message.success("Đã xử lý đóng băng thành công");
           setSelectedOverdueKeys([]);
-          loadData(); // Tải lại cả trang chính
+          loadData();
           setIsOverdueModalOpen(false);
         }
         setOverdueLoading(false);
@@ -176,147 +173,94 @@ export default function LeadsPage() {
     };
     const item = config[type] || { color: "default", label: type };
     return (
-      <Tag
-        color={item.color}
-        className="rounded-md font-extrabold text-[10px] m-0"
-      >
+      <Tag color={item.color} className="rounded-md font-bold text-[10px] m-0">
         {item.label}
       </Tag>
     );
   };
 
-  // --- CẤU HÌNH CỘT BẢNG QUÁ HẠN ---
-  const overdueColumns = [
-    {
-      title: "Khách hàng",
-      render: (r: any) => (
-        <div className="flex flex-col">
-          <Text strong>{r.fullName}</Text>
-          <Text type="secondary" className="text-[11px]">
-            {r.phone}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: "Thời gian tồn",
-      render: (r: any) => {
-        const days = dayjs().diff(dayjs(r.createdAt), "day");
-        return (
-          <Tag color="error" className="font-bold border-none">
-            {days} ngày
-          </Tag>
-        );
-      },
-    },
-    {
-      title: "Nhân viên xử lý",
-      render: (r: any) =>
-        r.assignedTo?.fullName || (
-          <Text italic type="secondary">
-            Chưa giao
-          </Text>
-        ),
-    },
-    {
-      title: "Thao tác",
-      align: "right" as any,
-      render: (r: any) => (
-        <Space>
-          <Tooltip title="Gửi mail nhắc nhở">
-            <Button
-              size="small"
-              icon={<MailOutlined />}
-              onClick={() => handleSendMail([r.id])}
-            />
-          </Tooltip>
-          <Tooltip title="Đóng băng ngay">
-            <Button
-              size="small"
-              danger
-              icon={<ManOutlined />}
-              onClick={() => handleBulkFreeze([r.id])}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ];
-
-  // --- CẤU HÌNH CỘT BẢNG CHÍNH ---
+  // --- CỘT BẢNG CHÍNH (HIỂN THỊ ĐẦY ĐỦ THÔNG TIN) ---
   const columns = [
     {
-      title: "KHÁCH HÀNG",
-      width: 280,
+      title: "KHÁCH HÀNG & LIÊN HỆ",
+      width: 250,
       fixed: "left" as any,
       render: (r: any) => (
         <Space size={12}>
           <Avatar
-            size={44}
+            size={40}
             className="bg-indigo-600 shadow-sm"
             icon={<UserOutlined />}
           />
           <div className="flex flex-col">
-            <Text strong className="text-slate-800 text-[14px]">
+            <Text strong className="text-slate-800 text-[14px] leading-tight">
               {r.fullName}
             </Text>
-            <Text type="secondary" className="text-[12px] font-mono">
-              <PhoneOutlined className="mr-1" />
-              {r.phone}
+            <Text className="text-[13px] text-blue-600 font-bold font-mono">
+              <PhoneOutlined className="mr-1" /> {r.phone}
             </Text>
           </div>
         </Space>
       ),
     },
     {
-      title: "NHU CẦU",
-      width: 140,
-      render: (r: any) => getReferralTypeTag(r.type),
-    },
-    {
-      title: "MODEL XE",
-      width: 180,
+      title: "MODEL & BIỂN SỐ",
+      width: 200,
       render: (r: any) => (
         <div className="flex flex-col">
-          <Text className="text-[13px] font-bold text-slate-700 truncate max-w-[150px]">
+          <Text className="text-[13px] font-bold text-slate-700">
             <CarOutlined className="mr-1 text-slate-400" />{" "}
-            {r.carModel?.name || "Chưa chọn"}
+            {r.carModel?.name || "N/A"}
           </Text>
-          {r.licensePlate && (
-            <Tag className="w-fit text-[10px] bg-slate-100 font-mono mt-1 uppercase">
+          {r.licensePlate ? (
+            <Tag
+              color="blue"
+              className="w-fit text-[11px] font-mono mt-1 font-bold uppercase border-blue-200"
+            >
               {r.licensePlate}
             </Tag>
+          ) : (
+            <Text type="secondary" className="text-[11px] italic">
+              Chưa cập nhật BS
+            </Text>
           )}
         </div>
       ),
     },
     {
-      title: "NGUỒN / NGƯỜI GT",
-      width: 180,
+      title: "CHI NHÁNH",
+      width: 150,
       render: (r: any) => (
-        <div className="flex flex-col">
-          <Text className="text-[12px] font-bold text-indigo-600 truncate">
-            {r.referrer?.fullName}
+        <Space className="text-slate-600">
+          <EnvironmentOutlined className="text-red-400" />
+          <Text className="text-[12px] font-medium">
+            {r.branchName || "Hệ thống"}
           </Text>
-          <Text className="text-[9px] text-slate-400 uppercase font-black">
-            {r.referrer?.role}
-          </Text>
-        </div>
+        </Space>
       ),
     },
     {
-      title: "XỬ LÝ BỞI",
+      title: "NHU CẦU",
+      width: 120,
+      render: (r: any) => getReferralTypeTag(r.type),
+    },
+    {
+      title: "NGƯỜI XỬ LÝ",
       width: 180,
       render: (r: any) =>
         r.assignedTo ? (
-          <Tag
-            color="processing"
-            className="border-none bg-blue-50 text-blue-700 px-3 rounded-full"
-          >
-            {r.assignedTo.fullName}
-          </Tag>
+          <div className="flex items-center gap-2">
+            <Avatar
+              size={24}
+              icon={<UserOutlined />}
+              src={r.assignedTo.avatar}
+            />
+            <Text className="text-[12px]">{r.assignedTo.fullName}</Text>
+          </div>
         ) : (
-          <Tag className="border-dashed text-slate-400">Đang chờ...</Tag>
+          <Text italic type="secondary" className="text-[12px]">
+            Đang chờ...
+          </Text>
         ),
     },
     {
@@ -329,7 +273,7 @@ export default function LeadsPage() {
           <Tag
             icon={icon}
             color={color}
-            className="font-black uppercase text-[9px] px-3 rounded-full border-none shadow-sm"
+            className="font-bold uppercase text-[10px] px-3 rounded-full border-none"
           >
             {label}
           </Tag>
@@ -339,10 +283,10 @@ export default function LeadsPage() {
     {
       title: "NGÀY TẠO",
       dataIndex: "createdAt",
-      width: 120,
+      width: 110,
       align: "right" as any,
       render: (date: any) => (
-        <Text className="text-[11px] text-slate-400 font-mono">
+        <Text className="text-[12px] text-slate-500 font-mono">
           {dayjs(date).format("DD/MM/YYYY")}
         </Text>
       ),
@@ -350,105 +294,106 @@ export default function LeadsPage() {
   ];
 
   return (
-    <div className="p-4 md:p-8 bg-[#f4f7fe] min-h-screen">
-      <div className="max-w-[1600px] mx-auto space-y-6">
-        {/* HEADER */}
-        <Card className="rounded-[2rem] border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-md transition-all">
+    <div className="p-4 md:p-6 bg-[#f8fafc] min-h-screen">
+      <div className="max-w-[1600px] mx-auto space-y-4">
+        {/* HEADER & FILTERS */}
+        <Card className="rounded-3xl border-none shadow-sm bg-white/90 backdrop-blur-md sticky top-0 z-10">
           <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} lg={6}>
+            <Col xs={24} xl={6}>
               <Title
-                level={3}
-                className="m-0! uppercase font-black tracking-tight text-slate-800"
+                level={4}
+                className="m-0! font-black text-slate-800 flex items-center gap-2"
               >
-                Quản lý Hồ sơ Leads
+                <SafetyCertificateOutlined className="text-indigo-600" /> QUẢN
+                LÝ LEADS
               </Title>
-              <Text
-                type="secondary"
-                className="text-[11px] font-bold flex items-center gap-2"
-              >
-                <InfoCircleOutlined className="text-blue-500" /> Hệ thống ghi
-                nhận {total} khách hàng
+              <Text type="secondary" className="text-[11px] font-bold">
+                TỔNG CỘNG: {total} HỒ SƠ KHÁCH HÀNG
               </Text>
             </Col>
 
-            <Col xs={24} lg={18}>
-              <div className="flex flex-wrap gap-3 justify-end items-center">
-                {/* BỘ LỌC NGÀY TIẾP NHẬN */}
+            <Col xs={24} xl={18}>
+              <div className="flex flex-wrap gap-2 justify-end">
+                {/* LỌC CHI NHÁNH */}
+                <Select
+                  value={filters.branch}
+                  className="w-48 h-10 custom-select-round"
+                  onChange={(val) =>
+                    setFilters({ ...filters, branch: val, page: 1 })
+                  }
+                >
+                  {branches.map((b) => (
+                    <Option key={b.id} value={b.id}>
+                      {b.name}
+                    </Option>
+                  ))}
+                </Select>
+
                 <DatePicker.RangePicker
                   format="DD/MM/YYYY"
-                  className="h-12 rounded-2xl shadow-sm border-none bg-slate-50 hover:bg-white transition-all px-4"
-                  placeholder={["Từ ngày nhận", "Đến ngày nhận"]}
+                  className="h-10 rounded-xl border-slate-200"
                   onChange={(values) => setDateRange(values)}
                 />
 
-                {/* Ô TÌM KIẾM NHANH */}
                 <Input
-                  placeholder="Tìm tên, SĐT, biển số..."
-                  prefix={<SearchOutlined className="text-slate-400" />}
-                  className="max-w-[220px] rounded-2xl h-12 border-none bg-slate-100 shadow-inner"
+                  placeholder="SĐT, Tên, Biển số..."
+                  prefix={<SearchOutlined />}
+                  className="max-w-[200px] rounded-xl h-10"
                   allowClear
                   onPressEnter={(e: any) =>
                     setFilters({ ...filters, search: e.target.value, page: 1 })
                   }
                 />
 
-                {/* LỌC TRẠNG THÁI */}
                 <Select
                   defaultValue="ALL"
-                  className="w-40 h-12 custom-select-round"
+                  className="w-36 h-10 custom-select-round"
                   onChange={(val) =>
                     setFilters({ ...filters, status: val, page: 1 })
                   }
                 >
-                  <Option value="ALL">Tất cả trạng thái</Option>
-                  <Option value="NEW">Mới (NEW)</Option>
-                  <Option value="FOLLOW_UP">Đang chăm sóc</Option>
+                  <Option value="ALL">Mọi trạng thái</Option>
+                  <Option value="NEW">Mới</Option>
+                  <Option value="FOLLOW_UP">Chăm sóc</Option>
                   <Option value="DEAL_DONE">Chốt đơn</Option>
                   <Option value="FROZEN">Đóng băng</Option>
                 </Select>
 
-                {/* NHÓM NÚT HÀNH ĐỘNG */}
-                <Space size={10}>
+                <Space size={8}>
                   <Button
                     icon={<FileExcelOutlined />}
                     loading={exportLoading}
-                    className="h-12 rounded-2xl font-bold bg-emerald-600 text-white hover:bg-emerald-700 border-none px-6 shadow-lg shadow-emerald-100"
+                    className="h-10 rounded-xl font-bold bg-emerald-600 text-white border-none px-4 shadow-sm"
                     onClick={onExportExcel}
                   >
-                    XUẤT EXCEL
+                    XUẤT
                   </Button>
 
-                  <Badge
-                    count={overdueData.length}
-                    offset={[-5, 5]}
-                    size="small"
-                  >
+                  <Badge count={overdueData.length} size="small">
                     <Button
                       danger
                       type="primary"
                       icon={<AlertOutlined />}
-                      className="h-12 rounded-2xl font-black shadow-lg shadow-red-100 px-4"
+                      className="h-10 rounded-xl font-bold px-4 shadow-md"
                       onClick={() => setIsOverdueModalOpen(true)}
                     >
                       QUÁ HẠN
                     </Button>
                   </Badge>
 
-                  <Tooltip title="Làm mới dữ liệu">
-                    <Button
-                      icon={<ReloadOutlined />}
-                      className="h-12 w-12 rounded-2xl font-bold flex items-center justify-center bg-white border-slate-200 text-slate-400 hover:text-blue-500"
-                      onClick={loadData}
-                    />
-                  </Tooltip>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    className="h-10 w-10 rounded-xl flex items-center justify-center bg-white border-slate-200 text-slate-400"
+                    onClick={loadData}
+                  />
                 </Space>
               </div>
             </Col>
           </Row>
         </Card>
 
-        {/* BẢNG DỮ LIỆU CHÍNH */}
-        <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white/70 backdrop-blur-md">
+        {/* MAIN TABLE */}
+        <Card className="rounded-[2rem] border-none shadow-xl overflow-hidden bg-white">
           <Table
             columns={columns}
             dataSource={data}
@@ -465,111 +410,32 @@ export default function LeadsPage() {
               current: filters.page,
               pageSize: filters.limit,
               showSizeChanger: true,
+              className: "p-4",
               showTotal: (total) => (
-                <Text className="font-black text-slate-400">
-                  TỔNG {total} HỒ SƠ
+                <Text className="font-bold text-slate-400 uppercase text-[11px]">
+                  Hiển thị {total} kết quả
                 </Text>
               ),
               onChange: (page, pageSize) =>
                 setFilters({ ...filters, page, limit: pageSize }),
             }}
-            scroll={{ x: 1300 }}
+            scroll={{ x: 1400 }}
             className="custom-leads-table clickable-rows"
           />
         </Card>
       </div>
 
-      {/* MODAL QUẢN LÝ QUÁ HẠN 60 NGÀY */}
+      {/* MODAL CHI TIẾT (Giữ nguyên logic của bạn) */}
       <Modal
         title={
-          <Space>
-            <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-red-200">
-              <AlertOutlined />
-            </div>
-            <div>
-              <Title level={5} className="m-0! font-black uppercase">
-                Hồ sơ tồn đọng quá 60 ngày
-              </Title>
-              <Text className="text-[10px] text-slate-400">
-                Cần xử lý gửi mail nhắc nhở hoặc đóng băng dữ liệu
-              </Text>
-            </div>
-          </Space>
-        }
-        open={isOverdueModalOpen}
-        onCancel={() => setIsOverdueModalOpen(false)}
-        width={900}
-        footer={[
-          <Button
-            key="close"
-            onClick={() => setIsOverdueModalOpen(false)}
-            className="rounded-xl"
-          >
-            Đóng
-          </Button>,
-          <Button
-            key="mail"
-            type="primary"
-            icon={<MailOutlined />}
-            disabled={selectedOverdueKeys.length === 0}
-            onClick={() => handleSendMail(selectedOverdueKeys as string[])}
-            className="rounded-xl font-bold"
-            loading={overdueLoading}
-          >
-            Gửi Mail Nhắc Nhở ({selectedOverdueKeys.length})
-          </Button>,
-          <Button
-            key="freeze"
-            danger
-            type="primary"
-            icon={<ManOutlined />}
-            disabled={selectedOverdueKeys.length === 0}
-            onClick={() => handleBulkFreeze(selectedOverdueKeys as string[])}
-            className="rounded-xl font-bold shadow-lg"
-            loading={overdueLoading}
-          >
-            Đóng Băng ({selectedOverdueKeys.length})
-          </Button>,
-        ]}
-      >
-        <div className="py-4">
-          <Alert
-            message={`Hệ thống phát hiện ${overdueData.length} hồ sơ đã tồn tại hơn 60 ngày mà chưa về trạng thái thành công.`}
-            type="error"
-            showIcon
-            className="mb-4! rounded-2xl"
-          />
-          <Table
-            rowSelection={{
-              selectedRowKeys: selectedOverdueKeys,
-              onChange: setSelectedOverdueKeys,
-            }}
-            columns={overdueColumns}
-            dataSource={overdueData}
-            rowKey="id"
-            pagination={{ pageSize: 5 }}
-            size="small"
-          />
-        </div>
-      </Modal>
-
-      {/* MODAL CHI TIẾT ĐẦY ĐỦ (Giữ nguyên logic cũ của bạn và tối ưu giao diện) */}
-      <Modal
-        title={
-          <Space>
-            <Avatar
-              size="small"
-              icon={<SolutionOutlined />}
-              className="bg-indigo-600"
-            />
-            <Text strong className="uppercase">
-              Hồ sơ khách hàng: {selectedLead?.fullName}
-            </Text>
-          </Space>
+          <Text strong className="uppercase">
+            <SolutionOutlined className="mr-2" /> Chi tiết hồ sơ:{" "}
+            {selectedLead?.fullName}
+          </Text>
         }
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
-        width={1100}
+        width={1000}
         footer={null}
         centered
         destroyOnClose
@@ -584,36 +450,34 @@ export default function LeadsPage() {
               }
               key="1"
             >
-              <div className="p-4 animate-fadeIn">
+              <div className="p-4">
                 <Descriptions bordered column={2} size="small">
-                  <Descriptions.Item label="Điện thoại">
+                  <Descriptions.Item label="Họ tên">
+                    {selectedLead.fullName}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Số điện thoại">
                     <Text strong className="text-blue-600">
                       {selectedLead.phone}
                     </Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Người giới thiệu">
-                    {selectedLead.referrer?.fullName}
+                  <Descriptions.Item label="Chi nhánh">
+                    {selectedLead.branchName || "Mặc định"}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Nhu cầu">
-                    {getReferralTypeTag(selectedLead.type)}
+                  <Descriptions.Item label="Biển số xe">
+                    <Tag color="blue">{selectedLead.licensePlate || "N/A"}</Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Trạng thái">
-                    <Tag className="font-bold uppercase border-none bg-slate-100">
-                      {selectedLead.status}
-                    </Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Ngày tạo">
+                  <Descriptions.Item label="Ngày tiếp nhận">
                     {dayjs(selectedLead.createdAt).format("DD/MM/YYYY HH:mm")}
                   </Descriptions.Item>
                   <Descriptions.Item label="Địa chỉ" span={2}>
-                    {selectedLead.province} - {selectedLead.address}
+                    {selectedLead.address} {selectedLead.province}
                   </Descriptions.Item>
                   <Descriptions.Item
                     label="Ghi chú nội bộ"
                     span={2}
-                    className="italic text-slate-500 bg-amber-50/20"
+                    className="bg-amber-50/30"
                   >
-                    {selectedLead.note || "Không có"}
+                    {selectedLead.note || "---"}
                   </Descriptions.Item>
                 </Descriptions>
               </div>
@@ -621,88 +485,26 @@ export default function LeadsPage() {
             <Tabs.TabPane
               tab={
                 <span>
-                  <CarOutlined /> XE & GIÁM ĐỊNH
-                </span>
-              }
-              key="2"
-            >
-              <div className="p-4 space-y-4 animate-fadeIn">
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Card
-                      size="small"
-                      title="Thông số Lead"
-                      className="bg-slate-50 border-none rounded-2xl"
-                    >
-                      <Descriptions column={1} size="small">
-                        <Descriptions.Item label="Dòng xe">
-                          {selectedLead.carModel?.name}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Biển số">
-                          {selectedLead.licensePlate || "---"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Kỳ vọng">
-                          {selectedLead.expectedPrice?.toLocaleString()} tr
-                        </Descriptions.Item>
-                      </Descriptions>
-                    </Card>
-                  </Col>
-                  <Col span={12}>
-                    <Card
-                      size="small"
-                      title="Trạng thái giám định"
-                      className="bg-indigo-50/50 border-none rounded-2xl"
-                    >
-                      <Descriptions column={1} size="small">
-                        <Descriptions.Item label="Tình trạng">
-                          <Tag color="processing">
-                            {selectedLead.inspectStatus}
-                          </Tag>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Địa điểm">
-                          {selectedLead.inspectLocation || "---"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Ngày xem">
-                          {selectedLead.inspectDoneDate
-                            ? dayjs(selectedLead.inspectDoneDate).format(
-                                "DD/MM/YYYY",
-                              )
-                            : "---"}
-                        </Descriptions.Item>
-                      </Descriptions>
-                    </Card>
-                  </Col>
-                </Row>
-              </div>
-            </Tabs.TabPane>
-            <Tabs.TabPane
-              tab={
-                <span>
-                  <HistoryOutlined /> NHẬT KÝ
+                  <HistoryOutlined /> LỊCH SỬ XỬ LÝ
                 </span>
               }
               key="3"
             >
-              <div className="p-6 max-h-[500px] overflow-y-auto custom-scrollbar animate-fadeIn">
+              <div className="p-6 max-h-[400px] overflow-y-auto">
                 <Timeline mode="left">
                   {selectedLead.activities?.map((act: any) => (
                     <Timeline.Item
                       key={act.id}
                       label={
-                        <Text className="text-[11px] font-mono text-slate-400">
+                        <Text className="text-[11px]">
                           {dayjs(act.createdAt).format("DD/MM HH:mm")}
                         </Text>
                       }
-                      color={act.status === "FROZEN" ? "gray" : "blue"}
                     >
-                      <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                        <Tag className="text-[9px] font-black m-0 border-none px-2 rounded bg-slate-100 mb-1 uppercase">
-                          {act.status}
-                        </Tag>
-                        <div className="text-[13px] text-slate-600">
-                          {act.note}
-                        </div>
-                        <Text className="text-[10px] text-slate-300 italic block mt-1">
+                      <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <Tag className="text-[10px] mb-1">{act.status}</Tag>
+                        <div className="text-[13px]">{act.note}</div>
+                        <Text className="text-[10px] text-slate-400 italic">
                           Bởi: {act.user?.fullName}
                         </Text>
                       </div>
@@ -715,68 +517,23 @@ export default function LeadsPage() {
         )}
       </Modal>
 
+      {/* CSS Styles */}
       <style jsx global>{`
         .custom-leads-table .ant-table-thead > tr > th {
-          background: #f8fafc !important;
-          color: #94a3b8 !important;
+          background: #f1f5f9 !important;
+          color: #64748b !important;
           font-size: 11px !important;
-          text-transform: uppercase !important;
-          letter-spacing: 1px !important;
           font-weight: 800 !important;
-          border-bottom: 2px solid #f1f5f9 !important;
+          text-transform: uppercase;
         }
         .clickable-rows .ant-table-row:hover {
           cursor: pointer;
-          background-color: #f0f7ff !important;
-          transition: all 0.2s;
+          background-color: #f8fafc !important;
         }
-        .animate-fadeIn {
-          animation: fadeIn 0.4s ease-out forwards;
-        }
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
-          border-radius: 10px;
+        .custom-select-round .ant-select-selector {
+          border-radius: 12px !important;
         }
       `}</style>
     </div>
   );
 }
-
-const SyncOutlined = (props: any) => (
-  <svg
-    viewBox="64 64 896 896"
-    focusable="false"
-    width="1em"
-    height="1em"
-    fill="currentColor"
-    {...props}
-  >
-    <path d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S331 211.4 372 194c39.9-16.9 82.3-25.9 126-26.9V112c0-4.4 3.6-8 8-8 2.1 0 4.1.8 5.6 2.3l141.2 141.2c3.1 3.1 3.1 8.2 0 11.3L511.6 400c-3.1 3.1-8.2 3.1-11.3 0-1.5-1.5-2.3-3.5-2.3-5.6V336.2c-73.8 1.1-133.2 60.5-134.3 134.3H168zM856 519.8c-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.7-73.7 109.4S693 812.6 652 830c-39.9 16.9-82.3 25.9-126 26.9V912c0 4.4-3.6 8-8 8-2.1 0-4.1-.8-5.6-2.3L371.2 776.5c-3.1-3.1-3.1-8.2 0-11.3l141.2-141.2c3.1-3.1 8.2-3.1 11.3 0 1.5 1.5 2.3 3.5 2.3 5.6v57.8c73.8-1.1 133.2-60.5 134.3-134.3H856z" />
-  </svg>
-);
-
-const TeamOutlined = (props: any) => (
-  <svg
-    viewBox="64 64 896 896"
-    focusable="false"
-    width="1em"
-    height="1em"
-    fill="currentColor"
-    {...props}
-  >
-    <path d="M824.2 699.6a210.55 210.55 0 00-11s-21-41.2-118-41.2c-107 0-118 51.2-118 51.2a12 12 0 0012 12h234a12 12 0 0011-12zM695.2 552c39.8 0 72-32.2 72-72s-32.2-72-72-72-72 32.2-72 72 32.2 72 72 72zM512 516c48.6 0 88-39.4 88-88s-39.4-88-88-88-88 39.4-88 88 39.4 88 88 88zM616.2 699.6c0-1.8-.2-3.6-.5-5.3-3.1-16.7-13.8-59.3-103.7-59.3s-100.6 42.6-103.7 59.3c-.3 1.7-.5 3.5-.5 5.3 0 6.6 5.4 12 12 12h184.4c6.6 0 12-5.4 12-12zM328.8 552c39.8 0 72-32.2 72-72s-32.2-72-72-72-72 32.2-72 72 32.2 72 72 72zM199.8 699.6a210.55 210.55 0 00-11s-21-41.2-118-41.2c-107 0-118 51.2-118 51.2a12 12 0 0012 12h234a12 12 0 0011-12z" />
-  </svg>
-);

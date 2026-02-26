@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -11,55 +10,38 @@ import {
   Card,
   Typography,
   Space,
-  Badge,
   Avatar,
   Row,
   Col,
   Input,
   Select,
   Button,
-  Empty,
   Modal,
   Tabs,
   Timeline,
   message,
-  Tooltip,
-  Alert,
   DatePicker,
+  Badge,
+  Divider,
 } from "antd";
 import {
   UserOutlined,
   CarOutlined,
-  HistoryOutlined,
   InfoCircleOutlined,
   SearchOutlined,
   ReloadOutlined,
-  SolutionOutlined,
-  UserSwitchOutlined,
-  PhoneOutlined,
-  FileSearchOutlined,
-  SwapOutlined,
-  AlertOutlined,
-  MailOutlined,
-  ManOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
   FileExcelOutlined,
+  EnvironmentOutlined,
+  CalendarOutlined,
+  TeamOutlined,
+  SolutionOutlined,
 } from "@ant-design/icons";
-import {
-  getLeadsAction,
-  getOverdueCustomersAction,
-  sendReminderEmailAction,
-  freezeOverdueCustomersAction,
-  getLeadsWithoutSensitiveAction,
-} from "@/actions/customer-actions";
+import { getLeadsWithoutSensitiveAction } from "@/actions/customer-actions";
+import { getBranchesAction } from "@/actions/branch-actions";
 import dayjs from "@/lib/dayjs";
 import { getLeadStatusHelper } from "@/lib/status-helper";
 import { getExportCustomerData } from "@/actions/export-actions";
-import {
-  handleExportFullCustomerExcel,
-  handleExportFullCustomerExcelManager,
-} from "@/utils/excel-helper";
+import { handleExportFullCustomerExcelManager } from "@/utils/excel-helper";
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -68,41 +50,66 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
+  const [branches, setBranches] = useState<any[]>([]);
 
-  // States cho Modal Chi tiết
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // States cho Quản lý Quá hạn
-  const [overdueData, setOverdueData] = useState<any[]>([]);
-  const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
-  const [overdueLoading, setOverdueLoading] = useState(false);
-  const [selectedOverdueKeys, setSelectedOverdueKeys] = useState<React.Key[]>(
-    [],
-  );
   const [exportLoading, setExportLoading] = useState(false);
-  const [dateRange, setDateRange] = useState<any>(null); // State cho RangePicker
+  const [dateRange, setDateRange] = useState<any>(null);
 
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
     search: "",
     status: "ALL",
+    branchId: "ALL",
   });
+
+  const loadBranches = async () => {
+    try {
+      const res = await getBranchesAction();
+      setBranches(res || []);
+    } catch (error) {
+      console.error("Lỗi tải chi nhánh");
+    }
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const res = await getLeadsWithoutSensitiveAction({
+        ...filters,
+        startDate: dateRange?.[0]?.toISOString(),
+        endDate: dateRange?.[1]?.toISOString(),
+      });
+      setData(res.data);
+      setTotal(res.total);
+    } catch (error) {
+      message.error("Lỗi tải dữ liệu Leads");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBranches();
+  }, []);
+  useEffect(() => {
+    loadData();
+  }, [filters, dateRange]);
 
   const onExportExcel = async () => {
     setExportLoading(true);
     try {
-      // Lấy ngày từ state dateRange
       const startDate = dateRange ? dateRange[0].toDate() : undefined;
       const endDate = dateRange ? dateRange[1].toDate() : undefined;
+      const exportData = await getExportCustomerData(
+        startDate,
+        endDate,
+        filters.branchId,
+      );
 
-      // Truyền tham số ngày vào action
-      const exportData = await getExportCustomerData(startDate, endDate);
-
-      if (exportData.length === 0) {
-        return message.info("Không có dữ liệu trong khoảng thời gian đã chọn");
-      }
+      if (!exportData?.length) return message.info("Không có dữ liệu để xuất");
 
       await handleExportFullCustomerExcelManager(exportData);
       message.success(`Xuất thành công ${exportData.length} hồ sơ!`);
@@ -112,28 +119,6 @@ export default function LeadsPage() {
       setExportLoading(false);
     }
   };
-
-  // --- TẢI DỮ LIỆU CHÍNH ---
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await getLeadsWithoutSensitiveAction(filters);
-      setData(res.data);
-      setTotal(res.total);
-
-      // Tải kèm danh sách quá hạn để hiện Badge thông báo
-      const overdueRes = await getOverdueCustomersAction();
-      setOverdueData(overdueRes);
-    } catch (error) {
-      message.error("Lỗi tải dữ liệu Leads");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [filters]);
 
   const getReferralTypeTag = (type: string) => {
     const config: any = {
@@ -147,84 +132,69 @@ export default function LeadsPage() {
     return (
       <Tag
         color={item.color}
-        className="rounded-md font-extrabold text-[10px] m-0"
+        className="font-bold m-0 border-none px-2 rounded"
       >
         {item.label}
       </Tag>
     );
   };
 
-  // --- CẤU HÌNH CỘT BẢNG CHÍNH ---
   const columns = [
     {
       title: "KHÁCH HÀNG",
-      width: 280,
       fixed: "left" as any,
+      width: 220,
       render: (r: any) => (
-        <Space size={12}>
+        <Space>
           <Avatar
-            size={44}
-            className="bg-indigo-600 shadow-sm"
+            size="large"
+            className="bg-gradient-to-tr from-indigo-600 to-purple-500"
             icon={<UserOutlined />}
           />
           <div className="flex flex-col">
-            <Text strong className="text-slate-800 text-[14px]">
+            <Text strong className="text-slate-800">
               {r.fullName}
+            </Text>
+            <Text type="secondary" className="text-[11px]">
+              <EnvironmentOutlined /> {r.province || "N/A"}
             </Text>
           </div>
         </Space>
       ),
     },
     {
+      title: "CHI NHÁNH",
+      responsive: ["md"] as any,
+      width: 150,
+      render: (r: any) => (
+        <div className="flex flex-col">
+          <Text className="text-[12px] font-semibold text-slate-600">
+            {r.branch?.name || "N/A"}
+          </Text>
+          <Text type="secondary" className="text-[10px] italic">
+            {dayjs(r.createdAt).format("DD/MM/YYYY")}
+          </Text>
+        </div>
+      ),
+    },
+    {
       title: "NHU CẦU",
-      width: 140,
+      width: 120,
       render: (r: any) => getReferralTypeTag(r.type),
     },
     {
       title: "MODEL XE",
       width: 180,
       render: (r: any) => (
-        <div className="flex flex-col">
-          <Text className="text-[13px] font-bold text-slate-700 truncate max-w-[150px]">
-            <CarOutlined className="mr-1 text-slate-400" />{" "}
-            {r.carModel?.name || "Chưa chọn"}
+        <Space direction="vertical" size={0}>
+          <Text className="text-[13px] font-bold text-blue-700">
+            <CarOutlined /> {r.carModel?.name || r.leadCar?.modelName || "N/A"}
           </Text>
-          {r.licensePlate && (
-            <Tag className="w-fit text-[10px] bg-slate-100 font-mono mt-1 uppercase">
-              {r.licensePlate}
-            </Tag>
-          )}
-        </div>
+          <Text type="secondary" className="text-[11px]">
+            Năm: {r.leadCar?.year || "N/A"}
+          </Text>
+        </Space>
       ),
-    },
-    {
-      title: "NGUỒN / NGƯỜI GT",
-      width: 180,
-      render: (r: any) => (
-        <div className="flex flex-col">
-          <Text className="text-[12px] font-bold text-indigo-600 truncate">
-            {r.referrer?.fullName}
-          </Text>
-          <Text className="text-[9px] text-slate-400 uppercase font-black">
-            {r.referrer?.role}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: "XỬ LÝ BỞI",
-      width: 180,
-      render: (r: any) =>
-        r.assignedTo ? (
-          <Tag
-            color="processing"
-            className="border-none bg-blue-50 text-blue-700 px-3 rounded-full"
-          >
-            {r.assignedTo.fullName}
-          </Tag>
-        ) : (
-          <Tag className="border-dashed text-slate-400">Đang chờ...</Tag>
-        ),
     },
     {
       title: "TRẠNG THÁI",
@@ -233,362 +203,414 @@ export default function LeadsPage() {
       render: (status: string) => {
         const { label, color, icon } = getLeadStatusHelper(status);
         return (
-          <Tag
-            icon={icon}
+          <Badge
             color={color}
-            className="font-black uppercase text-[9px] px-3 rounded-full border-none shadow-sm"
-          >
-            {label}
-          </Tag>
+            text={
+              <Text
+                className="font-bold text-[11px] uppercase"
+                style={{ color }}
+              >
+                {label}
+              </Text>
+            }
+          />
         );
       },
     },
     {
-      title: "NGÀY TẠO",
-      dataIndex: "createdAt",
-      width: 120,
-      align: "right" as any,
-      render: (date: any) => (
-        <Text className="text-[11px] text-slate-400 font-mono">
-          {dayjs(date).format("DD/MM/YYYY")}
-        </Text>
+      title: "PHỤ TRÁCH",
+      responsive: ["lg"] as any,
+      width: 150,
+      render: (r: any) =>
+        r.assignedTo ? (
+          <Tag
+            icon={<TeamOutlined />}
+            color="processing"
+            className="rounded-full border-none bg-blue-50 text-blue-700 font-medium"
+          >
+            {r.assignedTo.fullName}
+          </Tag>
+        ) : (
+          <Text type="danger" className="text-[11px] italic">
+            Chưa bàn giao
+          </Text>
+        ),
+    },
+    {
+      title: "",
+      key: "action",
+      width: 60,
+      fixed: "right" as any,
+      render: () => (
+        <Button
+          type="text"
+          icon={<InfoCircleOutlined className="text-blue-500" />}
+        />
       ),
     },
   ];
 
   return (
-    <div className="p-4 md:p-8 bg-[#f4f7fe] min-h-screen">
-      <div className="max-w-[1600px] mx-auto space-y-6">
-        {/* HEADER */}
-        <Card className="rounded-[2rem] border-none shadow-sm overflow-hidden bg-white/80 backdrop-blur-md transition-all">
+    <div className="p-3 md:p-6 bg-[#f0f2f5] min-h-screen">
+      <div className="max-w-[1600px] mx-auto space-y-4">
+        {/* HEADER & FILTERS */}
+        <Card
+          className="rounded-2xl border-none shadow-sm overflow-hidden"
+          bodyStyle={{ padding: "16px 24px" }}
+        >
           <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} lg={6}>
-              <Title
-                level={3}
-                className="m-0! uppercase font-black tracking-tight text-slate-800"
-              >
-                Quản lý Hồ sơ Leads
-              </Title>
-              <Text
-                type="secondary"
-                className="text-[11px] font-bold flex items-center gap-2"
-              >
-                <InfoCircleOutlined className="text-blue-500" /> Hệ thống ghi
-                nhận {total} khách hàng
-              </Text>
+            <Col xs={24} xl={6}>
+              <Space direction="vertical" size={0}>
+                <Title
+                  level={4}
+                  className="m-0! font-black text-slate-800 tracking-tight uppercase"
+                >
+                  Hệ thống Quản lý Leads
+                </Title>
+                <Text type="secondary" className="text-[12px]">
+                  Hiển thị{" "}
+                  <Text strong className="text-blue-600">
+                    {data.length}
+                  </Text>{" "}
+                  trên tổng số <Text strong>{total}</Text> hồ sơ
+                </Text>
+              </Space>
             </Col>
 
-            <Col xs={24} lg={18}>
-              <div className="flex flex-wrap gap-3 justify-end items-center">
-                {/* BỘ LỌC NGÀY TIẾP NHẬN */}
+            <Col xs={24} xl={18}>
+              <div className="flex flex-wrap gap-2 justify-end">
                 <DatePicker.RangePicker
-                  format="DD/MM/YYYY"
-                  className="h-12 rounded-2xl shadow-sm border-none bg-slate-50 hover:bg-white transition-all px-4"
-                  placeholder={["Từ ngày nhận", "Đến ngày nhận"]}
-                  onChange={(values) => setDateRange(values)}
+                  className="rounded-lg h-10 w-full sm:w-auto"
+                  onChange={(val) => setDateRange(val)}
                 />
 
-                {/* Ô TÌM KIẾM NHANH */}
+                <Select
+                  className="w-full sm:w-40 h-10"
+                  placeholder="Chi nhánh"
+                  onChange={(val) =>
+                    setFilters({ ...filters, branchId: val, page: 1 })
+                  }
+                  defaultValue="ALL"
+                >
+                  <Option value="ALL">Tất cả chi nhánh</Option>
+                  {branches.map((b) => (
+                    <Option key={b.id} value={b.id}>
+                      {b.name}
+                    </Option>
+                  ))}
+                </Select>
+
+                <Select
+                  className="w-full sm:w-40 h-10"
+                  defaultValue="ALL"
+                  onChange={(val) =>
+                    setFilters({ ...filters, status: val, page: 1 })
+                  }
+                >
+                  <Option value="ALL">Tất cả trạng thái</Option>
+                  <Option value="NEW">Mới tiếp nhận</Option>
+                  <Option value="FOLLOW_UP">Đang chăm sóc</Option>
+                  <Option value="DEAL_DONE">Đã chốt</Option>
+                </Select>
+
                 <Input
-                  placeholder="Tìm tên, SĐT, biển số..."
+                  className="w-full sm:w-48 h-10 rounded-lg"
+                  placeholder="Tên khách hàng..."
                   prefix={<SearchOutlined className="text-slate-400" />}
-                  className="max-w-[220px] rounded-2xl h-12 border-none bg-slate-100 shadow-inner"
                   allowClear
                   onPressEnter={(e: any) =>
                     setFilters({ ...filters, search: e.target.value, page: 1 })
                   }
                 />
 
-                {/* LỌC TRẠNG THÁI */}
-                <Select
-                  defaultValue="ALL"
-                  className="w-40 h-12 custom-select-round"
-                  onChange={(val) =>
-                    setFilters({ ...filters, status: val, page: 1 })
-                  }
+                <Button
+                  type="primary"
+                  icon={<FileExcelOutlined />}
+                  loading={exportLoading}
+                  className="h-10 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-700 border-none font-bold"
+                  onClick={onExportExcel}
                 >
-                  <Option value="ALL">Tất cả trạng thái</Option>
-                  <Option value="NEW">Mới (NEW)</Option>
-                  <Option value="FOLLOW_UP">Đang chăm sóc</Option>
-                  <Option value="DEAL_DONE">Chốt đơn</Option>
-                  <Option value="FROZEN">Đóng băng</Option>
-                </Select>
+                  XUẤT BÁO CÁO
+                </Button>
 
-                {/* NHÓM NÚT HÀNH ĐỘNG */}
-                <Space size={10}>
-                  <Button
-                    icon={<FileExcelOutlined />}
-                    loading={exportLoading}
-                    className="h-12 rounded-2xl font-bold bg-emerald-600 text-white hover:bg-emerald-700 border-none px-6 shadow-lg shadow-emerald-100"
-                    onClick={onExportExcel}
-                  >
-                    XUẤT EXCEL
-                  </Button>
-
-                  <Tooltip title="Làm mới dữ liệu">
-                    <Button
-                      icon={<ReloadOutlined />}
-                      className="h-12 w-12 rounded-2xl font-bold flex items-center justify-center bg-white border-slate-200 text-slate-400 hover:text-blue-500"
-                      onClick={loadData}
-                    />
-                  </Tooltip>
-                </Space>
+                <Button
+                  icon={<ReloadOutlined />}
+                  className="h-10 w-10 rounded-lg flex items-center justify-center"
+                  onClick={loadData}
+                />
               </div>
             </Col>
           </Row>
         </Card>
 
-        {/* BẢNG DỮ LIỆU CHÍNH */}
-        <Card className="rounded-[2.5rem] border-none shadow-xl overflow-hidden bg-white/70 backdrop-blur-md">
+        {/* DATA TABLE */}
+        <Card
+          className="rounded-2xl border-none shadow-sm"
+          bodyStyle={{ padding: 0 }}
+        >
           <Table
             columns={columns}
             dataSource={data}
             rowKey="id"
             loading={loading}
+            scroll={{ x: 1000 }}
+            className="custom-table"
             onRow={(record) => ({
               onClick: () => {
                 setSelectedLead(record);
                 setIsModalOpen(true);
               },
+              className: "cursor-pointer hover:bg-blue-50/50 transition-all",
             })}
             pagination={{
               total,
               current: filters.page,
               pageSize: filters.limit,
               showSizeChanger: true,
-              showTotal: (total) => (
-                <Text className="font-black text-slate-400">
-                  TỔNG {total} HỒ SƠ
-                </Text>
-              ),
+              className: "px-6 py-4",
               onChange: (page, pageSize) =>
                 setFilters({ ...filters, page, limit: pageSize }),
             }}
-            scroll={{ x: 1300 }}
-            className="custom-leads-table clickable-rows"
           />
         </Card>
       </div>
 
-      {/* MODAL CHI TIẾT ĐẦY ĐỦ (Giữ nguyên logic cũ của bạn và tối ưu giao diện) */}
+      {/* MODAL CHI TIẾT */}
       <Modal
         title={
           <Space>
-            <Avatar
-              size="small"
-              icon={<SolutionOutlined />}
-              className="bg-indigo-600"
-            />
-            <Text strong className="uppercase">
-              Hồ sơ khách hàng: {selectedLead?.fullName}
-            </Text>
+            <SolutionOutlined className="text-blue-600" />
+            <span className="font-black">
+              HỒ SƠ KHÁCH HÀNG: {selectedLead?.fullName?.toUpperCase()}
+            </span>
           </Space>
         }
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
-        width={1100}
-        footer={null}
+        width={1000}
+        footer={[
+          <Button
+            key="close"
+            onClick={() => setIsModalOpen(false)}
+            className="rounded-lg px-6"
+          >
+            Đóng
+          </Button>,
+        ]}
         centered
         destroyOnClose
       >
         {selectedLead && (
-          <Tabs defaultActiveKey="1" className="modern-tabs">
-            <Tabs.TabPane
-              tab={
-                <span>
-                  <UserOutlined /> TỔNG QUAN
-                </span>
-              }
-              key="1"
-            >
-              <div className="p-4 animate-fadeIn">
-                <Descriptions bordered column={2} size="small">
-                  <Descriptions.Item label="Người giới thiệu">
-                    {selectedLead.referrer?.fullName}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Nhu cầu">
-                    {getReferralTypeTag(selectedLead.type)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Trạng thái">
-                    <Tag className="font-bold uppercase border-none bg-slate-100">
-                      {selectedLead.status}
-                    </Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Ngày tạo">
-                    {dayjs(selectedLead.createdAt).format("DD/MM/YYYY HH:mm")}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Địa chỉ" span={2}>
-                    {selectedLead.province} - {selectedLead.address}
-                  </Descriptions.Item>
-                  <Descriptions.Item
-                    label="Ghi chú nội bộ"
-                    span={2}
-                    className="italic text-slate-500 bg-amber-50/20"
+          <div className="py-2">
+            <Row gutter={[24, 24]}>
+              <Col xs={24} lg={16}>
+                <Tabs defaultActiveKey="1" className="custom-tabs">
+                  <Tabs.TabPane
+                    tab={<span className="px-4 font-bold">TỔNG QUAN</span>}
+                    key="1"
                   >
-                    {selectedLead.note || "Không có"}
-                  </Descriptions.Item>
-                </Descriptions>
-              </div>
-            </Tabs.TabPane>
-            <Tabs.TabPane
-              tab={
-                <span>
-                  <CarOutlined /> XE & GIÁM ĐỊNH
-                </span>
-              }
-              key="2"
-            >
-              <div className="p-4 space-y-4 animate-fadeIn">
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Card
+                    <Descriptions
+                      bordered
+                      column={{ xxl: 2, xl: 2, lg: 2, md: 1, sm: 1, xs: 1 }}
                       size="small"
-                      title="Thông số Lead"
-                      className="bg-slate-50 border-none rounded-2xl"
+                      className="mt-2"
                     >
-                      <Descriptions column={1} size="small">
-                        <Descriptions.Item label="Dòng xe">
-                          {selectedLead.carModel?.name}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Biển số">
-                          {selectedLead.licensePlate || "---"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Kỳ vọng">
-                          {selectedLead.expectedPrice?.toLocaleString()} tr
-                        </Descriptions.Item>
-                      </Descriptions>
-                    </Card>
-                  </Col>
-                  <Col span={12}>
-                    <Card
-                      size="small"
-                      title="Trạng thái giám định"
-                      className="bg-indigo-50/50 border-none rounded-2xl"
-                    >
-                      <Descriptions column={1} size="small">
-                        <Descriptions.Item label="Tình trạng">
-                          <Tag color="processing">
-                            {selectedLead.inspectStatus}
-                          </Tag>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Địa điểm">
-                          {selectedLead.inspectLocation || "---"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Ngày xem">
-                          {selectedLead.inspectDoneDate
-                            ? dayjs(selectedLead.inspectDoneDate).format(
-                                "DD/MM/YYYY",
-                              )
-                            : "---"}
-                        </Descriptions.Item>
-                      </Descriptions>
-                    </Card>
-                  </Col>
-                </Row>
-              </div>
-            </Tabs.TabPane>
-            <Tabs.TabPane
-              tab={
-                <span>
-                  <HistoryOutlined /> NHẬT KÝ
-                </span>
-              }
-              key="3"
-            >
-              <div className="p-6 max-h-[500px] overflow-y-auto custom-scrollbar animate-fadeIn">
-                <Timeline mode="left">
-                  {selectedLead.activities?.map((act: any) => (
-                    <Timeline.Item
-                      key={act.id}
-                      label={
-                        <Text className="text-[11px] font-mono text-slate-400">
-                          {dayjs(act.createdAt).format("DD/MM HH:mm")}
+                      <Descriptions.Item
+                        label={
+                          <Text strong>
+                            <EnvironmentOutlined /> Chi nhánh
+                          </Text>
+                        }
+                      >
+                        <Text className="text-blue-600 font-bold">
+                          {selectedLead.branch?.name}
                         </Text>
-                      }
-                      color={act.status === "FROZEN" ? "gray" : "blue"}
-                    >
-                      <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                        <Tag className="text-[9px] font-black m-0 border-none px-2 rounded bg-slate-100 mb-1 uppercase">
-                          {act.status}
+                      </Descriptions.Item>
+                      <Descriptions.Item
+                        label={
+                          <Text strong>
+                            <CalendarOutlined /> Ngày tiếp nhận
+                          </Text>
+                        }
+                      >
+                        {dayjs(selectedLead.createdAt).format(
+                          "DD/MM/YYYY HH:mm",
+                        )}
+                      </Descriptions.Item>
+                      <Descriptions.Item
+                        label={
+                          <Text strong>
+                            <TeamOutlined /> Nguồn/Người GT
+                          </Text>
+                        }
+                      >
+                        {selectedLead.referrer?.fullName}
+                        <Tag className="ml-2 text-[10px]">
+                          {selectedLead.referrer?.role}
                         </Tag>
-                        <div className="text-[13px] text-slate-600">
-                          {act.note}
-                        </div>
-                        <Text className="text-[10px] text-slate-300 italic block mt-1">
-                          Bởi: {act.user?.fullName}
+                      </Descriptions.Item>
+                      <Descriptions.Item
+                        label={
+                          <Text strong>
+                            <CarOutlined /> Nhu cầu
+                          </Text>
+                        }
+                      >
+                        {getReferralTypeTag(selectedLead.type)}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Địa chỉ liên hệ" span={2}>
+                        {selectedLead.address}, {selectedLead.province}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Ghi chú hệ thống" span={2}>
+                        <Text type="secondary" italic>
+                          {selectedLead.note || "Không có ghi chú"}
+                        </Text>
+                      </Descriptions.Item>
+                    </Descriptions>
+
+                    <Divider className="text-blue-500 font-bold">
+                      THÔNG TIN XE
+                    </Divider>
+                    <div className="bg-slate-50 p-4 rounded-xl grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="flex flex-col">
+                        <Text type="secondary" className="text-[11px]">
+                          Dòng xe
+                        </Text>
+                        <Text strong>
+                          {selectedLead.carModel?.name || "N/A"}
                         </Text>
                       </div>
-                    </Timeline.Item>
-                  ))}
-                </Timeline>
-              </div>
-            </Tabs.TabPane>
-          </Tabs>
+                      <div className="flex flex-col">
+                        <Text type="secondary" className="text-[11px]">
+                          Giá T-Sure
+                        </Text>
+                        <Text strong className="text-orange-600">
+                          {selectedLead.leadCar?.tSurePrice?.toLocaleString()} đ
+                        </Text>
+                      </div>
+                      <div className="flex flex-col">
+                        <Text type="secondary" className="text-[11px]">
+                          ODO
+                        </Text>
+                        <Text strong>
+                          {selectedLead.leadCar?.odo?.toLocaleString()} km
+                        </Text>
+                      </div>
+                      <div className="flex flex-col">
+                        <Text type="secondary" className="text-[11px]">
+                          Giám định
+                        </Text>
+                        <Tag className="w-fit">
+                          {selectedLead.inspectStatus || "Chưa xem xe"}
+                        </Tag>
+                      </div>
+                    </div>
+                  </Tabs.TabPane>
+                  <Tabs.TabPane
+                    tab={
+                      <span className="px-4 font-bold">NHẬT KÝ CHĂM SÓC</span>
+                    }
+                    key="2"
+                  >
+                    <div className="p-4 max-h-[450px] overflow-y-auto">
+                      <Timeline mode="left">
+                        {selectedLead.activities?.length > 0 ? (
+                          selectedLead.activities.map((act: any) => (
+                            <Timeline.Item
+                              key={act.id}
+                              label={
+                                <Text className="text-[11px] text-slate-400">
+                                  {dayjs(act.createdAt).format("DD/MM HH:mm")}
+                                </Text>
+                              }
+                            >
+                              <Card
+                                bodyStyle={{ padding: "8px 12px" }}
+                                className="bg-blue-50/50 border-none rounded-lg shadow-none"
+                              >
+                                <Text className="text-[13px] block">
+                                  {act.note}
+                                </Text>
+                                <Text
+                                  type="secondary"
+                                  className="text-[10px] italic"
+                                >
+                                  Bởi: {act.user?.fullName}
+                                </Text>
+                              </Card>
+                            </Timeline.Item>
+                          ))
+                        ) : (
+                          <div className="text-center py-10">
+                            <Text type="secondary" className="italic">
+                              Chưa có lịch sử hoạt động
+                            </Text>
+                          </div>
+                        )}
+                      </Timeline>
+                    </div>
+                  </Tabs.TabPane>
+                </Tabs>
+              </Col>
+
+              <Col xs={24} lg={8}>
+                <div className="space-y-4">
+                  <Card className="bg-indigo-600 text-white rounded-2xl border-none shadow-md">
+                    <div className="flex flex-col items-center text-center p-2">
+                      <Avatar
+                        size={64}
+                        className="bg-white/20 mb-3 border-2 border-white/30"
+                        icon={<UserOutlined />}
+                      />
+                      <Text className="text-gray-600 text-[12px] uppercase tracking-widest">
+                        Phụ trách hồ sơ
+                      </Text>
+                      <Title level={4} className="text-gray-700! m-0 mt-1">
+                        {selectedLead.assignedTo?.fullName || "CHƯA GIAO"}
+                      </Title>
+                      <Divider className="bg-white/10 my-3" />
+                      <div className="w-full flex justify-around text-[11px]">
+                        <div>
+                          <div className="text-gray-600">Số lần LH</div>
+                          <div className="font-bold text-lg">
+                            {selectedLead.contactCount || 0}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600">Ưu tiên</div>
+                          <div className="font-bold text-lg underline uppercase">
+                            {selectedLead.urgencyLevel || "P3"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </Col>
+            </Row>
+          </div>
         )}
       </Modal>
 
       <style jsx global>{`
-        .custom-leads-table .ant-table-thead > tr > th {
-          background: #f8fafc !important;
-          color: #94a3b8 !important;
-          font-size: 11px !important;
-          text-transform: uppercase !important;
-          letter-spacing: 1px !important;
-          font-weight: 800 !important;
-          border-bottom: 2px solid #f1f5f9 !important;
+        .custom-table .ant-table-thead > tr > th {
+          background: #f8fafc;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
         }
-        .clickable-rows .ant-table-row:hover {
-          cursor: pointer;
-          background-color: #f0f7ff !important;
+        .ant-table-row {
           transition: all 0.2s;
         }
-        .animate-fadeIn {
-          animation: fadeIn 0.4s ease-out forwards;
+        .ant-tabs-ink-bar {
+          background: #2563eb !important;
+          height: 3px !important;
         }
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
-          border-radius: 10px;
+        .ant-descriptions-label {
+          width: 140px;
         }
       `}</style>
     </div>
   );
 }
-
-const SyncOutlined = (props: any) => (
-  <svg
-    viewBox="64 64 896 896"
-    focusable="false"
-    width="1em"
-    height="1em"
-    fill="currentColor"
-    {...props}
-  >
-    <path d="M168 504.2c1-43.7 10-86.1 26.9-126 17.3-41 42.1-77.7 73.7-109.4S331 211.4 372 194c39.9-16.9 82.3-25.9 126-26.9V112c0-4.4 3.6-8 8-8 2.1 0 4.1.8 5.6 2.3l141.2 141.2c3.1 3.1 3.1 8.2 0 11.3L511.6 400c-3.1 3.1-8.2 3.1-11.3 0-1.5-1.5-2.3-3.5-2.3-5.6V336.2c-73.8 1.1-133.2 60.5-134.3 134.3H168zM856 519.8c-1 43.7-10 86.1-26.9 126-17.3 41-42.1 77.7-73.7 109.4S693 812.6 652 830c-39.9 16.9-82.3 25.9-126 26.9V912c0 4.4-3.6 8-8 8-2.1 0-4.1-.8-5.6-2.3L371.2 776.5c-3.1-3.1-3.1-8.2 0-11.3l141.2-141.2c3.1-3.1 8.2-3.1 11.3 0 1.5 1.5 2.3 3.5 2.3 5.6v57.8c73.8-1.1 133.2-60.5 134.3-134.3H856z" />
-  </svg>
-);
-
-const TeamOutlined = (props: any) => (
-  <svg
-    viewBox="64 64 896 896"
-    focusable="false"
-    width="1em"
-    height="1em"
-    fill="currentColor"
-    {...props}
-  >
-    <path d="M824.2 699.6a210.55 210.55 0 00-11s-21-41.2-118-41.2c-107 0-118 51.2-118 51.2a12 12 0 0012 12h234a12 12 0 0011-12zM695.2 552c39.8 0 72-32.2 72-72s-32.2-72-72-72-72 32.2-72 72 32.2 72 72 72zM512 516c48.6 0 88-39.4 88-88s-39.4-88-88-88-88 39.4-88 88 39.4 88 88 88zM616.2 699.6c0-1.8-.2-3.6-.5-5.3-3.1-16.7-13.8-59.3-103.7-59.3s-100.6 42.6-103.7 59.3c-.3 1.7-.5 3.5-.5 5.3 0 6.6 5.4 12 12 12h184.4c6.6 0 12-5.4 12-12zM328.8 552c39.8 0 72-32.2 72-72s-32.2-72-72-72-72 32.2-72 72 32.2 72 72 72zM199.8 699.6a210.55 210.55 0 00-11s-21-41.2-118-41.2c-107 0-118 51.2-118 51.2a12 12 0 0012 12h234a12 12 0 0011-12z" />
-  </svg>
-);

@@ -124,6 +124,7 @@ model User {
   customers        Customer[]
   contracts        Contract[]
   dailyCarInbounds DailyCarInbound[] @relation("InboundCreator")
+  notifications    Notification[]
 
   @@index([branchId])
 }
@@ -650,4 +651,14 @@ model DailyCarInbound {
   @@index([date])
   @@index([branchId])
   @@index([createdById])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  content   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }

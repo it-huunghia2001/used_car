@@ -19,6 +19,7 @@ import {
   Badge,
   App,
   Tooltip,
+  Divider,
 } from "antd";
 import {
   UserOutlined,
@@ -26,6 +27,8 @@ import {
   ReloadOutlined,
   PhoneOutlined,
   WalletOutlined,
+  MessageOutlined,
+  CarOutlined,
 } from "@ant-design/icons";
 import { getMyReferralHistory } from "@/actions/referral-actions";
 import { getLeadStatusHelper } from "@/lib/status-helper";
@@ -45,10 +48,8 @@ export default function MyReferralPage() {
   const [pageSize] = useState(10);
   const [searchText, setSearchText] = useState("");
 
-  // Debounce search text để tránh gọi API quá nhiều khi đang gõ
   const debouncedSearch = useDebounce(searchText, 500);
 
-  // --- FETCH DATA FROM SERVER ---
   const fetchData = useCallback(
     async (page: number, search: string) => {
       setLoading(true);
@@ -71,17 +72,15 @@ export default function MyReferralPage() {
     [pageSize, message],
   );
 
-  // Khởi chạy khi Page, PageSize hoặc Search thay đổi
   useEffect(() => {
     fetchData(currentPage, debouncedSearch);
   }, [currentPage, debouncedSearch, fetchData]);
 
-  // Reset về trang 1 khi search
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearch]);
 
-  // --- COLUMNS ---
+  // --- DESKTOP COLUMNS ---
   const columns = [
     {
       title: "KHÁCH HÀNG",
@@ -138,7 +137,6 @@ export default function MyReferralPage() {
     {
       title: "TRẠNG THÁI",
       dataIndex: "status",
-      key: "status",
       render: (status: string) => {
         const { icon, color, label } = getLeadStatusHelper(status);
         return (
@@ -158,47 +156,34 @@ export default function MyReferralPage() {
       render: (staff: any) =>
         staff ? (
           <div className="flex flex-col">
-            <Text strong className="text-slate-800 text-sm leading-tight">
+            <Text strong className="text-slate-800 text-sm">
               {staff.fullName}
             </Text>
-
-            <div className="flex items-center gap-2 mt-1 gap-2">
-              {/* Hiển thị số điện thoại */}
-              <Text className="text-[11px] text-slate-400 font-mono tracking-tighter">
+            <Space size={8} className="mt-1">
+              <a
+                href={`tel:${staff.phone}`}
+                className="text-green-600 hover:text-green-500"
+              >
+                <PhoneOutlined />
+              </a>
+              <a
+                href={`https://zalo.me/${staff.phone}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center"
+              >
+                <div className="bg-blue-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-sm">
+                  Z
+                </div>
+              </a>
+              <Text className="text-[11px] text-slate-400 font-mono">
                 {staff.phone}
               </Text>
-
-              <Space size={8}>
-                {/* Nút Gọi điện */}
-                <Tooltip title="Gọi điện">
-                  <a
-                    href={`tel:${staff.phone}`}
-                    className="text-green-600 hover:text-green-500 flex items-center"
-                  >
-                    <PhoneOutlined className="text-lg!" />
-                  </a>
-                </Tooltip>
-
-                {/* Nút Zalo */}
-                <Tooltip title="Chat Zalo">
-                  <a
-                    href={`https://zalo.me/${staff.phone}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-600 hover:text-blue-500 flex items-center"
-                  >
-                    {/* Dùng icon MessageOutlined hoặc một chữ Z cách điệu */}
-                    <div className="bg-blue-600 text-white text-[14px] font-bold w-6 h-6 flex items-center justify-center rounded-sm">
-                      Z
-                    </div>
-                  </a>
-                </Tooltip>
-              </Space>
-            </div>
+            </Space>
           </div>
         ) : (
           <Text italic className="text-[11px] text-slate-300">
-            Đang chờ phân bổ
+            Đang chờ
           </Text>
         ),
     },
@@ -218,7 +203,7 @@ export default function MyReferralPage() {
     <div className="min-h-screen bg-[#f8fafc] p-3 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
           <div className="flex items-center gap-4">
             <div className="bg-indigo-600 p-4 rounded-2xl shadow-indigo-200 shadow-lg">
               <WalletOutlined className="text-white text-2xl" />
@@ -228,7 +213,7 @@ export default function MyReferralPage() {
                 Lịch sử giới thiệu
               </Title>
               <Text className="text-slate-400 text-xs uppercase font-bold tracking-widest">
-                Theo dõi và quản lý các hồ sơ bạn đã gửi
+                Quản lý hồ sơ đã gửi
               </Text>
             </div>
           </div>
@@ -239,45 +224,22 @@ export default function MyReferralPage() {
             icon={<ReloadOutlined />}
             onClick={() => fetchData(currentPage, debouncedSearch)}
             loading={loading}
-            className="bg-slate-800 hover:!bg-slate-700 h-12 px-8 font-bold border-none"
+            className="bg-slate-800 hover:!bg-slate-700 h-12 px-8 font-bold border-none w-full md:w-auto"
           >
             LÀM MỚI
           </Button>
         </div>
 
-        {/* STATISTICS (Sử dụng dữ liệu total từ server nếu cần, ở đây dùng data.length tạm thời cho mẫu stat) */}
-        <Row gutter={[16, 16]} className="mb-8">
-          <Col xs={24} sm={8}>
-            <Card className="rounded-3xl border-none shadow-sm">
-              <Statistic
-                title={
-                  <Text className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                    Tổng hồ sơ tìm thấy
-                  </Text>
-                }
-                value={total}
-                valueStyle={{ fontWeight: 900 }}
-                prefix={<UserOutlined className="text-blue-500 mr-2" />}
-              />
-            </Card>
-          </Col>
-          {/* Các Stat khác có thể bổ sung API count riêng */}
-        </Row>
-
         {/* SEARCH BAR */}
-        <div className="mb-6 flex flex-col md:flex-row gap-4 items-center">
+        <div className="mb-6">
           <Input
             placeholder="Tìm theo tên, SĐT hoặc biển số xe..."
             prefix={<SearchOutlined className="text-slate-300" />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            className="h-14 rounded-2xl border-none shadow-sm md:max-w-lg bg-white"
+            className="h-14 rounded-2xl border-none shadow-sm w-full md:max-w-lg bg-white"
             allowClear
           />
-          <div className="ml-auto text-slate-400 text-[11px] font-bold uppercase tracking-widest bg-slate-200/50 px-4 py-2 rounded-full">
-            Trang {currentPage} / {Math.ceil(total / pageSize) || 1} • {total}{" "}
-            kết quả
-          </div>
         </div>
 
         {/* TABLE VIEW (Desktop) */}
@@ -302,7 +264,7 @@ export default function MyReferralPage() {
           </Card>
         </div>
 
-        {/* CARDS VIEW (Mobile) */}
+        {/* CARDS VIEW (Mobile) - UPDATED FULL INFO */}
         <div className="block md:hidden space-y-4">
           {loading ? (
             <Card loading className="rounded-3xl" />
@@ -310,63 +272,125 @@ export default function MyReferralPage() {
             <>
               {data.map((r: any) => {
                 const { icon, color, label } = getLeadStatusHelper(r.status);
+                const isSell = [
+                  "SELL",
+                  "SELL_TRADE_NEW",
+                  "SELL_TRADE_USED",
+                ].includes(r.type);
+                const licensePlate = r.leadCar?.licensePlate || r.licensePlate;
+
                 return (
                   <Card
                     key={r.id}
-                    className="rounded-3xl border-none shadow-sm mb-4"
+                    className="rounded-3xl border-none shadow-sm mb-4 overflow-hidden"
                   >
-                    <div className="flex justify-between items-start mb-3">
-                      <Space>
-                        <Avatar className="bg-indigo-600 shadow-sm">
-                          {r.fullName.charAt(0)}
+                    {/* Header Card: Avatar & Status */}
+                    <div className="flex justify-between items-center mb-4">
+                      <Space size={10}>
+                        <Avatar
+                          size={45}
+                          className="bg-indigo-600 font-bold shadow-md"
+                        >
+                          {r.fullName.charAt(0).toUpperCase()}
                         </Avatar>
                         <div className="flex flex-col">
-                          <Text strong className="text-sm">
+                          <Text strong className="text-[15px] leading-none">
                             {r.fullName}
                           </Text>
-                          <Text className="text-[10px] text-slate-400 font-mono">
-                            {dayjs(r.createdAt).format("DD/MM/YYYY")}
+                          <Text className="text-[11px] text-slate-400 mt-1">
+                            <PhoneOutlined size={10} /> {r.phone}
                           </Text>
                         </div>
                       </Space>
                       <Tag
                         icon={icon}
                         color={color}
-                        className="m-0 rounded-md text-[9px] font-bold uppercase border-none"
+                        className="m-0 rounded-full text-[9px] font-black uppercase border-none px-3"
                       >
                         {label}
                       </Tag>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-2xl flex justify-between items-center">
-                      <div className="flex flex-col">
-                        <Text className="text-[9px] text-slate-400 uppercase font-black">
-                          Dòng xe
-                        </Text>
-                        <Text className="text-xs font-bold text-slate-600">
-                          {r.carModel?.name || r.leadCar?.modelName || "---"}
+
+                    {/* Body Card: Car Info */}
+                    <div className="bg-slate-50 rounded-2xl p-4 mb-4 border border-slate-100/50">
+                      <div className="flex items-center justify-between mb-2">
+                        <Tag
+                          color={isSell ? "magenta" : "blue"}
+                          className="rounded-md border-none text-[10px] font-bold"
+                        >
+                          {isSell ? "Bán xe" : "Mua xe"}
+                        </Tag>
+                        <Text className="text-[11px] text-slate-400 font-medium italic">
+                          {dayjs(r.createdAt).format("DD/MM/YYYY")}
                         </Text>
                       </div>
-                      <Text className="text-indigo-600 font-bold text-xs">
-                        {r.assignedTo?.fullName || "Đợi xử lý"}
-                      </Text>
+                      <div className="flex items-center gap-2">
+                        <CarOutlined className="text-slate-400" />
+                        <Text strong className="text-slate-700 text-sm">
+                          {r.carModel?.name ||
+                            r.leadCar?.modelName ||
+                            "Nhu cầu chung"}
+                        </Text>
+                      </div>
+                      {licensePlate && (
+                        <div className="mt-2">
+                          <Tag className="bg-white text-slate-500 border-slate-200 font-mono text-[10px] rounded-md px-2">
+                            Biển số: {licensePlate}
+                          </Tag>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer Card: Staff Support & Quick Actions */}
+                    <div className="flex items-center justify-between pt-2 border-t border-dashed border-slate-200">
+                      <div className="flex flex-col">
+                        <Text className="text-[9px] text-slate-400 uppercase font-black tracking-wider">
+                          NV Hỗ trợ
+                        </Text>
+                        <Text strong className="text-xs text-indigo-600">
+                          {r.assignedTo?.fullName || "Chưa phân bổ"}
+                        </Text>
+                      </div>
+
+                      {r.assignedTo && (
+                        <Space size={12}>
+                          <a
+                            href={`tel:${r.assignedTo.phone}`}
+                            className="w-9 h-9 bg-green-50 text-green-600 rounded-full flex items-center justify-center border border-green-100 active:scale-90 transition-transform"
+                          >
+                            <PhoneOutlined className="text-lg" />
+                          </a>
+                          <a
+                            href={`https://zalo.me/${r.assignedTo.phone}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-9 h-9 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center border border-blue-100 active:scale-90 transition-transform"
+                          >
+                            <span className="font-black text-sm">Z</span>
+                          </a>
+                        </Space>
+                      )}
                     </div>
                   </Card>
                 );
               })}
-              {/* Phân trang mobile đơn giản */}
-              <div className="flex justify-center py-4">
+
+              <div className="flex justify-between items-center py-6">
                 <Button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((p) => p - 1)}
+                  icon={<UserOutlined rotate={180} />}
+                  className="rounded-xl border-none shadow-sm"
                 >
                   Trước
                 </Button>
-                <span className="px-4 flex items-center font-bold">
-                  {currentPage}
-                </span>
+                <Text strong className="text-slate-400">
+                  Trang {currentPage}
+                </Text>
                 <Button
                   disabled={currentPage * pageSize >= total}
                   onClick={() => setCurrentPage((p) => p + 1)}
+                  className="rounded-xl border-none shadow-sm"
                 >
                   Sau
                 </Button>
@@ -390,12 +414,8 @@ export default function MyReferralPage() {
           color: #64748b !important;
           font-size: 11px !important;
           text-transform: uppercase !important;
-          letter-spacing: 0.1em !important;
           font-weight: 800 !important;
           border-bottom: 1px solid #f1f5f9 !important;
-        }
-        .custom-referral-table .ant-table-row:hover > td {
-          background: rgba(241, 245, 249, 0.5) !important;
         }
         .custom-pagination .ant-pagination-item-active {
           border-radius: 12px;

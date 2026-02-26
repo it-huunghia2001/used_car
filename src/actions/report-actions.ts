@@ -6,6 +6,62 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session-server";
 import { LeadStatus, ReferralType } from "@prisma/client";
 
+// Định nghĩa kiểu dữ liệu cho User từ Session
+interface AuthUser {
+  role: string;
+  id: string;
+  branchId?: string | null;
+  isGlobalManager?: boolean;
+}
+
+// Hàm bổ trợ để tạo Filter dùng chung cho cả 3 báo cáo
+function getReportFilters(
+  year: number | undefined,
+  month: number | undefined,
+  user: AuthUser,
+  selectedBranchId?: string,
+  selectedUserId?: string,
+) {
+  const isHighLevel = user.role === "ADMIN" || user.isGlobalManager;
+  const effectiveBranchId = isHighLevel ? selectedBranchId : user.branchId;
+  const effectiveUserId = !isHighLevel
+    ? user.role === "MANAGER"
+      ? selectedUserId
+      : user.id
+    : selectedUserId;
+
+  const reportYear = year ?? dayjs().year();
+
+  // Luôn tạo filter cho cả năm để vẽ biểu đồ
+  const fullYearFilter = {
+    gte: dayjs().year(reportYear).startOf("year").toDate(),
+    lte: dayjs().year(reportYear).endOf("year").toDate(),
+  };
+
+  // Filter cụ thể (theo tháng hoặc năm) cho các bảng số liệu
+  const specificFilter = month
+    ? {
+        gte: dayjs()
+          .year(reportYear)
+          .month(month - 1)
+          .startOf("month")
+          .toDate(),
+        lte: dayjs()
+          .year(reportYear)
+          .month(month - 1)
+          .endOf("month")
+          .toDate(),
+      }
+    : fullYearFilter;
+
+  return {
+    timeWhere: { createdAt: specificFilter }, // Dùng cho stats/matrix
+    fullYearWhere: { createdAt: fullYearFilter }, // Dùng cho biểu đồ 12 tháng
+    branchFilter: effectiveBranchId ? { branchId: effectiveBranchId } : {},
+    userFilter: effectiveUserId ? { userId: effectiveUserId } : {},
+    reportYear,
+  };
+}
 // ── INTERFACES TYPE-SAFE CHO DỮ LIỆU TRẢ VỀ ──
 interface UrgencyStats {
   HOT: number;
@@ -35,6 +91,51 @@ interface MonthlyAnalytics {
     REMAINING: number;
     HOT: number;
   };
+}
+
+// Thêm vào các interface hiện có của bạn
+interface SummaryStats {
+  totalActive: number; // Đang theo dõi (REMAINING)
+  totalSuccess: number; // Thành công
+  totalFrozen: number; // Đóng băng
+  totalLost: number; // Thất bại
+}
+
+export interface SalesReportResponse {
+  analytics: any; // Hoặc kiểu cụ thể của processLeadMatrix
+  stats: {
+    totalCustomersYear: number;
+    total: number;
+    late: number;
+    // Sửa ở đây: Thay vì bắt trả về _count, ta định nghĩa rõ dữ liệu đã format
+    performance: {
+      fullName: string | null;
+      count: number;
+    }[];
+    interestedModels: {
+      name: string;
+      count: number;
+    }[];
+  };
+  monthlySummary: {
+    totalActive: number;
+    totalSuccess: number;
+    totalFrozen: number;
+    totalLost: number;
+  };
+}
+
+export interface PurchaseReportResponse extends TabReportData {
+  interestedModels: Array<{ name: string; count: number }>;
+}
+
+export interface TradeReportResponse extends TabReportData {
+  inboundComparison: Array<{
+    month: number;
+    tradeSuccess: number; // Khách đổi xe thành công
+    newCarsInbound: number; // Xe mới nhập về
+  }>;
+  totalNewCarsYear: number;
 }
 
 interface BranchYearlyStats {
@@ -80,7 +181,7 @@ export interface ReportResponse {
   };
 }
 
-// ── HÀM CHÍNH ──
+// ── HÀM CHÍNH ĐÃ CẬP NHẬT ──
 export async function getAdvancedReportAction(
   month?: number,
   year?: number,
@@ -93,7 +194,6 @@ export async function getAdvancedReportAction(
   const { role, id: authId, branchId: userBranchId, isGlobalManager } = user;
   const isHighLevel = role === "ADMIN" || isGlobalManager;
 
-  // 1. Phân quyền & phạm vi dữ liệu
   const effectiveBranchId = isHighLevel ? selectedBranchId : userBranchId;
   const effectiveUserId = !isHighLevel
     ? role === "MANAGER"
@@ -101,35 +201,36 @@ export async function getAdvancedReportAction(
       : authId
     : selectedUserId;
 
-  // 2. Xử lý khoảng thời gian báo cáo
   const reportYear = year ?? dayjs().year();
-  let dateFilter: { gte: Date; lte: Date } | undefined;
 
-  if (month !== undefined) {
-    dateFilter = {
-      gte: dayjs()
-        .year(reportYear)
-        .month(month - 1)
-        .startOf("month")
-        .toDate(),
-      lte: dayjs()
-        .year(reportYear)
-        .month(month - 1)
-        .endOf("month")
-        .toDate(),
-    };
-  } else {
-    dateFilter = {
-      gte: dayjs().year(reportYear).startOf("year").toDate(),
-      lte: dayjs().year(reportYear).endOf("year").toDate(),
-    };
-  }
+  // 1. Filter cho CẢ NĂM (Dành cho biểu đồ và Analytics 12 tháng)
+  const fullYearFilter = {
+    gte: dayjs().year(reportYear).startOf("year").toDate(),
+    lte: dayjs().year(reportYear).endOf("year").toDate(),
+  };
 
-  const timeWhere = dateFilter ? { createdAt: dateFilter } : {};
+  // 2. Filter cho THÁNG CỤ THỂ (Dành cho các con số tổng/Stats)
+  const specificFilter = month
+    ? {
+        gte: dayjs()
+          .year(reportYear)
+          .month(month - 1)
+          .startOf("month")
+          .toDate(),
+        lte: dayjs()
+          .year(reportYear)
+          .month(month - 1)
+          .endOf("month")
+          .toDate(),
+      }
+    : fullYearFilter;
+
+  const timeWhere = { createdAt: specificFilter };
+  const fullYearWhere = { createdAt: fullYearFilter };
   const branchFilter = effectiveBranchId ? { branchId: effectiveBranchId } : {};
   const userFilter = effectiveUserId ? { userId: effectiveUserId } : {};
 
-  // 3. Truy vấn song song (tối ưu hiệu suất, tránh N+1)
+  // 3. Truy vấn dữ liệu
   const [
     totalSales,
     totalPurchased,
@@ -142,7 +243,7 @@ export async function getAdvancedReportAction(
     staffPurchasePerformance,
     staffTradePerformance,
     inventoryStatus,
-    allLeadsForMatrix,
+    allLeadsForMatrix, // Dữ liệu này sẽ dùng fullYearWhere
     interestedModelsRaw,
     newCarSalesMonthlyRaw,
     totalNewCarsAgg,
@@ -151,7 +252,7 @@ export async function getAdvancedReportAction(
     tradeByBranch,
     newCarByBranchRaw,
   ] = await Promise.all([
-    // Tổng giao dịch thành công
+    // Stats: Chỉ đếm trong tháng đã chọn
     db.car.count({
       where: {
         status: "SOLD",
@@ -177,7 +278,7 @@ export async function getAdvancedReportAction(
       },
     }),
 
-    // Lead trễ theo luồng
+    // Late leads: Trong tháng đã chọn
     db.leadActivity.count({
       where: {
         isLate: true,
@@ -215,10 +316,9 @@ export async function getAdvancedReportAction(
       },
     }),
 
-    // Danh sách chi nhánh
     db.branch.findMany({ select: { id: true, name: true } }),
 
-    // Top 5 nhân viên theo luồng
+    // Performance: Trong tháng đã chọn
     db.user.findMany({
       where: {
         ...branchFilter,
@@ -268,16 +368,15 @@ export async function getAdvancedReportAction(
       take: 5,
     }),
 
-    // Trạng thái kho xe
     db.car.groupBy({
       by: ["status"],
       where: { ...branchFilter, ...timeWhere },
       _count: true,
     }),
 
-    // Dữ liệu lead thô để tính ma trận
+    // QUAN TRỌNG: Lấy dữ liệu cả năm cho ma trận & biểu đồ
     db.customer.findMany({
-      where: { ...timeWhere, ...branchFilter, ...userFilter },
+      where: { ...fullYearWhere, ...branchFilter, ...userFilter },
       select: {
         type: true,
         status: true,
@@ -287,28 +386,26 @@ export async function getAdvancedReportAction(
       },
     }),
 
-    // Model xe được quan tâm (groupBy tối ưu)
     db.customer.groupBy({
       by: ["carModelId"],
       where: { carModelId: { not: null }, ...timeWhere, ...branchFilter },
       _count: true,
     }),
 
-    // Xe mới theo tháng
+    // Xe mới nhập: Lấy cả năm để vẽ biểu đồ
     db.dailyCarInbound.groupBy({
       by: ["date"],
-      where: { date: dateFilter, ...branchFilter },
+      where: { date: fullYearFilter, ...branchFilter },
       _sum: { totalCars: true },
       orderBy: { date: "asc" },
     }),
 
-    // Tổng xe mới trong năm
     db.dailyCarInbound.aggregate({
-      where: { date: dateFilter, ...branchFilter },
+      where: { date: fullYearFilter, ...branchFilter },
       _sum: { totalCars: true },
     }),
 
-    // GroupBy theo chi nhánh để tránh N+1 loop
+    // GroupBy theo chi nhánh (Dùng timeWhere để tính tổng doanh số tháng/năm đang xem)
     db.car.groupBy({
       by: ["branchId"],
       where: { status: "SOLD", ...timeWhere },
@@ -330,14 +427,12 @@ export async function getAdvancedReportAction(
     }),
     db.dailyCarInbound.groupBy({
       by: ["branchId"],
-      where: { date: dateFilter },
+      where: { date: specificFilter },
       _sum: { totalCars: true },
     }),
   ]);
 
-  // 4. Xử lý dữ liệu sau truy vấn
-
-  // 4.1. Map tên model xe quan tâm
+  // 4. Xử lý dữ liệu
   const modelIds = [
     ...new Set(interestedModelsRaw.map((g: any) => g.carModelId)),
   ].filter(Boolean) as string[];
@@ -347,53 +442,51 @@ export async function getAdvancedReportAction(
   });
   const modelMap = new Map(models.map((m) => [m.id, m.name]));
 
-  const interestedModelsByMonth = interestedModelsRaw.map((g: any) => ({
-    modelName: modelMap.get(g.carModelId) || "Unknown",
-    count: g._count,
+  const perBranchStats = branches.map((b) => ({
+    branchId: b.id,
+    branchName: b.name,
+    totalSales: salesByBranch.find((g) => g.branchId === b.id)?._count ?? 0,
+    totalPurchase:
+      purchaseByBranch.find((g) => g.branchId === b.id)?._count ?? 0,
+    totalTrade: tradeByBranch.find((g) => g.branchId === b.id)?._count ?? 0,
+    totalNewCars:
+      newCarByBranchRaw.find((g) => g.branchId === b.id)?._sum.totalCars ?? 0,
   }));
 
-  // 4.2. Yearly totals per branch (join in-memory)
-  const perBranchStats = branches.map((b) => {
-    const salesCount =
-      salesByBranch.find((g) => g.branchId === b.id)?._count ?? 0;
-    const purchaseCount =
-      purchaseByBranch.find((g) => g.branchId === b.id)?._count ?? 0;
-    const tradeCount =
-      tradeByBranch.find((g) => g.branchId === b.id)?._count ?? 0;
-    const newCarCount =
-      newCarByBranchRaw.find((g) => g.branchId === b.id)?._sum.totalCars ?? 0;
-
-    return {
-      branchId: b.id,
-      branchName: b.name,
-      totalSales: salesCount,
-      totalPurchase: purchaseCount,
-      totalTrade: tradeCount,
-      totalNewCars: newCarCount,
-    };
-  });
-
-  // 4.3. Xử lý ma trận analytics (type-safe)
+  // 4.1 Xử lý Analytics 12 tháng
   const categories = {
     SUCCESS: [LeadStatus.DEAL_DONE],
     LOSE: [LeadStatus.LOSE, LeadStatus.CANCELLED, LeadStatus.REJECTED_APPROVAL],
     FROZEN: [LeadStatus.FROZEN],
   };
 
-  const createEmptyMatrix = (): InspectionMatrix => ({
-    INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
-    APPOINTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
-    NOT_INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
-    total: 0,
-  });
-
   const createEmptyMonth = (i: number): MonthlyAnalytics => ({
     monthIdx: i,
     monthName: `Tháng ${i + 1}`,
-    SUCCESS: createEmptyMatrix(),
-    LOSE: createEmptyMatrix(),
-    FROZEN: createEmptyMatrix(),
-    REMAINING: createEmptyMatrix(),
+    SUCCESS: {
+      INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      APPOINTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      NOT_INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      total: 0,
+    },
+    LOSE: {
+      INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      APPOINTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      NOT_INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      total: 0,
+    },
+    FROZEN: {
+      INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      APPOINTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      NOT_INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      total: 0,
+    },
+    REMAINING: {
+      INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      APPOINTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      NOT_INSPECTED: { HOT: 0, WARM: 0, COOL: 0, total: 0 },
+      total: 0,
+    },
     trend: { SUCCESS: 0, LOSE: 0, FROZEN: 0, REMAINING: 0, HOT: 0 },
   });
 
@@ -409,77 +502,53 @@ export async function getAdvancedReportAction(
 
   allLeadsForMatrix.forEach((lead: any) => {
     const monthIndex = dayjs(lead.createdAt).month();
-    let targetArray: MonthlyAnalytics[];
-
-    switch (lead.type) {
-      case ReferralType.BUY:
-        targetArray = salesAnalyticsResult;
-        break;
-      case ReferralType.SELL:
-      case ReferralType.VALUATION:
-      case ReferralType.SELL_TRADE_USED:
-        targetArray = purchaseAnalyticsResult;
-        break;
-      case ReferralType.SELL_TRADE_NEW:
-        targetArray = tradeAnalyticsResult;
-        break;
-      default:
-        return;
-    }
+    const targetArray =
+      lead.type === ReferralType.BUY
+        ? salesAnalyticsResult
+        : [
+              ReferralType.SELL,
+              ReferralType.VALUATION,
+              ReferralType.SELL_TRADE_USED,
+            ].includes(lead.type)
+          ? purchaseAnalyticsResult
+          : tradeAnalyticsResult;
 
     const monthData = targetArray[monthIndex];
-    let categoryKey: keyof Pick<
-      MonthlyAnalytics,
-      "SUCCESS" | "LOSE" | "FROZEN" | "REMAINING"
-    > = "REMAINING";
-
+    let categoryKey: "SUCCESS" | "LOSE" | "FROZEN" | "REMAINING" = "REMAINING";
     if (categories.SUCCESS.includes(lead.status)) categoryKey = "SUCCESS";
     else if (categories.LOSE.includes(lead.status)) categoryKey = "LOSE";
     else if (categories.FROZEN.includes(lead.status)) categoryKey = "FROZEN";
-    type InspectStatusKey = "INSPECTED" | "APPOINTED" | "NOT_INSPECTED";
-    type UrgencyKey = "HOT" | "WARM" | "COOL";
 
     const inspectKey = (lead.inspectStatus ||
-      "NOT_INSPECTED") as InspectStatusKey;
-    const urgencyKey = (lead.urgencyLevel || "COOL") as UrgencyKey;
+      "NOT_INSPECTED") as keyof InspectionMatrix;
+    const urgencyKey = (lead.urgencyLevel || "COOL") as keyof UrgencyStats;
 
     monthData[categoryKey].total++;
-    const inspectData = monthData[categoryKey][inspectKey];
-    if (
-      inspectData &&
-      typeof inspectData === "object" &&
-      "total" in inspectData
-    ) {
-      inspectData.total++;
-      (inspectData as UrgencyStats)[urgencyKey]++;
-    }
+    const inspectData = monthData[categoryKey][inspectKey] as UrgencyStats;
+    inspectData.total++;
+    inspectData[urgencyKey]++;
+
     monthData.trend[categoryKey]++;
     if (urgencyKey === "HOT") monthData.trend.HOT++;
   });
 
-  // 4.4. Growth chart (tổng quan 3 luồng)
-  const growthChart = salesAnalyticsResult.map((m, idx) => ({
-    name: m.monthName,
-    sales: m.trend.SUCCESS,
-    purchase: purchaseAnalyticsResult[idx].trend.SUCCESS,
-    trade: tradeAnalyticsResult[idx].trend.SUCCESS,
-  }));
-
-  // 5. Trả về dữ liệu đầy đủ
   return {
     role,
     isGlobal: isHighLevel,
     salesAnalytics: salesAnalyticsResult,
     purchaseAnalytics: purchaseAnalyticsResult,
     tradeAnalytics: tradeAnalyticsResult,
-    interestedModelsByMonth,
+    interestedModelsByMonth: interestedModelsRaw.map((g: any) => ({
+      modelName: modelMap.get(g.carModelId) || "Unknown",
+      count: g._count,
+    })),
     branches,
     newCarSalesByMonth: newCarSalesMonthlyRaw.map((g: any) => ({
       month: dayjs(g.date).month() + 1,
       totalNewCars: g._sum.totalCars || 0,
     })),
     totalNewCarsYear: totalNewCarsAgg._sum.totalCars || 0,
-    newCarPerBranch: newCarByBranchRaw.length > 0 ? perBranchStats : null,
+    newCarPerBranch: perBranchStats,
     stats: {
       sales: {
         total: totalSales,
@@ -506,7 +575,12 @@ export async function getAdvancedReportAction(
         },
         perBranch: perBranchStats,
       },
-      growthChart,
+      growthChart: salesAnalyticsResult.map((m, idx) => ({
+        name: m.monthName,
+        sales: m.trend.SUCCESS,
+        purchase: purchaseAnalyticsResult[idx].trend.SUCCESS,
+        trade: tradeAnalyticsResult[idx].trend.SUCCESS,
+      })),
     },
   };
 }
@@ -587,9 +661,14 @@ interface MonthlyAnalytics {
 interface TabReportData {
   analytics: MonthlyAnalytics[];
   stats: {
+    totalCustomersYear: number;
     total: number;
     late: number;
     performance: Array<{ id: string; fullName: string | null; _count: any }>;
+    interestedModels: {
+      name: string;
+      count: number;
+    }[];
   };
 }
 
@@ -654,55 +733,34 @@ function processLeadMatrix(leads: any[]): MonthlyAnalytics[] {
   return analytics;
 }
 
-// ── API 1: BÁN HÀNG ──
 export async function getSalesReportAction(
   month?: number,
-  year?: number,
+  year: number = 2026,
   selectedBranchId?: string,
   selectedUserId?: string,
-): Promise<TabReportData> {
+): Promise<SalesReportResponse> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { role, id: authId, branchId: userBranchId, isGlobalManager } = user;
-  const isHighLevel = role === "ADMIN" || isGlobalManager;
+  const authUser: AuthUser = {
+    role: user.role,
+    id: user.id,
+    branchId: user.branchId,
+    isGlobalManager: user.isGlobalManager,
+  };
 
-  const effectiveBranchId = isHighLevel ? selectedBranchId : userBranchId;
-  const effectiveUserId = !isHighLevel
-    ? role === "MANAGER"
-      ? selectedUserId || undefined
-      : authId
-    : selectedUserId;
+  const { timeWhere, fullYearWhere, branchFilter, userFilter } =
+    getReportFilters(year, month, authUser, selectedBranchId, selectedUserId);
 
-  const reportYear = year ?? dayjs().year();
-  let dateFilter: { gte: Date; lte: Date } | undefined;
-
-  if (month !== undefined) {
-    dateFilter = {
-      gte: dayjs()
-        .year(reportYear)
-        .month(month - 1)
-        .startOf("month")
-        .toDate(),
-      lte: dayjs()
-        .year(reportYear)
-        .month(month - 1)
-        .endOf("month")
-        .toDate(),
-    };
-  } else {
-    dateFilter = {
-      gte: dayjs().year(reportYear).startOf("year").toDate(),
-      lte: dayjs().year(reportYear).endOf("year").toDate(),
-    };
-  }
-
-  const timeWhere = dateFilter ? { createdAt: dateFilter } : {};
-  const branchFilter = effectiveBranchId ? { branchId: effectiveBranchId } : {};
-  const userFilter = effectiveUserId ? { userId: effectiveUserId } : {};
-
-  const [total, lateLeads, performance, allLeads] = await Promise.all([
-    // Tổng xe bán ra (thành công)
+  const [
+    totalSoldMonth,
+    lateLeads,
+    performanceRaw,
+    leadsForStats,
+    leadsForAnalytics,
+    totalCustomersYear,
+  ] = await Promise.all([
+    // 1. Số xe bán được tháng chọn
     db.car.count({
       where: {
         status: "SOLD",
@@ -711,37 +769,44 @@ export async function getSalesReportAction(
         contracts: { some: { type: "SALE" } },
       },
     }),
-    // Lead trễ
+    // 2. Lead trễ tháng chọn
     db.leadActivity.count({
       where: {
         isLate: true,
-        customer: {
-          type: { in: [ReferralType.BUY, ReferralType.SELL_TRADE_USED] },
-          ...timeWhere,
-          ...branchFilter,
-        },
+        customer: { type: ReferralType.BUY, ...timeWhere, ...branchFilter },
       },
     }),
-    // Top nhân viên bán hàng
+    // 3. Nhân sự xuất sắc (Top 5 nhân viên chốt xe tháng chọn)
     db.user.findMany({
       where: {
         ...branchFilter,
-        role: { in: ["SALES_STAFF", "ADMIN", "MANAGER"] },
+        role: { in: ["SALES_STAFF", "MANAGER", "ADMIN"] },
         active: true,
       },
       select: {
-        id: true,
         fullName: true,
-        _count: { select: { soldCars: { where: timeWhere } } },
+        _count: {
+          select: { soldCars: { where: { status: "SOLD", ...timeWhere } } },
+        },
       },
       orderBy: { soldCars: { _count: "desc" } },
       take: 5,
     }),
-    // Dữ liệu lead để tính ma trận
+    // 4. Summary tháng chọn
     db.customer.findMany({
       where: {
         type: ReferralType.BUY,
         ...timeWhere,
+        ...branchFilter,
+        ...userFilter,
+      },
+      select: { status: true },
+    }),
+    // 5. Analytics 12 tháng (QUAN TRỌNG: Thêm carModelId vào select để hết lỗi TS)
+    db.customer.findMany({
+      where: {
+        type: ReferralType.BUY,
+        ...fullYearWhere,
         ...branchFilter,
         ...userFilter,
       },
@@ -750,89 +815,116 @@ export async function getSalesReportAction(
         inspectStatus: true,
         urgencyLevel: true,
         createdAt: true,
+        carModelId: true, // Thêm dòng này để fix lỗi carModelId not exist
+        carModel: { select: { name: true, grade: true } },
+      },
+    }),
+    // 6. Tổng khách cả năm
+    db.customer.count({
+      where: {
+        type: ReferralType.BUY,
+        ...fullYearWhere,
+        ...branchFilter,
+        ...userFilter,
       },
     }),
   ]);
 
-  const analytics = processLeadMatrix(allLeads);
+  // --- XỬ LÝ DÒNG XE QUAN TÂM (interestedModels) ---
+  // Lọc lấy khách trong tháng chọn từ mảng leadsForAnalytics để thống kê model
+  const startOfMonth = new Date(year, (month || 1) - 1, 1);
+  const endOfMonth = new Date(year, month || 12, 0);
+
+  const modelMap: Record<string, number> = {};
+  leadsForAnalytics.forEach((lead) => {
+    const isInsideMonth =
+      lead.createdAt >= startOfMonth && lead.createdAt <= endOfMonth;
+    if (isInsideMonth && lead.carModel) {
+      const label = lead.carModel.grade
+        ? `${lead.carModel.name} (${lead.carModel.grade})`
+        : lead.carModel.name;
+      modelMap[label] = (modelMap[label] || 0) + 1;
+    }
+  });
+
+  const interestedModels = Object.entries(modelMap)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  // --- CÁC LOGIC CÒN LẠI ---
+  const analytics = processLeadMatrix(leadsForAnalytics);
+  const LOSE_GROUP: LeadStatus[] = ["LOSE", "CANCELLED", "REJECTED_APPROVAL"];
+  const monthlySummary = leadsForStats.reduce(
+    (acc, lead) => {
+      const status = lead.status as LeadStatus;
+      if (status === "DEAL_DONE") acc.totalSuccess++;
+      else if (LOSE_GROUP.includes(status)) acc.totalLost++;
+      else if (status === "FROZEN") acc.totalFrozen++;
+      else acc.totalActive++;
+      return acc;
+    },
+    { totalActive: 0, totalSuccess: 0, totalFrozen: 0, totalLost: 0 },
+  );
 
   return {
     analytics,
     stats: {
-      total,
+      totalCustomersYear,
+      total: totalSoldMonth,
       late: lateLeads,
-      performance,
+      // Format lại top nhân sự
+      performance: performanceRaw.map((p) => ({
+        fullName: p.fullName,
+        count: p._count.soldCars,
+      })),
+      interestedModels, // Đã có đủ dữ liệu kèm Grade
     },
+    monthlySummary,
   };
 }
 
-// ── API 2: THU MUA ──
 export async function getPurchaseReportAction(
   month?: number,
   year?: number,
   selectedBranchId?: string,
   selectedUserId?: string,
-): Promise<TabReportData> {
+): Promise<PurchaseReportResponse> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { role, id: authId, branchId: userBranchId, isGlobalManager } = user;
-  const isHighLevel = role === "ADMIN" || isGlobalManager;
+  const authUser: AuthUser = {
+    role: user.role,
+    id: user.id,
+    branchId: user.branchId,
+    isGlobalManager: user.isGlobalManager,
+  };
 
-  const effectiveBranchId = isHighLevel ? selectedBranchId : userBranchId;
-  const effectiveUserId = !isHighLevel
-    ? role === "MANAGER"
-      ? selectedUserId || undefined
-      : authId
-    : selectedUserId;
+  const { timeWhere, fullYearWhere, branchFilter, userFilter } =
+    getReportFilters(year, month, authUser, selectedBranchId, selectedUserId);
 
-  const reportYear = year ?? dayjs().year();
-  let dateFilter: { gte: Date; lte: Date } | undefined;
+  const purchaseTypes = [
+    ReferralType.SELL,
+    ReferralType.VALUATION,
+    ReferralType.SELL_TRADE_USED,
+  ];
 
-  if (month !== undefined) {
-    dateFilter = {
-      gte: dayjs()
-        .year(reportYear)
-        .month(month - 1)
-        .startOf("month")
-        .toDate(),
-      lte: dayjs()
-        .year(reportYear)
-        .month(month - 1)
-        .endOf("month")
-        .toDate(),
-    };
-  } else {
-    dateFilter = {
-      gte: dayjs().year(reportYear).startOf("year").toDate(),
-      lte: dayjs().year(reportYear).endOf("year").toDate(),
-    };
-  }
-
-  const timeWhere = dateFilter ? { createdAt: dateFilter } : {};
-  const branchFilter = effectiveBranchId ? { branchId: effectiveBranchId } : {};
-  const userFilter = effectiveUserId ? { userId: effectiveUserId } : {};
-
-  const [total, lateLeads, performance, allLeads] = await Promise.all([
+  const [
+    total,
+    lateLeads,
+    performanceRaw,
+    leadsForAnalytics,
+    interestedModelsRaw,
+    totalCustomersYear,
+  ] = await Promise.all([
     db.car.count({
-      where: {
-        purchasedAt: { not: null },
-        ...timeWhere,
-        ...branchFilter,
-        contracts: { some: { type: "PURCHASE" } },
-      },
+      where: { purchasedAt: { not: null }, ...timeWhere, ...branchFilter },
     }),
     db.leadActivity.count({
       where: {
         isLate: true,
         customer: {
-          type: {
-            in: [
-              ReferralType.SELL,
-              ReferralType.VALUATION,
-              ReferralType.SELL_TRADE_USED,
-            ],
-          },
+          type: { in: purchaseTypes },
           ...timeWhere,
           ...branchFilter,
         },
@@ -854,14 +946,8 @@ export async function getPurchaseReportAction(
     }),
     db.customer.findMany({
       where: {
-        type: {
-          in: [
-            ReferralType.SELL,
-            ReferralType.VALUATION,
-            ReferralType.SELL_TRADE_USED,
-          ],
-        },
-        ...timeWhere,
+        type: { in: purchaseTypes },
+        ...fullYearWhere,
         ...branchFilter,
         ...userFilter,
       },
@@ -872,187 +958,199 @@ export async function getPurchaseReportAction(
         createdAt: true,
       },
     }),
+    db.customer.groupBy({
+      by: ["carModelId"],
+      where: {
+        type: { in: purchaseTypes },
+        carModelId: { not: null },
+        ...timeWhere,
+        ...branchFilter,
+      },
+      _count: true,
+    }),
+    db.customer.count({
+      where: {
+        type: { in: purchaseTypes },
+        ...fullYearWhere,
+        ...branchFilter,
+        ...userFilter,
+      },
+    }),
   ]);
 
-  const analytics = processLeadMatrix(allLeads);
+  // Xử lý Map tên Model
+  const modelIds = interestedModelsRaw.map((m) => m.carModelId as string);
+  const models = await db.carModel.findMany({
+    where: { id: { in: modelIds } },
+    select: { id: true, name: true },
+  });
+  const modelMap = new Map(models.map((m) => [m.id, m.name]));
 
   return {
-    analytics,
+    analytics: processLeadMatrix(leadsForAnalytics),
     stats: {
+      totalCustomersYear,
       total,
       late: lateLeads,
-      performance,
+      // LỖI 1: Phải trả về đúng cấu trúc có chứa _count nếu Interface yêu cầu thế
+      // Hoặc sửa Interface (khuyên dùng cách sửa Interface ở mục 2)
+      performance: performanceRaw.map((p) => ({
+        id: p.id,
+        fullName: p.fullName,
+        _count: { purchases: p._count.purchases }, // Trả về đúng property _count
+      })),
+      interestedModels: interestedModelsRaw
+        .map((g) => ({
+          name: modelMap.get(g.carModelId!) || "Khác", // Sửa từ name -> modelName
+          count: g._count,
+        }))
+        .sort((a, b) => b.count - a.count),
     },
+    // LỖI 2: Interface yêu cầu 'modelName', không phải 'name'
+    interestedModels: interestedModelsRaw
+      .map((g) => ({
+        name: modelMap.get(g.carModelId!) || "Khác", // Sửa từ name -> modelName
+        count: g._count,
+      }))
+      .sort((a, b) => b.count - a.count),
   };
 }
 
-// ── API 3: TRAO ĐỔI XE (có thêm xe mới) ──
 export async function getTradeReportAction(
   month?: number,
   year?: number,
   selectedBranchId?: string,
-  selectedUserId?: string,
-): Promise<
-  TabReportData & {
-    newCarSalesByMonth: Array<{ month: number; totalNewCars: number }>;
-    totalNewCarsYear: number;
-    newCarPerBranch: Array<{
-      branchId: string;
-      branchName: string;
-      totalNewCars: number;
-    }> | null;
-  }
-> {
+): Promise<TradeReportResponse> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { role, id: authId, branchId: userBranchId, isGlobalManager } = user;
-  const isHighLevel = role === "ADMIN" || isGlobalManager;
+  const authUser: AuthUser = {
+    role: user.role,
+    id: user.id,
+    branchId: user.branchId,
+    isGlobalManager: user.isGlobalManager,
+  };
 
-  const effectiveBranchId = isHighLevel ? selectedBranchId : userBranchId;
-  const effectiveUserId = !isHighLevel
-    ? role === "MANAGER"
-      ? selectedUserId || undefined
-      : authId
-    : selectedUserId;
+  // 1. Lấy filter thời gian
+  const { timeWhere, fullYearWhere, branchFilter } = getReportFilters(
+    year,
+    month,
+    authUser,
+    selectedBranchId,
+  );
 
-  const reportYear = year ?? dayjs().year();
-  let dateFilter: { gte: Date; lte: Date } | undefined;
-
-  if (month !== undefined) {
-    dateFilter = {
-      gte: dayjs()
-        .year(reportYear)
-        .month(month - 1)
-        .startOf("month")
-        .toDate(),
-      lte: dayjs()
-        .year(reportYear)
-        .month(month - 1)
-        .endOf("month")
-        .toDate(),
-    };
-  } else {
-    dateFilter = {
-      gte: dayjs().year(reportYear).startOf("year").toDate(),
-      lte: dayjs().year(reportYear).endOf("year").toDate(),
-    };
-  }
-
-  const timeWhere = dateFilter ? { createdAt: dateFilter } : {};
-  const branchFilter = effectiveBranchId ? { branchId: effectiveBranchId } : {};
-  const userFilter = effectiveUserId ? { userId: effectiveUserId } : {};
-
+  // 2. Truy vấn song song tất cả các bảng liên quan
   const [
-    total,
-    lateLeads,
-    performance,
-    allLeads,
-    newCarSalesMonthlyRaw,
-    totalNewCarsAgg,
-    newCarByBranchRaw,
-    branches, // cần để map tên chi nhánh
+    tradeLeadsFullYear, // Khách đổi xe (Cả năm)
+    inboundCarsFullYear, // Xe nhập mới (Cả năm - cho biểu đồ)
+    inboundCarsStats, // Xe nhập mới (Theo tháng chọn - cho Stats)
+    totalCustomersYear, // Tổng khách đổi xe cả năm
+    interestedModelsRaw, // Model khách quan tâm
   ] = await Promise.all([
-    db.customer.count({
-      where: {
-        type: ReferralType.SELL_TRADE_NEW,
-        status: LeadStatus.DEAL_DONE,
-        ...timeWhere,
-        ...branchFilter,
-      },
-    }),
-    db.leadActivity.count({
-      where: {
-        isLate: true,
-        customer: {
-          type: ReferralType.SELL_TRADE_NEW,
-          ...timeWhere,
-          ...branchFilter,
-        },
-      },
-    }),
-    db.user.findMany({
-      where: {
-        ...branchFilter,
-        role: { in: ["SALES_STAFF", "PURCHASE_STAFF"] },
-        active: true,
-      },
-      select: {
-        id: true,
-        fullName: true,
-        _count: {
-          select: {
-            assignedLeads: {
-              where: { type: ReferralType.SELL_TRADE_NEW, ...timeWhere },
-            },
-          },
-        },
-      },
-      orderBy: { assignedLeads: { _count: "desc" } },
-      take: 5,
-    }),
+    // Lấy Leads đổi xe
     db.customer.findMany({
       where: {
         type: ReferralType.SELL_TRADE_NEW,
-        ...timeWhere,
+        ...fullYearWhere,
         ...branchFilter,
-        ...userFilter,
       },
       select: {
         status: true,
+        createdAt: true,
         inspectStatus: true,
         urgencyLevel: true,
-        createdAt: true,
       },
     }),
+    // Lấy dữ liệu xe nhập mới CẢ NĂM để vẽ biểu đồ so sánh
     db.dailyCarInbound.groupBy({
       by: ["date"],
-      where: { date: dateFilter, ...branchFilter },
+      where: {
+        date: fullYearWhere.createdAt, // createdAt ở đây là filter range từ startOf('year') đến endOf('year')
+        ...branchFilter,
+      },
       _sum: { totalCars: true },
-      orderBy: { date: "asc" },
     }),
+    // Lấy tổng xe nhập mới theo THỜI GIAN CHỌN (Tháng hoặc Năm cụ thể)
     db.dailyCarInbound.aggregate({
-      where: { date: dateFilter, ...branchFilter },
+      where: {
+        date: timeWhere.createdAt,
+        ...branchFilter,
+      },
       _sum: { totalCars: true },
     }),
-    db.dailyCarInbound.groupBy({
-      by: ["branchId"],
-      where: { date: dateFilter },
-      _sum: { totalCars: true },
+    db.customer.count({
+      where: {
+        type: ReferralType.SELL_TRADE_NEW,
+        ...fullYearWhere,
+        ...branchFilter,
+      },
     }),
-    db.branch.findMany({ select: { id: true, name: true } }),
+    db.customer.groupBy({
+      by: ["carModelId"],
+      where: {
+        type: ReferralType.SELL_TRADE_NEW,
+        carModelId: { not: null },
+        ...timeWhere,
+        ...branchFilter,
+      },
+      _count: true,
+    }),
   ]);
 
-  const analytics = processLeadMatrix(allLeads);
+  // 3. Xử lý Map tên Model xe
+  const modelIds = interestedModelsRaw.map((m) => m.carModelId as string);
+  const models = await db.carModel.findMany({
+    where: { id: { in: modelIds } },
+    select: { id: true, name: true },
+  });
+  const modelMap = new Map(models.map((m) => [m.id, m.name]));
 
-  // Xe mới theo tháng
-  const newCarSalesByMonth = newCarSalesMonthlyRaw.map((g: any) => ({
-    month: dayjs(g.date).month() + 1,
-    totalNewCars: g._sum.totalCars || 0,
-  }));
+  // 4. Xử lý ma trận Analytics 12 tháng
+  const analytics = processLeadMatrix(tradeLeadsFullYear);
 
-  // Xe mới theo chi nhánh
-  const newCarPerBranch =
-    newCarByBranchRaw.length > 0
-      ? branches.map((b) => {
-          const nc = newCarByBranchRaw.find((g) => g.branchId === b.id);
-          return {
-            branchId: b.id,
-            branchName: b.name,
-            totalNewCars: nc?._sum.totalCars ?? 0,
-          };
-        })
-      : null;
+  // 5. Xử lý BIỂU ĐỒ SO SÁNH (Trade Success vs Inbound) - 12 tháng
+  const inboundComparison = Array.from({ length: 12 }, (_, i) => {
+    // Số ca đổi xe thành công trong tháng i
+    const monthTradeSuccess = tradeLeadsFullYear.filter(
+      (l) =>
+        dayjs(l.createdAt).month() === i && l.status === LeadStatus.DEAL_DONE,
+    ).length;
+
+    // Tổng xe nhập mới thực tế trong tháng i (từ bảng DailyCarInbound)
+    const monthInbound = inboundCarsFullYear
+      .filter((c) => dayjs(c.date).month() === i)
+      .reduce((sum, curr) => sum + (curr._sum.totalCars || 0), 0);
+
+    return {
+      month: i + 1,
+      tradeSuccess: monthTradeSuccess,
+      newCarsInbound: monthInbound,
+    };
+  });
+
+  // 6. Tính toán các con số tổng quát (Stats)
+  // Lọc list leads theo tháng được chọn để hiện con số "Tổng đổi xe"
+  const statsLeads = month
+    ? tradeLeadsFullYear.filter((l) => dayjs(l.createdAt).month() === month - 1)
+    : tradeLeadsFullYear;
 
   return {
     analytics,
     stats: {
-      total,
-      late: lateLeads,
-      performance,
+      totalCustomersYear,
+      total: statsLeads.filter((l) => l.status === LeadStatus.DEAL_DONE).length,
+      late: 0,
+      performance: [],
+      // Đưa interestedModels vào trong stats theo Interface chung
+      interestedModels: interestedModelsRaw
+        .map((g) => ({
+          name: modelMap.get(g.carModelId!) || "Khác",
+          count: g._count,
+        }))
+        .sort((a, b) => b.count - a.count),
     },
-    newCarSalesByMonth,
-    totalNewCarsYear: totalNewCarsAgg._sum.totalCars || 0,
-    newCarPerBranch,
+    inboundComparison,
+    // Con số này hiển thị tổng số xe nhập mới trong kỳ báo cáo (tháng hoặc năm chọn)
+    totalNewCarsYear: inboundCarsStats._sum.totalCars || 0,
   };
 }

@@ -1,41 +1,35 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// components/dashboard/ReportingDashboard.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Card,
   Row,
   Col,
-  Statistic,
   Typography,
-  Tabs,
   Select,
   Empty,
   Badge,
   Tag,
-  Divider,
-  Tooltip,
-  Spin,
   Space,
-  Table,
-  message,
+  Progress,
+  Button,
+  Tooltip,
 } from "antd";
 import {
   ShopOutlined,
   ShoppingCartOutlined,
   SwapOutlined,
-  BarChartOutlined,
-  CarOutlined,
-  TeamOutlined,
-  RiseOutlined,
-  ClockCircleOutlined,
+  UserOutlined,
   FireOutlined,
-  FilterOutlined,
+  CalendarOutlined,
+  BarChartOutlined,
+  TrophyOutlined,
+  ArrowUpOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import {
-  BarChart,
   Bar,
   XAxis,
   YAxis,
@@ -43,649 +37,607 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
   Legend,
+  Cell,
+  PieChart,
+  Pie,
+  ComposedChart,
+  Line,
+  BarChart,
 } from "recharts";
 import dayjs from "dayjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const { Title, Text } = Typography;
 
-type InspectStatusKey = "INSPECTED" | "APPOINTED" | "NOT_INSPECTED";
-type UrgencyKey = "HOT" | "WARM" | "COOL";
-
-type MatrixItem = {
-  [K in InspectStatusKey]: { [U in UrgencyKey]: number } & { total: number };
-} & { total: number };
-
-type AnalyticsMonth = {
-  monthIdx: number;
-  monthName: string;
-  SUCCESS: MatrixItem;
-  LOSE: MatrixItem;
-  FROZEN: MatrixItem;
-  REMAINING: MatrixItem;
-  trend: {
-    SUCCESS: number;
-    LOSE: number;
-    FROZEN: number;
-    REMAINING: number;
-    HOT: number;
-  };
+const THEME = {
+  sales: "#3b82f6",
+  purchase: "#10b981",
+  trade: "#f59e0b",
+  inbound: "#475569",
+  SUCCESS: "#22c55e",
+  REMAINING: "#3b82f6",
+  FROZEN: "#a855f7",
+  LOSE: "#ef4444",
 };
-
-interface ReportingDashboardProps {
-  reportData: any;
-  branches: { id: string; name: string }[];
-  users: { id: string; fullName: string | null }[];
-  currentUser: any;
-  selectedBranchId: string | null;
-}
-
-const TABS = [
-  { key: "sales", label: "Bán hàng", icon: <ShopOutlined />, color: "#3b82f6" },
-  {
-    key: "purchase",
-    label: "Thu mua",
-    icon: <ShoppingCartOutlined />,
-    color: "#10b981",
-  },
-  {
-    key: "trade",
-    label: "Trao đổi xe",
-    icon: <SwapOutlined />,
-    color: "#f59e0b",
-  },
-];
-
-const CATEGORY_CONFIG = [
-  { key: "SUCCESS", label: "Thành công", color: "#22c55e" },
-  { key: "REMAINING", label: "Đang xử lý", color: "#3b82f6" },
-  { key: "FROZEN", label: "Đóng băng", color: "#a855f7" },
-  { key: "LOSE", label: "Thất bại", color: "#ef4444" },
-];
 
 export default function ReportingDashboard({
   reportData,
   branches,
-  users,
-  currentUser,
   selectedBranchId,
-}: ReportingDashboardProps) {
+}: any) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("sales");
-  const [selectedMonth, setSelectedMonth] = useState(dayjs().month());
 
-  const isHighLevel =
-    currentUser?.isGlobalManager || currentUser?.role === "ADMIN";
+  const selectedMonth = useMemo(() => {
+    const m = searchParams.get("month");
+    return m ? parseInt(m) - 1 : dayjs().month();
+  }, [searchParams]);
 
-  // Destructuring an toàn từ reportData
-  const stats = reportData?.stats || {};
-  const salesAnalytics = reportData?.salesAnalytics || [];
-  const purchaseAnalytics = reportData?.purchaseAnalytics || [];
-  const tradeAnalytics = reportData?.tradeAnalytics || [];
-  const newCarSalesByMonth = reportData?.newCarSalesByMonth || [];
-  const totalNewCarsYear = reportData?.totalNewCarsYear ?? 0;
-  const newCarPerBranch = reportData?.newCarPerBranch ?? null;
-  const interestedModelsByMonth = reportData?.interestedModelsByMonth || [];
-
-  const currentAnalytics = useMemo(() => {
-    switch (activeTab) {
-      case "sales":
-        return salesAnalytics;
-      case "purchase":
-        return purchaseAnalytics;
-      case "trade":
-        return tradeAnalytics;
-      default:
-        return [];
-    }
-  }, [activeTab, salesAnalytics, purchaseAnalytics, tradeAnalytics]);
-
-  const activeMonthData = useMemo(
-    () =>
-      currentAnalytics.find(
-        (m: AnalyticsMonth) => m.monthIdx === selectedMonth,
-      ) || null,
-    [currentAnalytics, selectedMonth],
+  const activeData = useMemo(
+    () => reportData[activeTab],
+    [activeTab, reportData],
   );
 
-  const yearlyChartData = useMemo(
-    () =>
-      currentAnalytics.map((m: AnalyticsMonth) => ({
-        month: m.monthName,
-        ...m.trend,
-      })),
-    [currentAnalytics],
-  );
-
-  // So sánh xe cũ vs xe mới trong tab Trade
-  const tradeComparisonData = useMemo(() => {
-    if (activeTab !== "trade") return [];
-    return yearlyChartData.map((m: any, idx: number) => ({
-      month: m.month,
-      "Xe cũ bán ra": m.SUCCESS || 0,
-      "Xe mới bán ra":
-        newCarSalesByMonth.find((nc: any) => nc.month === idx + 1)
-          ?.totalNewCars || 0,
-    }));
-  }, [yearlyChartData, newCarSalesByMonth, activeTab]);
-
-  // Top mẫu xe quan tâm
-  const topModels = useMemo(() => {
-    const grouped = interestedModelsByMonth.reduce(
-      (acc: Record<string, number>, item: any) => {
-        acc[item.modelName] = (acc[item.modelName] || 0) + item.count;
+  const yearlyTotalStats = useMemo(() => {
+    const analytics = activeData?.analytics || [];
+    return analytics.reduce(
+      (acc: any, curr: any) => {
+        acc.SUCCESS += curr.trend?.SUCCESS || 0;
+        acc.REMAINING += curr.trend?.REMAINING || 0;
+        acc.FROZEN += curr.trend?.FROZEN || 0;
+        acc.LOSE += curr.trend?.LOSE || 0;
+        acc.TOTAL += curr.total || 0;
         return acc;
       },
-      {},
+      { SUCCESS: 0, REMAINING: 0, FROZEN: 0, LOSE: 0, TOTAL: 0 },
     );
-    return Object.entries(grouped)
-      .map(([model, count]) => ({ model, count }))
-      .sort((a: any, b: any) => b.count - a.count)
-      .slice(0, 10);
-  }, [interestedModelsByMonth]);
+  }, [activeData]);
 
-  const handleBranchChange = (value: string) => {
-    const params = new URLSearchParams(window.location.search);
-    if (value) params.set("branchId", value);
-    else params.delete("branchId");
+  const pieData = useMemo(
+    () => [
+      {
+        name: "Thành công",
+        value: yearlyTotalStats.SUCCESS,
+        color: THEME.SUCCESS,
+      },
+      {
+        name: "Đang chăm sóc",
+        value: yearlyTotalStats.REMAINING,
+        color: THEME.REMAINING,
+      },
+      {
+        name: "Đóng băng",
+        value: yearlyTotalStats.FROZEN,
+        color: THEME.FROZEN,
+      },
+      { name: "LOST", value: yearlyTotalStats.LOSE, color: THEME.LOSE },
+    ],
+    [yearlyTotalStats],
+  );
+
+  const activeMonthData = useMemo(() => {
+    return (
+      activeData?.analytics?.find((m: any) => m.monthIdx === selectedMonth) ||
+      null
+    );
+  }, [activeData, selectedMonth]);
+
+  const interestedModels = useMemo(
+    () => activeData?.stats?.interestedModels || [],
+    [activeData],
+  );
+
+  const updateFilter = (key: string, value: any) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value.toString());
+    else params.delete(key);
     router.push(`?${params.toString()}`);
   };
 
-  // Type guard cho matrix
-  const isValidInspectKey = (key: string): key is InspectStatusKey =>
-    ["INSPECTED", "APPOINTED", "NOT_INSPECTED"].includes(key);
+  const chartData = useMemo(() => {
+    return activeData?.analytics?.map((m: any) => ({
+      name: m.monthName,
+      month: m.monthIdx + 1,
+      SUCCESS: m.trend?.SUCCESS || 0,
+      REMAINING: m.trend?.REMAINING || 0,
+      FROZEN: m.trend?.FROZEN || 0,
+      LOSE: m.trend?.LOSE || 0,
+      inboundCount:
+        activeData?.inboundComparison?.find(
+          (item: any) => item.month === m.monthIdx + 1,
+        )?.newCarsInbound || 0,
+    }));
+  }, [activeData]);
 
-  const isValidUrgencyKey = (key: string): key is UrgencyKey =>
-    ["HOT", "WARM", "COOL"].includes(key);
+  const renderMatrixList = (category: any) => {
+    const groupData = activeMonthData?.[category.key];
+    if (!groupData) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />;
 
-  // Render ma trận
-  const renderMatrix = (category: {
-    key: string;
-    label: string;
-    color: string;
-  }) => {
-    const groupData = activeMonthData?.[category.key as keyof AnalyticsMonth];
-    if (!groupData) {
-      return (
-        <div className="py-10">
-          <Empty
-            description={
-              <Text type="secondary">
-                Không có dữ liệu {category.label} trong tháng{" "}
-                {selectedMonth + 1}
-              </Text>
-            }
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
-        </div>
-      );
-    }
-
-    const dataSource = [
-      { label: "Đã xem xe", ...groupData.INSPECTED },
-      { label: "Hẹn xem xe", ...groupData.APPOINTED },
-      { label: "Chưa xem xe", ...groupData.NOT_INSPECTED },
+    const items = [
+      {
+        label: "Đã xem xe",
+        data: groupData.INSPECTED,
+        icon: <FireOutlined className="text-red-500" />,
+      },
+      {
+        label: "Hẹn xem xe",
+        data: groupData.APPOINTED,
+        icon: <CalendarOutlined className="text-blue-500" />,
+      },
+      {
+        label: "Chưa xem xe",
+        data: groupData.NOT_INSPECTED,
+        icon: <UserOutlined className="text-gray-400" />,
+      },
     ];
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="p-4 text-left font-semibold text-gray-700">
-                Trạng thái
-              </th>
-              <th className="p-4 text-center font-semibold text-gray-700">
-                Tổng
-              </th>
-              <th className="p-4 text-center font-semibold text-gray-700">
-                HOT 🔥
-              </th>
-              <th className="p-4 text-center font-semibold text-gray-700">
-                WARM ☀️
-              </th>
-              <th className="p-4 text-center font-semibold text-gray-700">
-                COOL ❄️
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {dataSource.map((row, idx) => (
-              <tr
-                key={idx}
-                className="border-b hover:bg-gray-50 transition-colors"
-              >
-                <td className="p-4 font-medium text-gray-800">{row.label}</td>
-                <td className="p-4 text-center font-bold text-gray-700">
-                  {row.total || 0}
-                </td>
-                <td className="p-4 text-center">
-                  {row.HOT > 0 ? (
-                    <Tag color="red" className="font-semibold">
-                      {row.HOT}
-                    </Tag>
-                  ) : (
-                    row.HOT || 0
-                  )}
-                </td>
-                <td className="p-4 text-center">
-                  {row.WARM > 0 ? (
-                    <Tag color="orange" className="font-semibold">
-                      {row.WARM}
-                    </Tag>
-                  ) : (
-                    row.WARM || 0
-                  )}
-                </td>
-                <td className="p-4 text-center text-gray-600">
-                  {row.COOL || 0}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-3">
+        {items.map((item, idx) => (
+          <div
+            key={idx}
+            className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-xl gap-3"
+          >
+            <Space className="w-full sm:w-auto">
+              {item.icon}
+              <Text strong className="text-xs md:text-sm">
+                {item.label}
+              </Text>
+            </Space>
+            <div className="flex items-center justify-between sm:justify-end gap-2 md:gap-4 border-t sm:border-t-0 pt-2 sm:pt-0">
+              {["HOT", "WARM", "COOL"].map((level) => (
+                <div key={level} className="text-center px-1">
+                  <div className="text-[9px] text-gray-400 font-bold">
+                    {level}
+                  </div>
+                  <Badge
+                    count={item.data?.[level] || 0}
+                    overflowCount={999}
+                    style={{
+                      backgroundColor:
+                        level === "HOT"
+                          ? "#ef4444"
+                          : level === "WARM"
+                            ? "#f59e0b"
+                            : "#3b82f6",
+                      fontSize: "10px",
+                    }}
+                  />
+                </div>
+              ))}
+              <div className="text-center border-l pl-3 ml-1">
+                <div className="text-[9px] text-gray-400 font-bold uppercase">
+                  Tổng
+                </div>
+                <Text strong className="text-sm">
+                  {item.data?.total || 0}
+                </Text>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-10 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      {/* Header báo cáo + Filter chi nhánh */}
-      <Card className="rounded-3xl shadow-xl border-none">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-          <div>
-            <Title level={2} className="!m-0 text-indigo-700">
-              Báo cáo kinh doanh
-            </Title>
-            <Text type="secondary" className="text-base">
-              Cập nhật tự động - {dayjs().format("DD/MM/YYYY HH:mm")}
-            </Text>
-          </div>
-
-          {isHighLevel && (
-            <Tooltip title="Chọn chi nhánh để xem báo cáo chi tiết (Admin)">
-              <Select
-                placeholder="Tất cả chi nhánh"
-                value={selectedBranchId || undefined}
-                onChange={handleBranchChange}
-                style={{ width: 240 }}
-                allowClear
-                showSearch
-                optionFilterProp="label"
-                options={[
-                  { value: "", label: "Tất cả chi nhánh" },
-                  ...branches.map((b) => ({ value: b.id, label: b.name })),
-                ]}
-                suffixIcon={<FilterOutlined className="text-indigo-500" />}
-              />
-            </Tooltip>
-          )}
+    <div className="p-2 md:p-4 lg:p-6 space-y-4 md:space-y-6 bg-[#f8fafc] min-h-screen">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div>
+          <Title level={3} className="!m-0 text-slate-800 md:!text-2xl">
+            Báo cáo hiệu suất
+          </Title>
+          <Text type="secondary" className="text-xs md:text-sm">
+            Phân tích dữ liệu kinh doanh & Lead
+          </Text>
         </div>
-      </Card>
-
-      {/* Quick Stats - Tổng quan nhanh */}
-      <Row gutter={[16, 16]}>
-        {TABS.map((tab) => (
-          <Col xs={24} sm={12} lg={8} key={tab.key}>
-            <Card
-              className="rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border-none"
-              bodyStyle={{ padding: "24px" }}
-            >
-              <Statistic
-                title={
-                  <Space>
-                    {tab.icon}
-                    <span className="font-medium">{tab.label}</span>
-                  </Space>
-                }
-                value={stats?.[tab.key]?.total || 0}
-                prefix={tab.icon}
-                styles={{
-                  content: {
-                    color: tab.color,
-                    fontWeight: 900,
-                    fontSize: 32,
-                  },
-                }}
-              />
-              <div className="mt-2">
-                <Text type="danger" className="text-sm font-medium">
-                  Leads trễ xử lý: {stats?.[tab.key]?.late || 0}
-                </Text>
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-
-      {/* Tabs chính */}
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        type="card"
-        size="large"
-        tabBarStyle={{ marginBottom: 0 }}
-        className="custom-tabs"
-      >
-        {TABS.map((tab) => (
-          <Tabs.TabPane
-            key={tab.key}
-            tab={
-              <Space className="px-6 py-2">
-                {tab.icon}
-                <span className="font-semibold">{tab.label}</span>
-              </Space>
-            }
+        <div className="flex flex-wrap items-center gap-2 md:gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200">
+          <Select
+            value={selectedMonth + 1}
+            onChange={(v) => updateFilter("month", v)}
+            options={Array.from({ length: 12 }, (_, i) => ({
+              value: i + 1,
+              label: `Tháng ${i + 1}`,
+            }))}
+            className="w-full sm:w-32 font-bold"
+            variant="borderless"
           />
-        ))}
-      </Tabs>
-
-      {/* Nội dung chính */}
-      <Card className="rounded-3xl shadow-2xl border-none overflow-hidden">
-        <Row gutter={[32, 32]}>
-          {/* Biểu đồ tăng trưởng */}
-          <Col xs={24} lg={16}>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-              <Title level={4} className="!m-0 text-gray-800">
-                Tăng trưởng {TABS.find((t) => t.key === activeTab)?.label}
-              </Title>
-              <Select
-                value={selectedMonth}
-                onChange={setSelectedMonth}
-                style={{ width: 160 }}
-                options={Array.from({ length: 12 }, (_, i) => ({
-                  value: i,
-                  label: `Tháng ${i + 1}`,
-                }))}
-              />
-            </div>
-
-            <div
-              className="w-full bg-white rounded-2xl shadow-inner overflow-hidden relative"
-              style={{ minHeight: "460px", height: "460px" }}
-            >
-              {yearlyChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={yearlyChartData}
-                    margin={{ top: 30, right: 40, left: 20, bottom: 20 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="4 4"
-                      vertical={false}
-                      stroke="#f0f0f0"
-                    />
-                    <XAxis
-                      dataKey="month"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "#64748b", fontSize: 13 }}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "#64748b", fontSize: 13 }}
-                      domain={[
-                        0,
-                        (dataMax: number) => Math.max(10, dataMax + 10),
-                      ]}
-                    />
-                    <RechartsTooltip
-                      cursor={{ fill: "rgba(79, 70, 229, 0.1)" }}
-                      contentStyle={{
-                        backgroundColor: "white",
-                        borderRadius: "12px",
-                        border: "1px solid #e2e8f0",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                      }}
-                    />
-                    <Legend
-                      verticalAlign="top"
-                      wrapperStyle={{ paddingBottom: "16px" }}
-                      iconType="circle"
-                    />
-                    {CATEGORY_CONFIG.map((cat) => (
-                      <Bar
-                        key={cat.key}
-                        dataKey={cat.key}
-                        name={cat.label}
-                        fill={cat.color}
-                        stackId="a"
-                        barSize={40}
-                        radius={[8, 8, 0, 0]}
-                        isAnimationActive={true}
-                        animationDuration={800}
-                      />
-                    ))}
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/90">
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description={
-                      <div className="text-center">
-                        <Text strong className="text-lg block mb-2">
-                          Chưa có dữ liệu tăng trưởng
-                        </Text>
-                        <Text type="secondary">
-                          Biểu đồ sẽ cập nhật khi có giao dịch mới trong năm
-                          nay.
-                        </Text>
-                      </div>
-                    }
-                  />
-                </div>
-              )}
-            </div>
-          </Col>
-
-          {/* Tổng kết theo tab */}
-          <Col xs={24} lg={8}>
-            <Card
-              title={
-                <Space className="text-lg">
-                  <BarChartOutlined className="text-indigo-600" />
-                  <span>
-                    Tổng kết {TABS.find((t) => t.key === activeTab)?.label}
-                  </span>
-                </Space>
-              }
-              className="rounded-2xl shadow-lg border-none h-full"
-              bodyStyle={{ padding: "24px" }}
-            >
-              <Statistic
-                title={`Tổng ${TABS.find((t) => t.key === activeTab)?.label} thành công (năm)`}
-                value={stats?.[activeTab]?.total || 0}
-                prefix={TABS.find((t) => t.key === activeTab)?.icon}
-                styles={{
-                  title: { fontSize: 16, color: "#4b5563" },
-                  content: {
-                    color: TABS.find((t) => t.key === activeTab)?.color,
-                    fontSize: 40,
-                    fontWeight: 900,
-                    marginBottom: 8,
-                  },
-                }}
-              />
-
-              {/* Tổng lead xử lý (tất cả trạng thái) */}
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <Text strong className="text-base block mb-2">
-                  Tổng lead/khách hàng tiềm năng (năm)
-                </Text>
-                <div className="flex items-center gap-3">
-                  <Badge
-                    count={
-                      stats?.[activeTab]?.totalLeads ||
-                      stats?.[activeTab]?.total ||
-                      0
-                    }
-                    color="blue"
-                    className="min-w-[40px] h-8 text-lg"
-                  />
-                  <Text className="text-gray-600">
-                    (Thành công + Thất bại + Đang xử lý + Đóng băng)
-                  </Text>
-                </div>
-              </div>
-
-              {/* Leads trễ */}
-              <div className="mt-6 flex justify-between items-center pt-4 border-t">
-                <Text strong className="text-base">
-                  Leads trễ xử lý
-                </Text>
-                <Tag color="red" className="text-lg px-4 py-1 font-semibold">
-                  {stats?.[activeTab]?.late || 0}
-                </Tag>
-              </div>
-
-              {/* Nếu là tab Trade → thêm xe mới */}
-              {activeTab === "trade" && (
-                <div className="mt-6 pt-4 border-t">
-                  <Statistic
-                    title="Xe mới bán ra (năm)"
-                    value={totalNewCarsYear}
-                    prefix={<CarOutlined className="text-yellow-600" />}
-                    styles={{
-                      title: { fontSize: 16, color: "#4b5563" },
-                      content: {
-                        color: "#f59e0b",
-                        fontSize: 32,
-                        fontWeight: 900,
-                      },
-                    }}
-                  />
-                </div>
-              )}
-            </Card>
-
-            {/* Top nhân viên */}
-            <Card
-              title={
-                <Space className="text-lg">
-                  <TeamOutlined className="text-indigo-600" />
-                  Top nhân viên {TABS.find((t) => t.key === activeTab)?.label}
-                </Space>
-              }
-              className="mt-8 rounded-2xl shadow-lg border-none"
-            >
-              {(stats?.[activeTab]?.performance || []).length > 0 ? (
-                stats[activeTab].performance.map((staff: any, idx: number) => (
-                  <div
-                    key={staff.id}
-                    className="flex justify-between items-center py-4 border-b last:border-0 hover:bg-indigo-50 transition-colors"
-                  >
-                    <Space>
-                      <Badge
-                        count={idx + 1}
-                        color={
-                          idx === 0
-                            ? "#f59e0b"
-                            : idx === 1
-                              ? "#94a3b8"
-                              : "#d1d5db"
-                        }
-                        className="min-w-[28px]"
-                      />
-                      <Text strong className="text-base">
-                        {staff.fullName ?? "Chưa đặt tên"}
-                      </Text>
-                    </Space>
-                    <Tag
-                      color={TABS.find((t) => t.key === activeTab)?.color}
-                      className="text-base px-4 py-1"
-                    >
-                      {staff._count?.soldCars ||
-                        staff._count?.purchases ||
-                        staff._count?.assignedLeads ||
-                        0}{" "}
-                      xe
-                    </Tag>
-                  </div>
-                ))
-              ) : (
-                <Empty
-                  description="Chưa có dữ liệu nhân viên trong kỳ báo cáo"
-                  className="py-10"
-                />
-              )}
-            </Card>
-          </Col>
-        </Row>
-
-        <Divider className="my-12" />
-
-        {/* Ma trận phân tích chi tiết */}
-        <Title
-          level={4}
-          className="mb-8 text-gray-800 text-center lg:text-left"
-        >
-          Phân tích chi tiết tháng {selectedMonth + 1}
-        </Title>
-        <Row gutter={[24, 24]}>
-          {CATEGORY_CONFIG.map((cat) => (
-            <Col xs={24} lg={12} key={cat.key}>
-              <Card
-                title={<Space className="text-lg">{cat.label}</Space>}
-                extra={
-                  <Tag color={cat.color} className="text-base px-4 py-1">
-                    {activeMonthData?.[cat.key as keyof AnalyticsMonth]
-                      ?.total || 0}{" "}
-                    khách hàng
-                  </Tag>
-                }
-                className="rounded-2xl shadow-lg border-none hover:shadow-xl transition-shadow"
-              >
-                {renderMatrix(cat)}
-              </Card>
-            </Col>
-          ))}
-        </Row>
-
-        {/* Top mẫu xe quan tâm */}
-        <Divider className="my-12" />
-        <Card
-          title={
-            <Space className="text-xl">
-              <CarOutlined className="text-indigo-600" />
-              Top mẫu xe khách hàng quan tâm
-            </Space>
-          }
-          className="rounded-3xl shadow-xl border-none"
-        >
-          <Table
-            dataSource={topModels}
-            pagination={{ pageSize: 6, hideOnSinglePage: true }}
-            rowClassName="hover:bg-indigo-50 transition-colors"
-            columns={[
-              {
-                title: "Mẫu xe",
-                dataIndex: "model",
-                key: "model",
-                render: (text: string) => <Text strong>{text}</Text>,
-              },
-              {
-                title: "Lượt quan tâm",
-                dataIndex: "count",
-                key: "count",
-                width: 180,
-                render: (v: number) => (
-                  <Tag color="purple" className="text-lg px-4 py-1">
-                    {v}
-                  </Tag>
-                ),
-              },
-            ]}
-          />
-          {topModels.length === 0 && (
-            <Empty
-              description="Chưa có dữ liệu quan tâm xe trong năm"
-              className="py-12"
+          {reportData.isGlobal && (
+            <Select
+              placeholder="Chi nhánh"
+              allowClear
+              value={selectedBranchId}
+              onChange={(v) => updateFilter("branchId", v)}
+              options={branches?.map((b: any) => ({
+                value: b.id,
+                label: b.name,
+              }))}
+              className="w-full sm:w-48 sm:border-l border-slate-300"
+              variant="borderless"
             />
           )}
-        </Card>
+        </div>
+      </div>
+
+      {/* NAVIGATION TABS */}
+      <div className="flex justify-center sticky top-2 z-10">
+        <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-2xl flex gap-1 shadow-lg border border-white/20 w-full sm:w-auto overflow-x-auto no-scrollbar">
+          {[
+            { key: "sales", label: "Bán hàng", icon: <ShopOutlined /> },
+            {
+              key: "purchase",
+              label: "Thu mua",
+              icon: <ShoppingCartOutlined />,
+            },
+            { key: "trade", label: "Trao đổi", icon: <SwapOutlined /> },
+          ].map((tab) => (
+            <Button
+              key={tab.key}
+              type={activeTab === tab.key ? "primary" : "text"}
+              icon={tab.icon}
+              onClick={() => setActiveTab(tab.key)}
+              className={`!rounded-xl flex-1 sm:flex-none sm:px-8 transition-all ${activeTab === tab.key ? "shadow-md" : "text-slate-500"}`}
+              size="large"
+            >
+              <span className="hidden xs:inline">{tab.label}</span>
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* TOP SUMMARY STATS */}
+      <Card className="rounded-3xl border-none shadow-sm overflow-hidden">
+        <Row gutter={[24, 24]} align="middle">
+          <Col
+            xs={24}
+            md={10}
+            lg={8}
+            className="flex flex-col items-center md:border-r border-slate-100 py-4"
+          >
+            <div className="h-[200px] md:h-[260px] w-full relative">
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    innerRadius="65%"
+                    outerRadius="85%"
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={index} fill={entry.color} cornerRadius={4} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <Text
+                  type="secondary"
+                  className="text-[10px] uppercase font-bold tracking-widest mb-1"
+                >
+                  {activeTab === "trade" ? "Tỉ lệ đổi xe" : "Tổng cả năm"}
+                </Text>
+                <Title
+                  level={2}
+                  className="!m-0 !leading-none font-black text-slate-800"
+                >
+                  {activeTab === "trade" && activeData.totalNewCarsYear > 0
+                    ? `${Math.round((yearlyTotalStats.SUCCESS / activeData.totalNewCarsYear) * 100)}%`
+                    : activeData?.stats?.totalCustomersYear || 0}
+                </Title>
+              </div>
+            </div>
+          </Col>
+          <Col xs={24} md={14} lg={16}>
+            <Row gutter={[12, 12]}>
+              {pieData.map((item, i) => (
+                <Col xs={12} sm={6} key={i}>
+                  <div className="p-3 md:p-5 rounded-2xl bg-slate-50 border border-slate-100 transition-hover hover:bg-white hover:shadow-md h-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <Text
+                        type="secondary"
+                        className="text-[10px] md:text-xs font-bold uppercase truncate"
+                      >
+                        {item.name}
+                      </Text>
+                    </div>
+                    <div
+                      className="text-lg md:text-2xl font-black mb-1"
+                      style={{ color: item.color }}
+                    >
+                      {item.value.toLocaleString()}
+                    </div>
+                    <Progress
+                      percent={Math.round(
+                        (item.value / (yearlyTotalStats.TOTAL || 1)) * 100,
+                      )}
+                      size="small"
+                      strokeColor={item.color}
+                      showInfo={false}
+                    />
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </Col>
+        </Row>
       </Card>
+
+      {/* MAIN ANALYSIS SECTION */}
+      <Row gutter={[20, 20]}>
+        {/* BIG CHART */}
+        <Col xs={24} xl={16}>
+          <Card
+            title={
+              <div className="flex items-center justify-between w-full flex-wrap gap-2">
+                <Space>
+                  <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+                    <BarChartOutlined />
+                  </div>
+                  <Text strong className="text-sm md:text-base">
+                    {activeTab === "trade"
+                      ? "Hiệu quả đổi xe vs Nhập kho"
+                      : "Biểu đồ xu hướng Lead"}
+                  </Text>
+                </Space>
+                {activeTab === "trade" && (
+                  <Tag
+                    color="orange"
+                    className="!mr-0 rounded-full border-none px-3 font-medium"
+                  >
+                    <ArrowUpOutlined /> Nhập kho mới
+                  </Tag>
+                )}
+              </div>
+            }
+            className="rounded-3xl border-none shadow-sm h-full"
+          >
+            <div className="h-[300px] md:h-[400px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart
+                  data={chartData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#f1f5f9"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "#94a3b8" }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "#94a3b8" }}
+                  />
+                  <RechartsTooltip
+                    cursor={{ fill: "#f8fafc" }}
+                    contentStyle={{
+                      borderRadius: "16px",
+                      border: "none",
+                      boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+                    }}
+                  />
+                  <Legend
+                    verticalAlign="top"
+                    align="right"
+                    height={40}
+                    iconType="circle"
+                    wrapperStyle={{
+                      fontSize: "10px",
+                      fontWeight: "bold",
+                      textTransform: "uppercase",
+                    }}
+                  />
+                  <Bar
+                    dataKey="SUCCESS"
+                    name="Chốt đơn"
+                    stackId="stk"
+                    fill={THEME.SUCCESS}
+                    barSize={window?.innerWidth < 768 ? 15 : 35}
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="REMAINING"
+                    name="Đang theo"
+                    stackId="stk"
+                    fill={THEME.REMAINING}
+                  />
+                  <Bar
+                    dataKey="FROZEN"
+                    name="Tạm dừng"
+                    stackId="stk"
+                    fill={THEME.FROZEN}
+                  />
+                  <Bar
+                    dataKey="LOSE"
+                    name="Rớt"
+                    stackId="stk"
+                    fill={THEME.LOSE}
+                    radius={[6, 6, 0, 0]}
+                  />
+
+                  {activeTab === "trade" && (
+                    <Line
+                      type="monotone"
+                      dataKey="inboundCount"
+                      name="Xe mới về"
+                      stroke={THEME.inbound}
+                      strokeWidth={3}
+                      dot={{
+                        r: 4,
+                        fill: "#fff",
+                        stroke: THEME.inbound,
+                        strokeWidth: 2,
+                      }}
+                    />
+                  )}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </Col>
+
+        {/* SIDE WIDGETS */}
+        <Col xs={24} xl={8}>
+          <div className="flex flex-col gap-5 h-full">
+            {/* INTERESTED MODELS */}
+            <Card
+              title={
+                <Space>
+                  <ShopOutlined className="text-blue-500" />{" "}
+                  <span className="text-sm">Model thị hiếu</span>
+                </Space>
+              }
+              className="rounded-3xl border-none shadow-sm flex-1"
+              bodyStyle={{ padding: "12px" }}
+            >
+              <div className="h-[200px]">
+                <ResponsiveContainer>
+                  <BarChart
+                    data={interestedModels}
+                    layout="vertical"
+                    margin={{ left: 20, right: 30 }}
+                  >
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      axisLine={false}
+                      tickLine={false}
+                      width={80}
+                      style={{ fontSize: "11px", fontWeight: 500 }}
+                    />
+                    <Bar
+                      dataKey="count"
+                      fill={THEME[activeTab as keyof typeof THEME]}
+                      radius={[0, 10, 10, 0]}
+                      barSize={14}
+                    >
+                      {interestedModels.map((_: any, index: number) => (
+                        <Cell key={index} fillOpacity={1 - index * 0.15} />
+                      ))}
+                    </Bar>
+                    <RechartsTooltip cursor={{ fill: "transparent" }} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* TOP PERFORMANCE */}
+            <Card
+              title={
+                <Space>
+                  <TrophyOutlined className="text-yellow-500" />{" "}
+                  <span className="text-sm">Best Seller</span>
+                </Space>
+              }
+              className="rounded-3xl border-none shadow-sm flex-1"
+            >
+              <div className="space-y-4">
+                {activeData?.stats?.performance
+                  ?.slice(0, 5)
+                  .map((staff: any, idx: number) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <div
+                        className={`w-7 h-7 rounded-xl flex items-center justify-center text-[10px] font-black ${idx === 0 ? "bg-yellow-400 text-white shadow-lg shadow-yellow-200" : "bg-slate-100 text-slate-500"}`}
+                      >
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-1 gap-2">
+                          <Text strong className="text-xs truncate">
+                            {staff.fullName}
+                          </Text>
+                          <Text className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                            {staff.count} xe
+                          </Text>
+                        </div>
+                        <Progress
+                          percent={
+                            idx === 0
+                              ? 100
+                              : Math.round(
+                                  (staff.count /
+                                    (activeData.stats.performance[0]?.count ||
+                                      1)) *
+                                    100,
+                                )
+                          }
+                          showInfo={false}
+                          strokeColor={idx === 0 ? "#f59e0b" : "#94a3b8"}
+                          size="small"
+                          strokeWidth={4}
+                        />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </Card>
+          </div>
+        </Col>
+      </Row>
+
+      {/* DETAILED MATRIX GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4 md:gap-6">
+        {[
+          {
+            key: "SUCCESS",
+            label: "Chốt đơn",
+            color: THEME.SUCCESS,
+            icon: <Badge status="success" />,
+          },
+          {
+            key: "REMAINING",
+            label: "Đang chăm",
+            color: THEME.REMAINING,
+            icon: <Badge status="processing" />,
+          },
+          {
+            key: "FROZEN",
+            label: "Đóng băng",
+            color: THEME.FROZEN,
+            icon: <Badge status="default" />,
+          },
+          {
+            key: "LOSE",
+            label: "Thất bại",
+            color: THEME.LOSE,
+            icon: <Badge status="error" />,
+          },
+        ].map((cat) => (
+          <Card
+            key={cat.key}
+            className="rounded-3xl border-none shadow-sm hover:shadow-md transition-all"
+            title={
+              <Space>
+                {cat.icon}
+                <span className="text-sm font-bold text-slate-700">
+                  {cat.label}
+                </span>
+              </Space>
+            }
+            extra={
+              <Tag className="m-0 rounded-lg font-bold border-none bg-slate-100">
+                {activeMonthData?.[cat.key]?.total || 0}
+              </Tag>
+            }
+          >
+            {renderMatrixList(cat)}
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

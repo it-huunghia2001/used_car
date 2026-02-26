@@ -905,43 +905,80 @@ export async function freezeOverdueCustomersAction(customerIds: string[]) {
 export async function getLeadsWithoutSensitiveAction(params: {
   search?: string;
   status?: string;
+  branchId?: string; // Thêm lọc chi nhánh
+  startDate?: string; // Thêm ngày bắt đầu
+  endDate?: string; // Thêm ngày kết thúc
   page?: number;
   limit?: number;
 }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { role, id: userId, branchId, isGlobalManager } = user;
-  const { search, status, page = 1, limit = 10 } = params;
+  const { role, id: userId, branchId: userBranchId, isGlobalManager } = user;
+  const {
+    search,
+    status,
+    branchId,
+    startDate,
+    endDate,
+    page = 1,
+    limit = 10,
+  } = params;
 
   let whereClause: any = {};
 
-  // --- 1. PHÂN QUYỀN ---
+  // --- 1. PHÂN QUYỀN (BASE SCOPE) ---
   if (role === "ADMIN" || role === "SALE_MANAGER" || isGlobalManager) {
     whereClause = {};
   } else if (role === "MANAGER") {
-    whereClause = { branchId };
+    whereClause = { branchId: userBranchId };
   } else {
     whereClause = {
       OR: [{ assignedToId: userId }, { referrerId: userId }],
     };
   }
 
-  // --- 2. LỌC ---
+  // --- 2. LỌC NÂNG CAO ---
+
+  // Lọc theo chi nhánh (Nếu là Admin/Global có thể chọn lọc chi nhánh bất kỳ)
+  if (branchId && branchId !== "ALL") {
+    whereClause.branchId = branchId;
+  }
+
+  // Lọc theo trạng thái
   if (status && status !== "ALL") {
     whereClause.status = status;
   }
 
+  // Lọc theo khoảng ngày (Dựa trên createdAt)
+  if (startDate || endDate) {
+    whereClause.createdAt = {};
+    if (startDate) {
+      whereClause.createdAt.gte = new Date(startDate);
+    }
+    if (endDate) {
+      // Đảm bảo lấy đến cuối ngày của endDate
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      whereClause.createdAt.lte = end;
+    }
+  }
+
+  // Lọc theo từ khóa tìm kiếm
   if (search) {
-    whereClause.AND = [
-      {
-        OR: [
-          { fullName: { contains: search } },
-          // ❌ bỏ phone
-          // ❌ bỏ licensePlate
-        ],
-      },
-    ];
+    const searchFilter = {
+      OR: [
+        { fullName: { contains: search } },
+        // Có thể thêm search theo ghi chú nếu cần
+        // { note: { contains: search } },
+      ],
+    };
+
+    if (whereClause.AND) {
+      whereClause.AND.push(searchFilter);
+    } else {
+      whereClause.AND = [searchFilter];
+    }
   }
 
   // --- 3. QUERY ---
@@ -956,10 +993,7 @@ export async function getLeadsWithoutSensitiveAction(params: {
         urgencyLevel: true,
         inspectStatus: true,
         type: true,
-
-        // ❌ KHÔNG có phone
-        // ❌ KHÔNG có licensePlate
-
+        branchId: true, // Thêm để kiểm tra nếu cần
         assignedTo: {
           select: { fullName: true },
         },
@@ -1000,7 +1034,7 @@ export async function getLeadsWithoutSensitiveAction(params: {
     db.customer.count({ where: whereClause }),
   ]);
 
-  // --- 4. FIX DECIMAL ---
+  // --- 4. FIX SERIALIZATION (DECIMAL & DATES) ---
   const serializedData = data.map((customer) => ({
     ...customer,
     leadCar: customer.leadCar

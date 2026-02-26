@@ -122,7 +122,7 @@ export default function ModalLoseLead({
             className="w-full"
             options={[
               {
-                label: "🔴 Thất bại (Lose) - Khách không mua/bán nữa",
+                label: "🔴 LOST - Khách không mua/bán nữa",
                 value: "LOSE",
               },
               {

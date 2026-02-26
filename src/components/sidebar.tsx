@@ -244,9 +244,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         hasAccess(["ADMIN", "MANAGER"]) && {
           key: "/dashboard/new-car-inbound",
           icon: <CarOutlined />,
-          label: (
-            <Link href="/dashboard/new-car-inbound">Nhập lượng xe mới bán</Link>
-          ),
+          label: <Link href="/dashboard/new-car-inbound">EM Xe mới</Link>,
         },
       ],
     },
