@@ -307,7 +307,7 @@ export default function ReportingDashboard({
                     dataKey="value"
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={index} fill={entry.color} cornerRadius={4} />
+                      <Cell key={index} fill={entry.color} />
                     ))}
                   </Pie>
                   <RechartsTooltip />
