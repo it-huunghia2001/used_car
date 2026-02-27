@@ -759,7 +759,7 @@ export const VehicleFormFields = ({
         <Col xs={12} md={8}>
           <Form.Item
             name="insuranceregistrationDeadline"
-            label="Bảo hiểm TNDS"
+            label="Đăng kiểm"
             valuePropName="checked"
             vertical-align="middle"
           >
