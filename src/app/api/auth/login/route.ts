@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       username: user.username,
       role: user.role,
       appName: APP_NAME,
+      email: user.email,
       version: user.tokenVersion || 0, // <--- THÊM DÒNG NÀY
     })
       .setProtectedHeader({ alg: "HS256" })

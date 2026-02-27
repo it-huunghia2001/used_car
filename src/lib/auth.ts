@@ -60,6 +60,7 @@ export async function getUserFromToken(token: string) {
         isGlobalManager: true,
         branchId: true,
         tokenVersion: true,
+        email: true,
       },
     });
 

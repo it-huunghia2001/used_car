@@ -1168,3 +1168,78 @@ export const lateLeadRecallEmailTemplate = (data: {
   </div>
   `;
 };
+
+export const referrerConfirmationEmailTemplate = (data: {
+  referrerName: string;
+  customerName: string;
+  typeLabel: string;
+  branchName?: string;
+}): string => {
+  const now = new Date().toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+
+  return `
+  <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    
+    <div style="background-color: #eb0a1e; padding: 30px 20px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Xác nhận gửi thông tin khách hàng</p>
+    </div>
+
+    <div style="padding: 40px 30px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <div style="display: inline-block; background-color: #f6ffed; color: #52c41a; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #b7eb8f; margin-bottom: 15px;">
+          GỬI THÀNH CÔNG
+        </div>
+        <h2 style="color: #1f1f1f; margin: 0; font-size: 22px;">Cảm ơn bạn, ${data.referrerName}!</h2>
+        <p style="color: #8c8c8c; font-size: 14px; margin-top: 10px;">Yêu cầu của bạn đã được chuyển đến cấp quản lý.</p>
+      </div>
+
+      <p style="color: #595959; font-size: 16px;">Chào <strong>${data.referrerName}</strong>,</p>
+      <p style="color: #595959; font-size: 16px; line-height: 1.6;">
+        Hệ thống CRM đã ghi nhận thông tin khách hàng tiềm năng do bạn giới thiệu. Chúng tôi sẽ tiến hành kiểm tra và phân bổ nhân sự hỗ trợ khách hàng trong thời gian sớm nhất.
+      </p>
+
+      <div style="margin: 30px 0; padding: 20px; background-color: #fafafa; border-radius: 8px; border: 1px dashed #d9d9d9;">
+        <h4 style="margin: 0 0 15px 0; color: #262626; font-size: 15px; text-transform: uppercase; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px;">Thông tin đã gửi</h4>
+        <table style="width: 100%; font-size: 14px; color: #595959;">
+          <tr>
+            <td style="padding: 5px 0; width: 40%;">Khách hàng:</td>
+            <td style="padding: 5px 0; color: #1f1f1f; font-weight: 600;">${data.customerName.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;">Dịch vụ yêu cầu:</td>
+            <td style="padding: 5px 0; color: #eb0a1e; font-weight: 600;">${data.typeLabel}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;">Chi nhánh:</td>
+            <td style="padding: 5px 0; color: #1f1f1f;">${data.branchName || "Tổng công ty"}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0;">Thời gian:</td>
+            <td style="padding: 5px 0; color: #1f1f1f;">${now}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background-color: #fff7e6; border: 1px solid #ffe58f; padding: 15px; border-radius: 6px;">
+        <p style="margin: 0; font-size: 13px; color: #d46b08; line-height: 1.5;">
+          <strong>Lưu ý:</strong> Trạng thái xử lý khách hàng sẽ được cập nhật liên tục trên Dashboard. Bạn có thể theo dõi tiến độ để kịp thời hỗ trợ khách hàng của mình.
+        </p>
+      </div>
+
+      <div style="text-align: center; margin-top: 40px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/my-referrals" 
+           style="border: 1px solid #1f1f1f; color: #1f1f1f; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block; transition: all 0.3s;">
+           XEM DANH SÁCH GIỚI THIỆU
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f5f5f5; padding: 25px; text-align: center; border-top: 1px solid #e8e8e8;">
+      <p style="margin: 0; font-size: 13px; color: #8c8c8c;">© 2024 Toyota Bình Dương - CRM System</p>
+    </div>
+  </div>
+  `;
+};

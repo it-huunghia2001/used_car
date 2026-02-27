@@ -9,6 +9,7 @@ import {
   lateLeadRecallEmailTemplate,
   overdueCustomerReminderEmailTemplate,
   referralEmailTemplate,
+  referrerConfirmationEmailTemplate,
   staffAssignmentEmailTemplate,
 } from "@/lib/mail-templates";
 import { sendMail } from "@/lib/mail-service";
@@ -280,64 +281,96 @@ export async function createCustomerAction(rawData: any) {
     });
 
     // 5. GỬI EMAIL THÔNG BÁO (NGOÀI TRANSACTION ĐỂ TRÁNH BLOCK DB)
+    // 5. GỬI EMAIL THÔNG BÁO (NGOÀI TRANSACTION)
     if (result) {
       const typeLabelVn = getReferralTypeLabel(result.type);
+
+      // Truy vấn thêm thông tin chi nhánh và email người giới thiệu để đảm bảo dữ liệu chính xác
+      const [branch, referrerUser] = await Promise.all([
+        referrer.branchId
+          ? db.branch.findUnique({ where: { id: referrer.branchId } })
+          : null,
+        db.user.findUnique({ where: { id: auth.id }, select: { email: true } }), // Lấy email từ DB
+      ]);
+
+      const branchName = branch?.name || "Hệ thống";
+      const referrerEmail = referrerUser?.email;
+
+      const emailPromises = [];
 
       // A. Gửi cho nhân viên được phân bổ
       if (assignedStaffId) {
         const staff = await db.user.findUnique({
           where: { id: assignedStaffId },
+          select: { email: true },
         });
         if (staff?.email) {
-          await sendMail({
-            to: staff.email,
-            subject: `[NHIỆM VỤ] Phân bổ khách hàng: ${result.fullName.toUpperCase()}`,
-            html: staffAssignmentEmailTemplate({
-              customerName: result.fullName,
-              customerPhone: result.phone,
-              typeLabel: typeLabelVn,
-              details: result.note || "Không có ghi chú thêm",
-              branchName: referrer.branchId
-                ? (
-                    await db.branch.findUnique({
-                      where: { id: referrer.branchId },
-                    })
-                  )?.name
-                : "Global",
+          emailPromises.push(
+            sendMail({
+              to: staff.email,
+              subject: `[NHIỆM VỤ] Phân bổ khách hàng: ${result.fullName.toUpperCase()}`,
+              html: staffAssignmentEmailTemplate({
+                customerName: result.fullName,
+                customerPhone: result.phone,
+                typeLabel: typeLabelVn,
+                details: result.note || "Không có ghi chú thêm",
+                branchName,
+              }),
             }),
-          });
+          );
         }
       }
 
-      // B. Gửi cho toàn bộ Admin chi nhánh để theo dõi
+      // B. Gửi cho toàn bộ Admin chi nhánh
       const branchAdmins = await db.user.findMany({
         where: { branchId: referrer.branchId, role: "ADMIN", active: true },
         select: { email: true },
       });
-
       const adminEmails = branchAdmins
         .map((a) => a.email)
         .filter(Boolean) as string[];
 
       if (adminEmails.length > 0) {
-        await sendMail({
-          to: adminEmails.join(","),
-          subject: `[HỆ THỐNG] Có lời giới thiệu mới từ ${auth.fullName}`,
-          html: referralEmailTemplate({
-            customerName: result.fullName,
-            typeLabel: typeLabelVn,
-            referrerName: auth.fullName || auth.username,
-            details: result.note || "Không có ghi chú thêm",
-            branchName: referrer.branchId
-              ? (
-                  await db.branch.findUnique({
-                    where: { id: referrer.branchId },
-                  })
-                )?.name
-              : "Global",
+        emailPromises.push(
+          sendMail({
+            to: adminEmails.join(","),
+            subject: `[HỆ THỐNG] Có lời giới thiệu mới từ ${auth.fullName}`,
+            html: referralEmailTemplate({
+              customerName: result.fullName,
+              typeLabel: typeLabelVn,
+              referrerName: auth.fullName || auth.username,
+              details: result.note || "Không có ghi chú thêm",
+              branchName,
+            }),
           }),
-        });
+        );
       }
+
+      // C. Gửi xác nhận cho Người giới thiệu (Lấy email từ DB)
+      if (referrerEmail) {
+        emailPromises.push(
+          sendMail({
+            to: referrerEmail,
+            subject: `[XÁC NHẬN] Gửi thông tin khách hàng ${result.fullName.toUpperCase()} thành công`,
+            html: referrerConfirmationEmailTemplate({
+              referrerName: auth.fullName || auth.username,
+              customerName: result.fullName,
+              typeLabel: typeLabelVn,
+              branchName,
+            }),
+          }),
+        );
+      }
+
+      // Thực thi gửi tất cả email cùng lúc để không block main thread quá lâu
+      // Sử dụng allSettled để nếu 1 mail lỗi, các mail khác vẫn đi bình thường
+      Promise.allSettled(emailPromises).then((results) => {
+        results.forEach((res, i) => {
+          if (res.status === "rejected") {
+            console.error(`❌ Email task ${i} failed:`, res.reason);
+          }
+        });
+      });
     }
 
     revalidatePath("/dashboard/customers");
