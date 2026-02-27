@@ -259,7 +259,7 @@ export async function getInventoryAdvancedAction({
       whereCondition.status = status;
     } else {
       whereCondition.status = {
-        in: ["REFURBISHING", "READY_FOR_SALE", "BOOKED"],
+        in: ["REFURBISHING", "READY_FOR_SALE", "BOOKED", "NEW"],
       };
     }
 
