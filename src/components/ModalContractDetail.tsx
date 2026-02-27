@@ -77,6 +77,7 @@ export default function ModalContractDetail({
   const total = Number(data.totalAmount || 0);
   const deposit = Number(data.depositAmount || 0);
   const remainingAmount = total - deposit;
+  console.log(data);
 
   // Hàm xử lý hiển thị chuẩn xác
   // 1. Link để xem trực tiếp (Fix lỗi render và lỗi 401)
@@ -353,6 +354,30 @@ export default function ModalContractDetail({
               <Image.PreviewGroup>
                 <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
                   {data.customer?.carImages?.map((src: string, i: number) => (
+                    <div
+                      key={i}
+                      className="aspect-square rounded-2xl overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-all cursor-zoom-in group"
+                    >
+                      <Image src={src} className="object-cover w-full h-full" />
+                    </div>
+                  ))}
+                </div>
+              </Image.PreviewGroup>
+            </Card>
+            <Card
+              className="rounded-[2.5rem] shadow-sm border-slate-200"
+              title={
+                <Space>
+                  <CameraOutlined className="text-indigo-600" />{" "}
+                  <Text strong className="uppercase text-xs text-slate-500">
+                    Giấy giờ xe
+                  </Text>
+                </Space>
+              }
+            >
+              <Image.PreviewGroup>
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+                  {data.customer?.documents?.map((src: string, i: number) => (
                     <div
                       key={i}
                       className="aspect-square rounded-2xl overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-all cursor-zoom-in group"
