@@ -939,14 +939,14 @@ export const VehicleFormFields = ({
                 size="small"
                 title={
                   <Space>
-                    <HomeOutlined /> Tài liệu hồ sơ (Đăng kiểm/CCCD)
+                    <HomeOutlined /> Tài liệu hồ sơ (Đăng kiểm/Cà vẹt)
                   </Space>
                 }
                 className="rounded-3xl border-dashed"
               >
                 <Form.Item
                   name="documents"
-                  label="Tài liệu hồ sơ (Đăng kiểm/CCCD)"
+                  label="Tài liệu hồ sơ (Đăng kiểm/Cà vẹt)"
                   valuePropName="fileList"
                   getValueFromEvent={normFile}
                   rules={[
