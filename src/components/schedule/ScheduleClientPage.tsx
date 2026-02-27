@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-key */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -13,10 +14,12 @@ import {
   Space,
   Tag,
   Popconfirm,
-  Tooltip,
   Avatar,
   Empty,
   Button,
+  Badge,
+  Spin,
+  DatePicker,
 } from "antd";
 import {
   CalendarOutlined,
@@ -25,6 +28,9 @@ import {
   UserAddOutlined,
   TeamOutlined,
   ClockCircleOutlined,
+  LeftOutlined,
+  RightOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/vi";
@@ -37,7 +43,6 @@ import {
   upsertSchedule,
 } from "@/actions/schedule-service";
 
-// Kích hoạt plugin
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.locale("vi");
@@ -56,6 +61,7 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!selectedBranchId) return;
@@ -77,279 +83,356 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
   }, [loadData]);
 
   const onAddStaff = async (userId: string) => {
+    setActionLoading("adding");
     const dateString = selectedDate.format("YYYY-MM-DD");
-    const res = await upsertSchedule(
-      dateString as any,
-      selectedBranchId,
-      userId,
-    );
-    if (res.success) {
-      message.success({ content: "Đã cập nhật", duration: 2 });
-      loadData();
-    } else message.error(res.error);
-  };
-
-  const onDeleteStaff = async (id: string) => {
-    const res = await removeStaffFromSchedule(id);
-    if (res.success) {
-      message.success({ content: "Đã gỡ", duration: 2 });
-      loadData();
+    try {
+      const res = await upsertSchedule(
+        dateString as any,
+        selectedBranchId,
+        userId,
+      );
+      if (res.success) {
+        message.success("Đã cập nhật lịch trực");
+        loadData();
+      } else message.error(res.error);
+    } finally {
+      setActionLoading(null);
     }
   };
 
+  const onDeleteStaff = async (id: string) => {
+    setActionLoading(id);
+    try {
+      const res = await removeStaffFromSchedule(id);
+      if (res.success) {
+        message.success("Đã gỡ nhân viên");
+        loadData();
+      }
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Render cho máy tính (Lưới lịch)
   const dateCellRender = (value: Dayjs) => {
     const dayData = schedules.filter((s) => dayjs(s.date).isSame(value, "day"));
     return (
-      <div className="flex flex-col gap-1 mt-1 max-h-20 sm:max-h-25 overflow-y-auto custom-scrollbar">
-        {dayData.map((item) => (
+      <div className="flex flex-col gap-1 mt-1 overflow-hidden">
+        {dayData.slice(0, 2).map((item) => (
           <div
             key={item.id}
-            className="group flex items-center justify-between bg-indigo-50/50 p-1 sm:p-1.5 rounded border border-blue-100 transition-all hover:bg-blue-100"
+            className="flex items-center gap-1 bg-indigo-50 px-1 py-0.5 rounded text-[10px] border border-indigo-100 truncate shadow-sm"
           >
-            <div className="flex items-center gap-1 overflow-hidden">
-              <Avatar
-                size={14}
-                className="bg-indigo-500 text-[6px] sm:text-[8px] shrink-0 uppercase"
-              >
-                {item.user.fullName?.charAt(0)}
-              </Avatar>
-              <Text className="text-[9px] sm:text-[11px] font-medium truncate text-indigo-900">
-                {item.user.fullName}
-              </Text>
-            </div>
-            <Popconfirm
-              title="Gỡ?"
-              onConfirm={(e) => {
-                e?.stopPropagation();
-                onDeleteStaff(item.id);
-              }}
-            >
-              <DeleteOutlined className="text-red-400 hover:text-red-600 transition-opacity sm:opacity-0 group-hover:opacity-100 text-[10px] cursor-pointer" />
-            </Popconfirm>
+            <Badge status="processing" color="#4f46e5" />
+            <span className="truncate text-indigo-700 font-medium">
+              {item.user.fullName}
+            </span>
           </div>
         ))}
+        {dayData.length > 2 && (
+          <Text className="text-[9px] text-slate-400 font-bold ml-1">
+            +{dayData.length - 2} người
+          </Text>
+        )}
       </div>
     );
   };
 
-  return (
-    <div className="p-2 sm:p-4 md:p-8 bg-[#f8fafc] min-h-screen">
-      <Card
-        className="mx-auto shadow-xl border-0 rounded-2xl sm:rounded-3xl overflow-hidden"
-        styles={{ body: { padding: 0 } }}
-      >
-        {/* Header Ribbon - Responsive Stack */}
-        <div className="bg-white px-4 py-5 sm:px-8 sm:py-6 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <Space orientation="vertical" size={0}>
+  // Render cho điện thoại (Danh sách Card)
+  const renderMobileListView = () => {
+    const daysInMonth = selectedDate.daysInMonth();
+    const items = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      const date = selectedDate.date(i);
+      const dayData = schedules.filter((s) =>
+        dayjs(s.date).isSame(date, "day"),
+      );
+      const isToday = dayjs().isSame(date, "day");
+
+      items.push(
+        <div
+          key={i}
+          onClick={() => {
+            setSelectedDate(date);
+            setIsModalOpen(true);
+          }}
+          className={`p-4 rounded-2xl mb-3 border transition-all active:scale-95 ${isToday ? "bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-100" : "bg-white border-slate-100 shadow-sm"}`}
+        >
+          <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-100 shrink-0">
-                <CalendarOutlined className="text-white text-xl sm:text-2xl" />
-              </div>
-              <Title
-                level={3}
-                className="m-0! tracking-tight text-slate-800 text-lg sm:text-2xl"
+              <div
+                className={`text-center min-w-[40px] ${isToday ? "text-white" : "text-slate-800"}`}
               >
+                <div className="text-[10px] uppercase font-bold opacity-70">
+                  {date.format("ddd")}
+                </div>
+                <div className="text-lg font-black">{i}</div>
+              </div>
+              <div className="h-8 w-[1px] bg-slate-200 opacity-50 mx-1"></div>
+              <div className="flex -space-x-2 overflow-hidden">
+                {dayData.length > 0 ? (
+                  dayData.map((s) => (
+                    <div>
+                      <Avatar
+                        key={s.id}
+                        size="small"
+                        className="border-2 border-white bg-slate-200 text-slate-700 text-[10px] font-bold mr-1"
+                      >
+                        {s.user.fullName?.charAt(0)}
+                      </Avatar>
+                      <Text
+                        className={`text-[9px]! font-medium ${isToday ? "text-white" : "text-slate-800"}`}
+                      >
+                        {s.user.fullName}
+                      </Text>
+                    </div>
+                  ))
+                ) : (
+                  <Text
+                    className={`text-xs ${isToday ? "text-indigo-100" : "text-slate-400"}`}
+                  >
+                    Chưa có lịch trực
+                  </Text>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {dayData.length > 0 && (
+                <Tag
+                  color={isToday ? "blue" : "default"}
+                  className="m-0 rounded-full border-0 font-bold px-3"
+                >
+                  {dayData.length} Sales
+                </Tag>
+              )}
+              <PlusOutlined
+                className={isToday ? "text-white" : "text-slate-300"}
+              />
+            </div>
+          </div>
+        </div>,
+      );
+    }
+    return <div className="md:hidden mt-4">{items}</div>;
+  };
+
+  return (
+    <div className="p-3 sm:p-6 lg:p-10 bg-[#f8fafc] min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header Ribbon */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-indigo-600 p-3 rounded-2xl shadow-indigo-100 shadow-lg shrink-0">
+              <CalendarOutlined className="text-white text-2xl" />
+            </div>
+            <div>
+              <Title level={4} className="m-0! font-extrabold text-slate-800">
                 Lịch Trực Sales
               </Title>
+              <Text className="text-slate-400 text-xs sm:text-sm">
+                Phân bổ khách hàng tự động
+              </Text>
             </div>
-            <Text className="text-slate-400 text-xs sm:text-sm mt-1 flex items-center gap-2">
-              <ClockCircleOutlined className="hidden sm:inline" />
-              Tự động chia khách theo danh sách trực
-            </Text>
-          </Space>
+          </div>
 
-          <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100 w-full lg:w-auto">
-            {isPrivileged ? (
-              <div className="flex items-center w-full">
-                <BankOutlined className="text-indigo-500 text-base ml-2" />
-                <Select
-                  variant="borderless"
-                  className="w-full! lg:w-64 font-semibold text-slate-700"
-                  value={selectedBranchId}
-                  onChange={setSelectedBranchId}
-                  options={branches.map((b: any) => ({
-                    label: b.name,
-                    value: b.id,
-                  }))}
-                />
-              </div>
-            ) : (
-              <Tag
-                color="indigo"
-                className="m-0 border-0 px-3 py-1 text-xs sm:text-sm rounded-lg font-bold flex items-center gap-2 w-full justify-center lg:justify-start"
-              >
-                <BankOutlined />{" "}
-                {branches.find((b: any) => b.id === selectedBranchId)?.name}
-              </Tag>
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            <DatePicker
+              picker="month"
+              format="MMMM-YYYY"
+              value={selectedDate}
+              onChange={(d) => d && setSelectedDate(d)}
+              allowClear={false}
+              className="w-full sm:w-48 h-12 rounded-2xl bg-slate-50 border-slate-100 font-bold text-indigo-600"
+            />
+
+            {isPrivileged && (
+              <Select
+                className="w-full sm:w-64 h-12 custom-select"
+                value={selectedBranchId}
+                onChange={setSelectedBranchId}
+                suffixIcon={<BankOutlined className="text-indigo-500" />}
+                options={branches.map((b: any) => ({
+                  label: b.name,
+                  value: b.id,
+                }))}
+              />
             )}
           </div>
         </div>
 
-        {/* Calendar Body - Responsive Padding & Overflow */}
-        <div className="p-2 sm:p-4 md:p-8 overflow-x-auto">
-          <div className="min-w-175 lg:min-w-full">
+        {/* Desktop View */}
+        <Card
+          className="hidden md:block shadow-xl border-0 rounded-3xl overflow-hidden p-2"
+          styles={{ body: { padding: 0 } }}
+        >
+          <Spin spinning={loading}>
             <Calendar
               className="premium-calendar"
+              value={selectedDate}
               cellRender={dateCellRender}
-              onSelect={(d) => {
-                setSelectedDate(d);
-                setIsModalOpen(true);
+              headerRender={() => null} // Đã có bộ lọc ở trên
+              onSelect={(d, info) => {
+                if (info.source === "date") {
+                  setSelectedDate(d);
+                  setIsModalOpen(true);
+                }
               }}
             />
-          </div>
-        </div>
-      </Card>
+          </Spin>
+        </Card>
 
-      {/* Responsive Modal */}
-      <Modal
-        title={
-          <div className="flex items-center gap-3 pb-3 border-b">
-            <div className="bg-green-100 p-2 rounded-lg text-green-600 shrink-0">
-              <UserAddOutlined />
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold">
-                Cấu hình lịch trực
-              </div>
-              <div className="text-[10px] sm:text-xs text-slate-400 font-normal">
-                Ngày {selectedDate.format("DD [tháng] MM, YYYY")}
-              </div>
-            </div>
+        {/* Mobile View */}
+        <div className="md:hidden">
+          <div className="flex items-center justify-between mb-4 px-2">
+            <Text
+              strong
+              className="text-slate-500 uppercase tracking-widest text-[10px]"
+            >
+              Danh sách ngày trực
+            </Text>
+            <Badge
+              count={schedules.length}
+              overflowCount={999}
+              style={{ backgroundColor: "#4f46e5" }}
+            />
           </div>
-        }
+          <Spin spinning={loading}>{renderMobileListView()}</Spin>
+        </div>
+      </div>
+
+      {/* Modal Cấu hình */}
+      <Modal
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         footer={null}
         centered
-        width={450}
-        style={{ padding: "0 10px" }} // Thêm padding cho mobile
+        width={480}
+        closeIcon={null}
         className="premium-modal"
       >
-        <div className="py-4">
-          <label className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-2 block">
-            Chọn nhân viên tiếp khách
-          </label>
-          <Select
-            className="w-full custom-select"
-            placeholder="Tìm theo tên..."
-            onChange={onAddStaff}
-            value={null}
-            showSearch
-            size="large"
-            optionFilterProp="label"
-            suffixIcon={<TeamOutlined className="text-indigo-400" />}
-          >
-            {staffList.map((s) => (
-              <Select.Option key={s.id} value={s.id} label={s.fullName}>
-                <div className="flex items-center gap-3">
-                  <Avatar
-                    size="small"
-                    className="bg-slate-200 text-slate-600 text-[10px]"
-                  >
-                    {s.fullName?.charAt(0)}
-                  </Avatar>
-                  <span className="font-medium text-slate-700">
-                    {s.fullName}
-                  </span>
-                </div>
-              </Select.Option>
-            ))}
-          </Select>
-
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-3">
-              <Text
-                strong
-                className="text-slate-700 text-xs sm:text-sm uppercase tracking-wide"
-              >
-                Đang trực hôm nay
+        <div className="space-y-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <Text className="text-indigo-600 font-bold uppercase tracking-tighter text-xs">
+                {selectedDate.format("dddd")}
               </Text>
-              <Tag className="rounded-full border-0 bg-indigo-50 text-indigo-600 font-bold">
-                {
-                  schedules.filter((s) =>
-                    dayjs(s.date).isSame(selectedDate, "day"),
-                  ).length
-                }{" "}
-                người
-              </Tag>
+              <Title level={3} className="m-0!">
+                Ngày {selectedDate.format("DD/MM")}
+              </Title>
             </div>
+            <Button
+              shape="circle"
+              icon={<PlusOutlined />}
+              className="bg-slate-50 border-none"
+              onClick={() => setIsModalOpen(false)}
+            />
+          </div>
 
-            <div className="space-y-2 max-h-48 sm:max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+          <div>
+            <label className="text-slate-400 text-[10px] font-bold uppercase mb-2 block">
+              Thêm nhân viên trực
+            </label>
+            <Select
+              className="w-full h-12 rounded-xl"
+              placeholder="Tìm tên nhân viên..."
+              onChange={onAddStaff}
+              value={null}
+              showSearch
+              loading={actionLoading === "adding"}
+            >
+              {staffList.map((s) => (
+                <Select.Option key={s.id} value={s.id} label={s.fullName}>
+                  <Space>
+                    <Avatar size="small">{s.fullName?.charAt(0)}</Avatar>
+                    {s.fullName}
+                  </Space>
+                </Select.Option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 space-y-3">
+            <Text
+              strong
+              className="text-slate-600 text-xs uppercase tracking-wide"
+            >
+              Đang trực (
+              {
+                schedules.filter((s) =>
+                  dayjs(s.date).isSame(selectedDate, "day"),
+                ).length
+              }
+              )
+            </Text>
+            <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+              {schedules
+                .filter((s) => dayjs(s.date).isSame(selectedDate, "day"))
+                .map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-100 shadow-sm"
+                  >
+                    <Space>
+                      <Avatar className="bg-indigo-50 text-indigo-600 font-bold">
+                        {s.user.fullName?.charAt(0)}
+                      </Avatar>
+                      <Text className="font-bold">{s.user.fullName}</Text>
+                    </Space>
+                    <Popconfirm
+                      title="Gỡ lịch trực?"
+                      onConfirm={() => onDeleteStaff(s.id)}
+                      okButtonProps={{ loading: actionLoading === s.id }}
+                    >
+                      <Button type="text" danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  </div>
+                ))}
               {schedules.filter((s) =>
                 dayjs(s.date).isSame(selectedDate, "day"),
-              ).length === 0 ? (
+              ).length === 0 && (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={
-                    <span className="text-xs text-slate-400">
-                      Chưa có ai trực
-                    </span>
-                  }
+                  description="Trống"
                 />
-              ) : (
-                schedules
-                  .filter((s) => dayjs(s.date).isSame(selectedDate, "day"))
-                  .map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex items-center justify-between bg-slate-50 p-2 sm:p-3 rounded-xl border border-slate-100"
-                    >
-                      <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
-                        <Avatar className="bg-white text-indigo-600 border border-indigo-100 shrink-0">
-                          {s.user.fullName?.charAt(0)}
-                        </Avatar>
-                        <Text className="font-semibold text-slate-700 truncate text-xs sm:text-sm">
-                          {s.user.fullName}
-                        </Text>
-                      </div>
-                      <Button
-                        type="text"
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        onClick={() => onDeleteStaff(s.id)}
-                      />
-                    </div>
-                  ))
               )}
             </div>
           </div>
+          <Button
+            block
+            h-12
+            className="bg-slate-900 text-white rounded-2xl h-12 font-bold"
+            onClick={() => setIsModalOpen(false)}
+          >
+            Đóng
+          </Button>
         </div>
       </Modal>
 
       <style jsx global>{`
         .premium-calendar .ant-picker-calendar-date {
           border-top: 2px solid #f1f5f9 !important;
-          margin: 2px !important;
-          border-radius: 8px !important;
-          padding: 4px !important;
+          margin: 4px !important;
+          border-radius: 12px !important;
         }
-        @media (min-width: 640px) {
-          .premium-calendar .ant-picker-calendar-date {
-            margin: 4px !important;
-            border-radius: 12px !important;
-          }
+        .premium-calendar .ant-picker-cell-selected .ant-picker-calendar-date {
+          background: #eef2ff !important;
+          border-top-color: #4f46e5 !important;
         }
-        .premium-calendar .ant-picker-calendar-date-value {
-          font-weight: bold;
-          font-size: 12px;
+        .premium-modal .ant-modal-content {
+          border-radius: 32px !important;
+          padding: 28px !important;
+        }
+        .custom-select .ant-select-selector {
+          border-radius: 16px !important;
+          background: #f8fafc !important;
+          border: 1px solid #f1f5f9 !important;
         }
         .custom-scrollbar::-webkit-scrollbar {
-          width: 3px;
+          width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background: #e2e8f0;
           border-radius: 10px;
-        }
-        .premium-modal .ant-modal-content {
-          border-radius: 20px !important;
-          padding: 16px !important;
-        }
-        @media (min-width: 640px) {
-          .premium-modal .ant-modal-content {
-            border-radius: 28px !important;
-            padding: 24px !important;
-          }
         }
       `}</style>
     </div>

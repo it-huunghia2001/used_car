@@ -780,7 +780,7 @@ export async function getSalesReportAction(
     db.user.findMany({
       where: {
         ...branchFilter,
-        role: { in: ["SALES_STAFF", "MANAGER", "ADMIN"] },
+        role: { in: ["SALES_STAFF"] },
         active: true,
       },
       select: {
