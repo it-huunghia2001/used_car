@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
@@ -705,44 +706,67 @@ export async function getLeadsAction(params: {
   status?: string;
   page?: number;
   limit?: number;
+  branch?: string;
+  startDate?: string;
+  endDate?: string;
 }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
   const { role, id: userId, branchId, isGlobalManager } = user;
-  const { search, status, page = 1, limit = 10 } = params;
+  const {
+    search,
+    status,
+    page = 1,
+    limit = 10,
+    branch,
+    startDate,
+    endDate,
+  } = params;
 
-  let whereClause: any = {};
+  // 1. Khởi tạo điều kiện gốc (Base Conditions)
+  let whereClause: any = { AND: [] };
 
-  // --- 1. PHÂN QUYỀN TRUY CẬP ---
+  // --- 2. PHÂN QUYỀN TRUY CẬP (Role-based) ---
   if (role === "ADMIN" || isGlobalManager) {
-    whereClause = {};
+    // Admin/Global: Nếu chọn chi nhánh cụ thể thì lọc, nếu là "ALL" thì không thêm điều kiện branchId
+    if (branch && branch !== "ALL") {
+      whereClause.AND.push({ branchId: branch });
+    }
   } else if (role === "MANAGER") {
-    whereClause = { branchId: branchId };
+    // Manager: Luôn luôn chỉ thấy chi nhánh của mình
+    whereClause.AND.push({ branchId: branchId });
   } else {
-    whereClause = {
+    // Staff: Chỉ thấy khách mình được phân công hoặc mình giới thiệu
+    whereClause.AND.push({
       OR: [{ assignedToId: userId }, { referrerId: userId }],
-    };
+    });
   }
 
-  // --- 2. LỌC & TÌM KIẾM ---
+  // --- 3. LỌC THEO TRẠNG THÁI ---
   if (status && status !== "ALL") {
-    whereClause.status = status;
+    whereClause.AND.push({ status: status });
   }
-
-  if (search) {
-    whereClause.AND = [
-      {
-        OR: [
-          { fullName: { contains: search } },
-          { phone: { contains: search } },
-          { licensePlate: { contains: search } },
-        ],
+  if (startDate || endDate) {
+    whereClause.AND.push({
+      createdAt: {
+        ...(startDate && { gte: new Date(startDate) }),
+        ...(endDate && { lte: new Date(endDate) }),
       },
-    ];
+    });
+  }
+  // --- 4. TÌM KIẾM TỪ KHÓA (Search) ---
+  if (search) {
+    whereClause.AND.push({
+      OR: [
+        { fullName: { contains: search } },
+        { phone: { contains: search } },
+        { licensePlate: { contains: search } },
+      ],
+    });
   }
 
-  // --- 3. TRUY VẤN TỔNG LỰC ---
+  // --- 5. TRUY VẤN ---
   const [data, total] = await Promise.all([
     db.customer.findMany({
       where: whereClause,
@@ -765,32 +789,8 @@ export async function getLeadsAction(params: {
     db.customer.count({ where: whereClause }),
   ]);
 
-  // --- 4. FIX LỖI DECIMAL (QUAN TRỌNG) ---
-  // Sử dụng JSON.parse(JSON.stringify()) là cách nhanh nhất để biến Decimal thành String/Number
-  // Hoặc map thủ công để tối ưu hiệu suất
-  const serializedData = data.map((customer) => {
-    if (customer.leadCar) {
-      return {
-        ...customer,
-        leadCar: {
-          ...customer.leadCar,
-          tSurePrice: customer.leadCar.tSurePrice
-            ? Number(customer.leadCar.tSurePrice)
-            : null,
-          expectedPrice: customer.leadCar.expectedPrice
-            ? Number(customer.leadCar.expectedPrice)
-            : null,
-          finalPrice: customer.leadCar.finalPrice
-            ? Number(customer.leadCar.finalPrice)
-            : null,
-        },
-      };
-    }
-    return customer;
-  });
-
-  // Một cách "lười" nhưng hiệu quả 100% cho mọi loại dữ liệu phức tạp:
-  // const serializedData = JSON.parse(JSON.stringify(data));
+  // --- 6. SERIALIZE DECIMAL ---
+  const serializedData = JSON.parse(JSON.stringify(data));
 
   return { data: serializedData, total };
 }
