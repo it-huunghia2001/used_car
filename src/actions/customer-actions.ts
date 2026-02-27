@@ -14,6 +14,7 @@ import { sendMail } from "@/lib/mail-service";
 import { LeadStatus, TaskStatus, UrgencyType } from "@prisma/client";
 import { getCurrentUser } from "@/lib/session-server";
 import dayjs from "@/lib/dayjs";
+import { getReferralTypeLabel } from "@/lib/utils";
 
 // interface CreateCustomerInput {
 //   fullName: string;
@@ -276,6 +277,67 @@ export async function createCustomerAction(rawData: any) {
 
       return customer;
     });
+
+    // 5. GỬI EMAIL THÔNG BÁO (NGOÀI TRANSACTION ĐỂ TRÁNH BLOCK DB)
+    if (result) {
+      const typeLabelVn = getReferralTypeLabel(result.type);
+
+      // A. Gửi cho nhân viên được phân bổ
+      if (assignedStaffId) {
+        const staff = await db.user.findUnique({
+          where: { id: assignedStaffId },
+        });
+        if (staff?.email) {
+          await sendMail({
+            to: staff.email,
+            subject: `[NHIỆM VỤ] Phân bổ khách hàng: ${result.fullName.toUpperCase()}`,
+            html: staffAssignmentEmailTemplate({
+              customerName: result.fullName,
+              customerPhone: result.phone,
+              typeLabel: typeLabelVn,
+              details: result.note || "Không có ghi chú thêm",
+              branchName: referrer.branchId
+                ? (
+                    await db.branch.findUnique({
+                      where: { id: referrer.branchId },
+                    })
+                  )?.name
+                : "Global",
+            }),
+          });
+        }
+      }
+
+      // B. Gửi cho toàn bộ Admin chi nhánh để theo dõi
+      const branchAdmins = await db.user.findMany({
+        where: { branchId: referrer.branchId, role: "ADMIN", active: true },
+        select: { email: true },
+      });
+
+      const adminEmails = branchAdmins
+        .map((a) => a.email)
+        .filter(Boolean) as string[];
+
+      if (adminEmails.length > 0) {
+        await sendMail({
+          to: adminEmails.join(","),
+          subject: `[HỆ THỐNG] Có lời giới thiệu mới từ ${auth.fullName}`,
+          html: referralEmailTemplate({
+            customerName: result.fullName,
+            typeLabel: typeLabelVn,
+            referrerName: auth.fullName || auth.username,
+            details: result.note || "Không có ghi chú thêm",
+            branchName: referrer.branchId
+              ? (
+                  await db.branch.findUnique({
+                    where: { id: referrer.branchId },
+                  })
+                )?.name
+              : "Global",
+          }),
+        });
+      }
+    }
 
     revalidatePath("/dashboard/customers");
     revalidatePath("/dashboard/referrals/new");
