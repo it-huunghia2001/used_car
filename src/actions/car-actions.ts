@@ -37,29 +37,39 @@ function serializeCar(car: any) {
 export async function updateCarAction(id: string, data: any) {
   let Now;
   if (data.isPublished) {
-    Now = dayjs().tz("Asia/Ho_Chi_Minh");
+    Now = dayjs().tz("Asia/Ho_Chi_Minh").toDate(); // Đảm bảo trả về đối tượng Date
   }
+
   try {
     const user = await getCurrentUser();
     if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
+
     const updated = await db.car.update({
       where: { id },
       data: {
         ...data,
         displayDate: data.isPublished ? Now : undefined,
-        // Ép kiểu dữ liệu để phù hợp với Prisma Schema
+        // Chuyển đổi an toàn: Nếu không có giá trị thì để undefined thay vì NaN
         year: data.year ? parseInt(data.year) : undefined,
         odo: data.odo ? parseInt(data.odo) : undefined,
         seats: data.seats ? parseInt(data.seats) : undefined,
-        sellingPrice: data.sellingPrice ? parseFloat(data.sellingPrice) : null,
-        costPrice: data.costPrice ? parseFloat(data.costPrice) : null,
+        // Tránh lỗi khi chuỗi rỗng hoặc null gửi từ InputNumber
+        sellingPrice:
+          data.sellingPrice !== undefined && data.sellingPrice !== null
+            ? parseFloat(data.sellingPrice)
+            : undefined,
+        costPrice:
+          data.costPrice !== undefined && data.costPrice !== null
+            ? parseFloat(data.costPrice)
+            : undefined,
       },
     });
+
     revalidatePath("/dashboard/cars");
-    return serializeCar(updated);
+    return { success: true, data: serializeCar(updated) };
   } catch (error) {
     console.error("Update Error:", error);
-    throw new Error("Không thể cập nhật thông tin xe");
+    return { success: false, message: "Không thể cập nhật thông tin xe" };
   }
 }
 

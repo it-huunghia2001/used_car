@@ -62,7 +62,24 @@ export default function InventoryPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   const debouncedSearch = useDebounce(searchText, 500);
-
+  // Thêm vào bên trong InventoryPage
+  const handleUpdateCar = async (carId: string, values: any) => {
+    setSubmitting(true);
+    try {
+      const result = await updateCarAction(carId, values);
+      if (result.success) {
+        messageApi.success("Cập nhật thông tin xe thành công");
+        setIsModalOpen(false); // Đóng modal
+        loadData(); // Tải lại danh sách
+      } else {
+        messageApi.error(result.message || "Cập nhật thất bại");
+      }
+    } catch (error) {
+      messageApi.error("Có lỗi xảy ra khi kết nối server");
+    } finally {
+      setSubmitting(false);
+    }
+  };
   const statusMap: any = {
     NEW: {
       color: "warning",
@@ -456,7 +473,7 @@ export default function InventoryPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         car={selectedCar}
-        onSave={loadData}
+        onSave={(values: any) => handleUpdateCar(selectedCar.id, values)}
         submitting={submitting}
         statusMap={statusMap}
         staffList={staffList}

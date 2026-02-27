@@ -614,6 +614,58 @@ export default function EditCarModal({
                 </div>
               ),
             },
+            {
+              key: "management",
+              label: (
+                <span>
+                  <UserOutlined /> QUẢN TRỊ
+                </span>
+              ),
+              children: (
+                <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
+                  <Row gutter={20}>
+                    <Col span={12}>
+                      <Form.Item
+                        name="branchId"
+                        label={<Text strong>Chi nhánh quản lý</Text>}
+                        rules={[
+                          {
+                            required: true,
+                            message: "Vui lòng chọn chi nhánh",
+                          },
+                        ]}
+                      >
+                        <Select
+                          size="large"
+                          placeholder="Chọn chi nhánh"
+                          options={branches?.map((b) => ({
+                            label: b.name,
+                            value: b.id,
+                          }))}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        name="assignedStaffId"
+                        label={<Text strong>Nhân viên phụ trách</Text>}
+                      >
+                        <Select
+                          size="large"
+                          placeholder="Chọn nhân viên"
+                          showSearch
+                          optionFilterProp="label"
+                          options={staffList?.map((s) => ({
+                            label: `${s.fullName} (${s.role})`,
+                            value: s.id,
+                          }))}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
+              ),
+            },
           ]}
         />
       </Form>
