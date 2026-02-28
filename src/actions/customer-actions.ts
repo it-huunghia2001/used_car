@@ -302,7 +302,7 @@ export async function createCustomerAction(rawData: any) {
       if (assignedStaffId) {
         const staff = await db.user.findUnique({
           where: { id: assignedStaffId },
-          select: { email: true },
+          select: { email: true, fullName: true },
         });
         if (staff?.email) {
           emailPromises.push(
@@ -348,6 +348,10 @@ export async function createCustomerAction(rawData: any) {
 
       // C. Gửi xác nhận cho Người giới thiệu (Lấy email từ DB)
       if (referrerEmail) {
+        const staff = await db.user.findUnique({
+          where: { id: assignedStaffId ?? undefined },
+          select: { email: true, fullName: true, phone: true },
+        });
         emailPromises.push(
           sendMail({
             to: referrerEmail,
@@ -356,7 +360,8 @@ export async function createCustomerAction(rawData: any) {
               referrerName: auth.fullName || auth.username,
               customerName: result.fullName,
               typeLabel: typeLabelVn,
-              branchName,
+              staffName: staff?.fullName || "Đang đợi phân bổ",
+              staffPhone: staff?.phone || "Đang đợi phân bổ",
             }),
           }),
         );

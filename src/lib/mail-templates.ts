@@ -1174,10 +1174,17 @@ export const referrerConfirmationEmailTemplate = (data: {
   customerName: string;
   typeLabel: string;
   branchName?: string;
+  staffName?: string; // Thêm tên nhân viên
+  staffPhone?: string; // Thêm số điện thoại nhân viên (tùy chọn)
 }): string => {
   const now = new Date().toLocaleString("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh",
   });
+
+  // Xử lý hiển thị thông tin nhân viên
+  const staffDisplay = data.staffName
+    ? `${data.staffName} ${data.staffPhone ? `(${data.staffPhone})` : ""}`
+    : "Đang chờ phân bổ";
 
   return `
   <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
@@ -1193,52 +1200,56 @@ export const referrerConfirmationEmailTemplate = (data: {
           GỬI THÀNH CÔNG
         </div>
         <h2 style="color: #1f1f1f; margin: 0; font-size: 22px;">Cảm ơn bạn, ${data.referrerName}!</h2>
-        <p style="color: #8c8c8c; font-size: 14px; margin-top: 10px;">Yêu cầu của bạn đã được chuyển đến cấp quản lý.</p>
+        <p style="color: #8c8c8c; font-size: 14px; margin-top: 10px;">Yêu cầu của bạn đã được chuyển đến bộ phận chuyên trách.</p>
       </div>
 
       <p style="color: #595959; font-size: 16px;">Chào <strong>${data.referrerName}</strong>,</p>
       <p style="color: #595959; font-size: 16px; line-height: 1.6;">
-        Hệ thống CRM đã ghi nhận thông tin khách hàng tiềm năng do bạn giới thiệu. Chúng tôi sẽ tiến hành kiểm tra và phân bổ nhân sự hỗ trợ khách hàng trong thời gian sớm nhất.
+        Hệ thống đã ghi nhận thông tin khách hàng do bạn giới thiệu. Dưới đây là chi tiết và nhân viên sẽ trực tiếp hỗ trợ khách hàng của bạn:
       </p>
 
       <div style="margin: 30px 0; padding: 20px; background-color: #fafafa; border-radius: 8px; border: 1px dashed #d9d9d9;">
-        <h4 style="margin: 0 0 15px 0; color: #262626; font-size: 15px; text-transform: uppercase; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px;">Thông tin đã gửi</h4>
+        <h4 style="margin: 0 0 15px 0; color: #262626; font-size: 15px; text-transform: uppercase; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px;">Chi tiết giới thiệu</h4>
         <table style="width: 100%; font-size: 14px; color: #595959;">
           <tr>
-            <td style="padding: 5px 0; width: 40%;">Khách hàng:</td>
-            <td style="padding: 5px 0; color: #1f1f1f; font-weight: 600;">${data.customerName.toUpperCase()}</td>
+            <td style="padding: 8px 0; width: 40%;">Khách hàng:</td>
+            <td style="padding: 8px 0; color: #1f1f1f; font-weight: 600;">${data.customerName.toUpperCase()}</td>
           </tr>
           <tr>
-            <td style="padding: 5px 0;">Dịch vụ yêu cầu:</td>
-            <td style="padding: 5px 0; color: #eb0a1e; font-weight: 600;">${data.typeLabel}</td>
+            <td style="padding: 8px 0;">Dịch vụ yêu cầu:</td>
+            <td style="padding: 8px 0; color: #eb0a1e; font-weight: 600;">${data.typeLabel}</td>
           </tr>
           <tr>
-            <td style="padding: 5px 0;">Chi nhánh:</td>
-            <td style="padding: 5px 0; color: #1f1f1f;">${data.branchName || "Tổng công ty"}</td>
+            <td style="padding: 8px 0;">Chi nhánh:</td>
+            <td style="padding: 8px 0; color: #1f1f1f;">${data.branchName || "Hệ thống"}</td>
           </tr>
           <tr>
-            <td style="padding: 5px 0;">Thời gian:</td>
-            <td style="padding: 5px 0; color: #1f1f1f;">${now}</td>
+            <td style="padding: 8px 0;">Nhân viên đảm nhận:</td>
+            <td style="padding: 8px 0; color: #1890ff; font-weight: 600;">${staffDisplay}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">Thời gian gửi:</td>
+            <td style="padding: 8px 0; color: #1f1f1f;">${now}</td>
           </tr>
         </table>
       </div>
 
       <div style="background-color: #fff7e6; border: 1px solid #ffe58f; padding: 15px; border-radius: 6px;">
         <p style="margin: 0; font-size: 13px; color: #d46b08; line-height: 1.5;">
-          <strong>Lưu ý:</strong> Trạng thái xử lý khách hàng sẽ được cập nhật liên tục trên Dashboard. Bạn có thể theo dõi tiến độ để kịp thời hỗ trợ khách hàng của mình.
+          <strong>Lưu ý:</strong> Bạn và nhân viên đảm nhận có thể cùng theo dõi trạng thái xử lý trên hệ thống để đảm bảo khách hàng nhận được dịch vụ tốt nhất.
         </p>
       </div>
 
       <div style="text-align: center; margin-top: 40px;">
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/my-referrals" 
-           style="border: 1px solid #1f1f1f; color: #1f1f1f; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block; transition: all 0.3s;">
-           XEM DANH SÁCH GIỚI THIỆU
+           style="background-color: #1f1f1f; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block; transition: all 0.3s;">
+           XEM TIẾN ĐỘ XỬ LÝ
         </a>
       </div>
     </div>
 
     <div style="background-color: #f5f5f5; padding: 25px; text-align: center; border-top: 1px solid #e8e8e8;">
-      <p style="margin: 0; font-size: 13px; color: #8c8c8c;">© 2024 Toyota Bình Dương - CRM System</p>
+      <p style="margin: 0; font-size: 13px; color: #8c8c8c;">© 2026 Toyota Bình Dương - CRM System</p>
     </div>
   </div>
   `;
