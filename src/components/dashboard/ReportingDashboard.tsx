@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Card,
   Row,
@@ -68,6 +68,17 @@ export default function ReportingDashboard({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("sales");
+  const [barSize, setBarSize] = useState(35); // Giá trị mặc định cho Desktop
+
+  useEffect(() => {
+    const handleResize = () => {
+      setBarSize(window.innerWidth < 768 ? 15 : 35);
+    };
+
+    handleResize(); // Chạy ngay lần đầu
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const selectedMonth = useMemo(() => {
     const m = searchParams.get("month");
@@ -395,7 +406,7 @@ export default function ReportingDashboard({
             }
             className="rounded-3xl border-none shadow-sm h-full"
           >
-            <div className="h-[300px] md:h-[400px] w-full">
+            <div className="h-75 md:h-100 w-full" style={{ height: "400px" }}>
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
                   data={chartData}
@@ -441,7 +452,7 @@ export default function ReportingDashboard({
                     name="Chốt đơn"
                     stackId="stk"
                     fill={THEME.SUCCESS}
-                    barSize={window?.innerWidth < 768 ? 15 : 35}
+                    barSize={barSize}
                     radius={[0, 0, 0, 0]}
                   />
                   <Bar
@@ -497,9 +508,9 @@ export default function ReportingDashboard({
                 </Space>
               }
               className="rounded-3xl border-none shadow-sm flex-1"
-              bodyStyle={{ padding: "12px" }}
+              style={{ padding: "12px" }}
             >
-              <div className="h-[200px]">
+              <div className="h-50 w-full">
                 <ResponsiveContainer>
                   <BarChart
                     data={interestedModels}

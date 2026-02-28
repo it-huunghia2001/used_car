@@ -58,7 +58,6 @@ export default async function DashboardPage(props: PageProps) {
     role: user.role,
     isGlobal: user.role === "ADMIN" || user.isGlobalManager,
   };
-  console.log(combinedReportData);
 
   return (
     <div className="p-6">
