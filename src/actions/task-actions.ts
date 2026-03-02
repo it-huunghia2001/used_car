@@ -21,6 +21,7 @@ import dayjs from "@/lib/dayjs"; // Sử dụng file config ở trên
 import { getCurrentUser } from "@/lib/session-server";
 import { sendMail } from "@/lib/mail-service";
 import {
+  contactActivityEmailTemplate,
   dealApprovalRequestEmailTemplate,
   dealResultEmailTemplate,
   loseApprovalRequestEmailTemplate,
@@ -1147,7 +1148,48 @@ export async function updateCustomerStatusAction(
         timeout: 20000, // Tăng lên 15 giây để xử lý các tác vụ nặng
       },
     );
+    if (result.success) {
+      const customerDetail = await db.customer.findUnique({
+        where: { id: customerId },
+        include: { referrer: true, assignedTo: true },
+      });
 
+      if (customerDetail) {
+        const emailData = {
+          staffName: customerDetail.assignedTo?.fullName || "N/A",
+          referrerName: customerDetail.referrer.fullName || "N/A",
+          customerName: customerDetail.fullName,
+          status: status,
+          note: note,
+          nextContactAt: nextContactAt
+            ? dayjs(nextContactAt).format("HH:mm DD/MM/YYYY")
+            : undefined,
+          nextNote: payload?.nextNote,
+        };
+
+        // Gửi cho Sale xử lý
+        await sendMail({
+          to: customerDetail.assignedTo?.email ?? "",
+          subject: `[CRM] Tương tác khách hàng: ${customerDetail.fullName}`,
+          html: contactActivityEmailTemplate({
+            ...emailData,
+            isReferrer: false,
+          }),
+        });
+
+        // Gửi cho Người giới thiệu (Nếu người giới thiệu không phải là chính người xử lý)
+        if (customerDetail.referrerId !== customerDetail.assignedToId) {
+          await sendMail({
+            to: customerDetail.referrer.email,
+            subject: `[CRM] Cập nhật tiến độ: ${customerDetail.fullName}`,
+            html: contactActivityEmailTemplate({
+              ...emailData,
+              isReferrer: true,
+            }),
+          });
+        }
+      }
+    }
     // 5. Đưa revalidatePath RA NGOÀI Transaction
     revalidatePath("/dashboard/assigned-tasks");
 

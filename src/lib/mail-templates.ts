@@ -1254,3 +1254,76 @@ export const referrerConfirmationEmailTemplate = (data: {
   </div>
   `;
 };
+
+export const contactActivityEmailTemplate = (data: {
+  staffName: string; // Tên sale xử lý
+  referrerName: string; // Tên người giới thiệu
+  customerName: string;
+  status: string; // Trạng thái mới cập nhật
+  note: string; // Nội dung tương tác vừa ghi nhận
+  nextContactAt?: string; // Thời gian hẹn tiếp theo (nếu có)
+  nextNote?: string; // Nội dung hẹn tiếp theo (nếu có)
+  isReferrer?: boolean; // Flag để đổi nội dung cho phù hợp với người nhận
+}) => {
+  const hasAppointment = !!data.nextContactAt;
+  const accentColor = "#2563eb"; // Màu xanh dương Toyota
+
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+    <div style="background-color: ${accentColor}; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Cập nhật tiến độ chăm sóc khách hàng</p>
+    </div>
+
+    <div style="padding: 30px; background-color: #ffffff;">
+      <p style="color: #475569; font-size: 16px;">Chào <strong>${data.isReferrer ? data.referrerName : data.staffName}</strong>,</p>
+      
+      <p style="color: #475569; font-size: 16px;">
+        Hệ thống ghi nhận tương tác mới cho khách hàng <strong>${data.customerName.toUpperCase()}</strong> 
+        ${data.isReferrer ? `(do bạn giới thiệu)` : `(đang được bạn chăm sóc)`}.
+      </p>
+
+      <div style="margin: 20px 0; padding: 15px; background-color: #f8fafc; border-left: 4px solid #94a3b8; border-radius: 4px;">
+        <p style="margin: 0 0 5px 0; font-size: 13px; color: #64748b; font-weight: bold;">KẾT QUẢ TƯƠNG TÁC:</p>
+        <p style="margin: 0; color: #1e293b; font-size: 15px; line-height: 1.5;">${data.note}</p>
+        <p style="margin: 10px 0 0 0; font-size: 13px; color: #64748b;">Trạng thái: <span style="color: ${accentColor}; font-weight: bold;">${data.status}</span></p>
+      </div>
+
+      ${
+        hasAppointment
+          ? `
+      <div style="margin: 25px 0; padding: 20px; background-color: #eff6ff; border: 1px dashed ${accentColor}; border-radius: 8px;">
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+          <span style="font-size: 20px; margin-right: 10px;">📅</span>
+          <strong style="color: ${accentColor}; font-size: 16px;">LỊCH HẸN TIẾP THEO</strong>
+        </div>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 5px 0; color: #64748b; width: 30%;">Thời gian:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.nextContactAt}</td>
+          </tr>
+          <tr>
+            <td style="padding: 5px 0; color: #64748b; vertical-align: top;">Nội dung hẹn:</td>
+            <td style="color: #1e293b;">${data.nextNote || "Chưa có ghi chú cụ thể"}</td>
+          </tr>
+        </table>
+      </div>
+      `
+          : ""
+      }
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
+           style="background-color: #1e293b; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+           XEM CHI TIẾT HỒ SƠ
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+      Thông báo được gửi tự động từ hệ thống CRM Toyota Bình Dương.<br/>
+      Nhân viên xử lý: ${data.staffName}
+    </div>
+  </div>
+  `;
+};
