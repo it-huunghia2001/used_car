@@ -422,14 +422,9 @@ export default function EditCarModal({
                             <Select.Option value="VN">
                               Lắp ráp trong nước
                             </Select.Option>
-                            <Select.Option value="TH">
-                              Nhập Thái Lan
-                            </Select.Option>
-                            <Select.Option value="ID">
-                              Nhập Indonesia
-                            </Select.Option>
+
                             <Select.Option value="OTHER">
-                              Nhập khẩu khác
+                              Nhập khẩu
                             </Select.Option>
                           </Select>
                         </Form.Item>

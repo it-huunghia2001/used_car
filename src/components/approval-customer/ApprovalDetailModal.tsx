@@ -322,6 +322,8 @@ export default function ModalApprovalDetail({
                       <Select
                         options={[
                           { value: "SEDAN", label: "Sedan" },
+                          { value: "HATCHBACK", label: "Hatchback" },
+
                           { value: "SUV", label: "SUV" },
                           { value: "PICKUP", label: "Bán tải" },
                           { value: "MPV", label: "MPV" },

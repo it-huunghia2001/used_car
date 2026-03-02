@@ -511,7 +511,11 @@ export const VehicleFormFields = ({
             <Select
               options={[
                 { value: "SEDAN", label: "Sedan" },
+                { value: "HATCHBACK", label: "Hatchback" },
+
                 { value: "SUV", label: "SUV" },
+                { value: "PICKUP", label: "Bán tải" },
+                { value: "MPV", label: "MPV" },
               ]}
             />
           </Form.Item>
@@ -521,7 +525,7 @@ export const VehicleFormFields = ({
             <Select
               options={[
                 { value: "VN", label: "Trong nước" },
-                { value: "ID", label: "Indonesia" },
+                { value: "OTHER", label: "Nhập khẩu" },
               ]}
             />
           </Form.Item>
