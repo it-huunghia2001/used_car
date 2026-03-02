@@ -180,7 +180,7 @@ export const VehicleFormFields = ({
       <Row gutter={[16, 0]}>
         <Col xs={24} sm={8}>
           <Form.Item name="fullName" label="Tên khách hàng">
-            <Input disabled className="bg-gray-50 font-bold text-indigo-600" />
+            <Input className="bg-gray-50 font-bold text-indigo-600" />
           </Form.Item>
         </Col>
         <Col xs={24} sm={8}>
@@ -189,7 +189,11 @@ export const VehicleFormFields = ({
           </Form.Item>
         </Col>
         <Col xs={24} sm={8}>
-          <Form.Item name="urgencyLevel" label="Trạng thái khách hàng">
+          <Form.Item
+            name="urgencyLevel"
+            label="Trạng thái khách hàng"
+            rules={[{ required: isBuyType ? false : true }]}
+          >
             <Select
               placeholder="Chọn độ nóng"
               options={[

@@ -45,7 +45,7 @@ export async function createCustomerAction(rawData: any) {
     const now = new Date();
     const todayStart = dayjs().startOf("day").toDate();
     const auth = await getCurrentUser();
-    if (!auth) throw new Error("Phiên đăng nhập hết hạn.");
+    if (!auth || !auth.id) throw new Error("Phiên đăng nhập hết hạn.");
 
     // 1. BÓC TÁCH VÀ CHUẨN HÓA DỮ LIỆU
     const {
@@ -115,7 +115,7 @@ export async function createCustomerAction(rawData: any) {
 
     // 3. XÁC ĐỊNH CHI NHÁNH & PHÂN BỔ NHÂN VIÊN
     const referrer = await db.user.findUnique({
-      where: { id: data.referrerId },
+      where: { id: auth.id },
       select: { branchId: true },
     });
 
@@ -198,7 +198,7 @@ export async function createCustomerAction(rawData: any) {
               create: {
                 status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
                 note: `[TÁI SINH]: ${assignmentLog}. Khách cũ bị trễ từ người giới thiệu trước.`,
-                createdById: data.referrerId,
+                createdById: auth.id,
               },
             },
             tasks: assignedStaffId
@@ -247,7 +247,7 @@ export async function createCustomerAction(rawData: any) {
               create: {
                 status: assignedStaffId ? LeadStatus.ASSIGNED : LeadStatus.NEW,
                 note: assignmentLog || "Khách hàng mới được tạo từ giới thiệu.",
-                createdById: data.referrerId,
+                createdById: auth.id,
               },
             },
             tasks: assignedStaffId

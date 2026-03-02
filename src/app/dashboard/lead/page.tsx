@@ -74,11 +74,11 @@ export default function LeadsPage() {
   });
 
   const handleDateChange = (dates: any) => {
+    setDateRange(dates); // Thêm dòng này
     if (dates) {
       setFilters({
         ...filters,
         page: 1,
-        // Chuyển về ISO String để gửi lên Server
         startDate: dates[0].startOf("day").toISOString(),
         endDate: dates[1].endOf("day").toISOString(),
       });
@@ -134,14 +134,21 @@ export default function LeadsPage() {
   const onExportExcel = async () => {
     setExportLoading(true);
     try {
-      const startDate = dateRange ? dateRange[0].toDate() : undefined;
-      const endDate = dateRange ? dateRange[1].toDate() : undefined;
-      const exportData = await getExportCustomerData(startDate, endDate);
-      if (!exportData || exportData.length === 0)
+      // Chuyển đổi string từ filters sang đối tượng Date hoặc undefined
+      const sDate = filters.startDate ? new Date(filters.startDate) : undefined;
+      const eDate = filters.endDate ? new Date(filters.endDate) : undefined;
+
+      // Truyền sDate, eDate (kiểu Date) vào hàm
+      const exportData = await getExportCustomerData(sDate, eDate);
+
+      if (!exportData || exportData.length === 0) {
         return message.info("Không có dữ liệu");
+      }
+
       await handleExportFullCustomerExcel(exportData);
       message.success(`Xuất thành công!`);
     } catch (error: any) {
+      console.error("Lỗi chi tiết:", error);
       message.error("Lỗi xuất file");
     } finally {
       setExportLoading(false);

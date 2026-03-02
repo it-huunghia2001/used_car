@@ -244,8 +244,6 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     });
 
     // Định dạng số cho cột Ngân sách
-    row.getCell("budget").numFmt = NUMBER_FORMAT;
-    row.getCell("budget").alignment = { horizontal: "right" };
   });
   // --- 4. CÔNG ĐOẠN "LÀM ĐẸP" CUỐI CÙNG (FINAL TOUCH) ---
   [sheet1, sheet2].forEach((s) => {
