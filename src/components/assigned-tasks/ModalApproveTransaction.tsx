@@ -117,7 +117,7 @@ export default function ModalApproveTransaction({
       },
       contractData: {
         contractNo: values.contractNo,
-        price: values.actualPrice,
+        price: values.tSurePrice,
         note: values.contractNote,
         authorizedOwnerName: values.authorizedOwnerName,
       },
@@ -159,6 +159,7 @@ export default function ModalApproveTransaction({
         interiorColor: leadCar?.interiorColor,
         engineSize: leadCar?.engineSize,
         ownerType: leadCar?.ownerType,
+        tSurePrice: leadCar?.tSurePrice,
 
         conditionGrade: leadCar?.conditionGrade,
         isCertified: leadCar?.isCertified ?? false, // Mặc định false nếu null
@@ -699,7 +700,7 @@ export default function ModalApproveTransaction({
           </Col>
           <Col xs={12} md={8}>
             <Form.Item
-              name="actualPrice"
+              name="tSurePrice"
               label="Giá trị giao dịch"
               rules={[{ required: true }]}
             >

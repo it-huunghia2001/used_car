@@ -86,6 +86,14 @@ export async function getMyTasksAction(filters?: any) {
         };
       }
 
+      if (filters.carModelName) {
+        whereCondition.customer.carModel = {
+          name: {
+            contains: filters.carModelName,
+          },
+        };
+      }
+
       // Lọc theo Trạng thái xem xe (INSPECTED, NOT_INSPECTED, APPOINTED)
       if (filters.inspectStatus && filters.inspectStatus !== "ALL") {
         whereCondition.customer.inspectStatus = filters.inspectStatus;

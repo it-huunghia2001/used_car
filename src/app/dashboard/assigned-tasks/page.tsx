@@ -99,6 +99,7 @@ export default function AssignedTasksPage() {
   const [advancedFilters, setAdvancedFilters] = useState({
     searchText: "",
     licensePlate: "",
+    carModelName: "",
     dateRange: null as any, // Ngày nhận (createdAt)
     contactDateRange: null as any, // Ngày cần liên hệ (scheduledAt)
     inspectStatus: "ALL", // Trạng thái xem xe
@@ -532,6 +533,7 @@ export default function AssignedTasksPage() {
                     setAdvancedFilters({
                       searchText: "",
                       licensePlate: "",
+                      carModelName: "",
                       dateRange: null,
                       contactDateRange: null,
                       inspectStatus: "ALL",

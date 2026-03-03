@@ -86,6 +86,7 @@ export default function ModalApprovalDetail({
         const car = parsed.carData || parsed;
         const contract = parsed.contractData || {};
         const realCustomer = selectedActivity.customer || {};
+        console.log(contract);
 
         form.setFieldsValue({
           ...car,
@@ -518,7 +519,7 @@ export default function ModalApprovalDetail({
                 className="mb-4 border-red-100 bg-red-50/20 shadow-sm"
               >
                 <Form.Item
-                  name="price"
+                  name="finalPrice"
                   label={
                     <Text strong className="text-red-600">
                       Giá chốt nhập cuối cùng (VNĐ)
