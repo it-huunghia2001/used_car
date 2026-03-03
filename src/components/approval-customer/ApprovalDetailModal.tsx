@@ -297,9 +297,15 @@ export default function ModalApprovalDetail({
                       <InputNumber className="w-full!" />
                     </Form.Item>
                   </Col>
-                  <Col xs={12} md={8}>
+
+                  <Col xs={12} md={6}>
                     <Form.Item name="origin" label="Xuất xứ">
-                      <Input placeholder="VD: VN, Thái Lan..." />
+                      <Select
+                        options={[
+                          { label: "VN", value: "Trong nước" },
+                          { label: "ORTHER", value: "Nhập khẩu" },
+                        ]}
+                      />
                     </Form.Item>
                   </Col>
                   <Col xs={12} md={8}>

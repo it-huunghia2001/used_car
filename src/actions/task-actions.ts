@@ -38,10 +38,14 @@ const serializePrisma = (data: any) => {
 
 /** --- QUERIES --- */
 export async function getActiveReasonsAction(type: LeadStatus) {
+  const auth = await getCurrentUser();
+  if (!auth) throw new Error("Unauthorized");
   const reasons = await db.leadReason.findMany({
     where: { type, active: true },
     orderBy: { content: "asc" },
   });
+  console.log(reasons);
+
   return serializePrisma(reasons);
 }
 
