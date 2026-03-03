@@ -93,6 +93,8 @@ export default function SalesTasksPage() {
   const [buyReasons, setBuyReasons] = useState<any[]>([]);
   const [now, setNow] = useState(dayjs());
 
+  const [filterUrgency, setFilterUrgency] = useState<string>("ALL");
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     handleResize();
@@ -104,10 +106,13 @@ export default function SalesTasksPage() {
     };
   }, []);
 
-  const loadCustomersOnly = async (search?: string) => {
+  const loadCustomersOnly = async (search?: string, urgency?: string) => {
     setLoading(true);
     try {
-      const myCustomers = await getMyCustomersAction({ searchText: search });
+      const myCustomers = await getMyCustomersAction({
+        searchText: search,
+        urgencyLevel: urgency,
+      });
       setCustomers(myCustomers);
     } catch (err) {
       messageApi.error("Lỗi tải danh sách khách hàng");
@@ -115,15 +120,14 @@ export default function SalesTasksPage() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
-    // Nếu searchText trống thì có thể load lại mặc định hoặc không làm gì tùy logic
     const delayDebounceFn = setTimeout(() => {
-      loadCustomersOnly(searchText);
-    }, 500);
+      // Gọi API với cả 2 tham số
+      loadCustomersOnly(searchText, filterUrgency);
+    }, 400); // 400ms để tránh spam API khi gõ phím
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchText]);
+  }, [searchText, filterUrgency]); // Chạy lại khi 1 trong 2 cái này thay đổi
 
   const loadData = async () => {
     setLoading(true);
@@ -138,6 +142,7 @@ export default function SalesTasksPage() {
           getBuyReasons(),
         ]);
       setTasks(leads);
+      console.log(leads);
 
       setInventory(cars);
       setCarModels(models);
@@ -178,14 +183,6 @@ export default function SalesTasksPage() {
       return matchSearch;
     });
   }, [tasks, searchText, filterType]);
-
-  const filteredCustomers = useMemo(() => {
-    return customers.filter(
-      (r) =>
-        r.fullName?.toLowerCase().includes(searchText.toLowerCase()) ||
-        r.phone?.includes(searchText),
-    );
-  }, [customers, searchText]);
 
   const onFinishAddCustomer = async (values: any) => {
     setLoading(true);
@@ -303,29 +300,32 @@ export default function SalesTasksPage() {
                 size={45}
                 className={`${isTask ? "bg-emerald-500" : "bg-slate-800"}`}
               >
-                {record.fullName?.[0]}
+                {record.customer.fullName?.[0]}
               </Avatar>
               <div className="flex flex-col">
                 <Text strong className="text-base">
-                  {record.fullName}
+                  {record.customer.fullName}
                 </Text>
                 <Text type="secondary" className="text-xs font-mono">
-                  {record.phone}
+                  {record.customer.phone}
                 </Text>
               </div>
             </Space>
-            <UrgencyBadge type={record.urgencyLevel} />
+            <UrgencyBadge type={record.customer.urgencyLevel} />
           </div>
           <div className="bg-white/60 p-3 rounded-2xl border border-slate-100 mb-4">
             <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
-              <CarOutlined /> {record.carModel?.name || "Nhu cầu chung"}
+              <CarOutlined />{" "}
+              {record.customer.carModel?.name || "Nhu cầu chung"}
             </div>
           </div>
           <div className="flex justify-between items-center">
             {isTask ? (
               <Text
                 strong
-                className={record.isOverdue ? "text-red-500" : "text-blue-600"}
+                className={
+                  record.customer.isOverdue ? "text-red-500" : "text-blue-600"
+                }
               >
                 <ClockCircleOutlined />{" "}
                 {dayjs(item.scheduledAt).format("HH:mm - DD/MM")}
@@ -335,7 +335,7 @@ export default function SalesTasksPage() {
                 color="blue"
                 className="rounded-full border-none px-3 font-black text-[10px] uppercase"
               >
-                {record.status}
+                {record.customer.status}
               </Tag>
             )}
             <Space onClick={(e) => e.stopPropagation()}>
@@ -426,11 +426,11 @@ export default function SalesTasksPage() {
             />
           </div>
           {isMobile ? (
-            renderMobileFeed(customers, "TASK")
+            renderMobileFeed(filteredTasks, "TASK")
           ) : (
             <Card className="rounded-[2rem] border-none shadow-xl overflow-hidden">
               <Table
-                dataSource={customers}
+                dataSource={filteredTasks}
                 columns={[
                   {
                     title: "KHÁCH HÀNG",
@@ -438,13 +438,13 @@ export default function SalesTasksPage() {
                       <Space>
                         <div>
                           <Text strong className="block">
-                            {t.fullName}
+                            {t.customer.fullName}
                           </Text>
                           <Text type="secondary" className="text-[11px]">
-                            {t.phone}
+                            {t.customer.phone}
                           </Text>
                         </div>
-                        <UrgencyBadge type={t.urgencyLevel} />
+                        <UrgencyBadge type={t.customer.urgencyLevel} />
                       </Space>
                     ),
                   },
@@ -453,10 +453,10 @@ export default function SalesTasksPage() {
                     render: (t) => (
                       <div>
                         <Text strong className="text-emerald-700 text-[13px]">
-                          <CarOutlined /> {t.carModel?.name}
+                          <CarOutlined /> {t.customer.carModel?.name}
                         </Text>
                         <div className="text-[11px] text-slate-400">
-                          {t.leadCar?.description || "Nhu cầu chung"}
+                          {t.customer.leadCar?.description || "Nhu cầu chung"}
                         </div>
                       </div>
                     ),
@@ -466,7 +466,7 @@ export default function SalesTasksPage() {
                     render: (t) => (
                       <div className="flex flex-col">
                         <Text className="text-[12px] font-bold text-slate-500">
-                          {dayjs(t.scheduledAt).format("HH:mm DD/MM")}
+                          {dayjs(t.scheduledAt).format("HH:mm DD/MM/YYYY")}
                         </Text>
                         {t.isOverdue ? (
                           <Tag
@@ -550,7 +550,7 @@ export default function SalesTasksPage() {
 
         {/* SECTION 2: KHO KHÁCH */}
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 px-2">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3 px-2">
             <Space orientation="vertical" size={0}>
               <Title
                 level={5}
@@ -562,13 +562,42 @@ export default function SalesTasksPage() {
                 Chăm sóc khách hàng chủ động
               </Text>
             </Space>
-            <Input
-              placeholder="Tìm tên, SĐT..."
-              prefix={<SearchOutlined className="text-slate-400" />}
-              className="rounded-2xl border-none shadow-sm h-11 w-full sm:w-64"
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-            />
+
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+              {/* Bộ lọc HOT - WARM - COOL */}
+              <Segmented
+                value={filterUrgency}
+                onChange={(value) => setFilterUrgency(value as string)}
+                className="bg-slate-200/50 p-1 rounded-xl"
+                options={[
+                  { label: "Tất cả", value: "ALL" },
+                  {
+                    label: <span className="text-red-500 font-bold">HOT</span>,
+                    value: "HOT",
+                  },
+                  {
+                    label: (
+                      <span className="text-orange-500 font-bold">WARM</span>
+                    ),
+                    value: "WARM",
+                  },
+                  {
+                    label: (
+                      <span className="text-blue-500 font-bold">COOL</span>
+                    ),
+                    value: "COOL",
+                  },
+                ]}
+              />
+
+              <Input
+                placeholder="Tìm tên, SĐT, loại xe..."
+                prefix={<SearchOutlined className="text-slate-400" />}
+                className="rounded-2xl border-none shadow-sm h-11 w-full md:w-64"
+                onChange={(e) => setSearchText(e.target.value)}
+                allowClear
+              />
+            </div>
           </div>
           {isMobile ? (
             renderMobileFeed(customers, "CUSTOMER")

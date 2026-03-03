@@ -27,6 +27,7 @@ import {
   loseApprovalRequestEmailTemplate,
   loseResultEmailTemplate,
   purchaseResultEmailTemplate,
+  referrerLoseResultEmailTemplate,
   saleApprovalRequestEmailTemplate,
   selfCreatedLeadEmailTemplate,
   unfreezeAssignmentEmailTemplate,
@@ -1449,7 +1450,14 @@ export async function approveLoseRequestAction(
     const activity = await db.leadActivity.findUnique({
       where: { id: activityId },
       include: {
-        customer: true,
+        customer: {
+          include: {
+            referrer: {
+              // Lấy thông tin người giới thiệu
+              select: { email: true, fullName: true, username: true },
+            },
+          },
+        },
         user: {
           // Nhân viên đề xuất (người nhận mail)
           select: { email: true, fullName: true, username: true },
@@ -1536,28 +1544,47 @@ export async function approveLoseRequestAction(
       },
       { timeout: 15000 },
     );
+    const emailsToSend = [];
 
-    // 2. GỬI EMAIL THÔNG BÁO CHO NHÂN VIÊN (Background task)
+    // Mail cho nhân viên đang chăm sóc (Assignee)
     if (activity.user?.email) {
-      (async () => {
-        try {
-          await sendMail({
-            to: activity.user.email,
-            subject: `[KẾT QUẢ] Duyệt dừng hồ sơ khách hàng: ${activity.customer.fullName.toUpperCase()}`,
-            html: loseResultEmailTemplate({
-              staffName:
-                activity.user.fullName || activity.user.username || "Nhân viên",
-              customerName: activity.customer.fullName,
-              decision: decision,
-              targetStatus: targetStatus,
-            }),
-          });
-        } catch (e) {
-          console.error("Lỗi gửi mail phản hồi dừng hồ sơ:", e);
-        }
-      })();
+      emailsToSend.push(
+        sendMail({
+          to: activity.user.email,
+          subject: `[KẾT QUẢ] Duyệt dừng hồ sơ khách hàng: ${activity.customer.fullName.toUpperCase()}`,
+          html: loseResultEmailTemplate({
+            staffName:
+              activity.user.fullName || activity.user.username || "Nhân viên",
+            customerName: activity.customer.fullName,
+            decision: decision,
+            targetStatus: targetStatus,
+          }),
+        }),
+      );
     }
 
+    if (activity.customer.referrer?.email) {
+      emailsToSend.push(
+        sendMail({
+          to: activity.customer.referrer.email,
+          subject: `[TOYOTA BÌNH DƯƠNG] Cập nhật hồ sơ khách hàng: ${activity.customer.fullName.toUpperCase()}`,
+          html: referrerLoseResultEmailTemplate({
+            referrerName: activity.customer.referrer.fullName || "Quý đối tác",
+            customerName: activity.customer.fullName,
+            decision: decision,
+            targetStatus: targetStatus,
+            carInfo: activity.customer.carYear
+              ? `${activity.customer.carYear}`
+              : undefined,
+          }),
+        }),
+      );
+    }
+    if (emailsToSend.length > 0) {
+      Promise.allSettled(emailsToSend).catch((e) =>
+        console.error("Lỗi gửi mail tổng:", e),
+      );
+    }
     revalidatePath("/dashboard/approvals");
     revalidatePath("/dashboard/assigned-tasks");
     revalidatePath("/dashboard/frozen-leads");
@@ -1922,6 +1949,9 @@ export async function getMyCustomersAction(filters?: any) {
   };
 
   if (filters) {
+    if (filters.urgencyLevel && filters.urgencyLevel !== "ALL") {
+      whereCondition.urgencyLevel = filters.urgencyLevel;
+    }
     // Lọc Tên/SĐT
     if (filters.searchText) {
       whereCondition.OR = [

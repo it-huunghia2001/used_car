@@ -1402,3 +1402,93 @@ export const selfCreatedLeadEmailTemplate = (data: {
   </div>
   `;
 };
+export const referrerLoseResultEmailTemplate = (data: {
+  referrerName: string;
+  customerName: string;
+  decision: "APPROVE" | "REJECT";
+  targetStatus?: string; // LOSE, FROZEN, ...
+  carInfo?: string;
+}) => {
+  const isApproved = data.decision === "APPROVE";
+
+  // Định nghĩa trạng thái hiển thị thân thiện
+  const getStatusLabel = (status?: string) => {
+    switch (status) {
+      case "LOSE":
+        return "Tạm dừng theo dõi";
+      case "FROZEN":
+        return "Đưa vào danh sách chờ";
+      default:
+        return "Đóng hồ sơ";
+    }
+  };
+
+  const statusLabel = isApproved
+    ? getStatusLabel(data.targetStatus)
+    : "Tiếp tục chăm sóc";
+  const headerColor = isApproved ? "#64748b" : "#2563eb"; // Xám cho hồ sơ đóng, Xanh cho hồ sơ làm tiếp
+
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+    <div style="background-color: ${headerColor}; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 20px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0 0; font-size: 14px;">Cập nhật trạng thái hồ sơ giới thiệu</p>
+    </div>
+
+    <div style="padding: 30px; background-color: #ffffff;">
+      <p style="color: #1e293b; font-size: 16px;">
+        Xin chào <strong>${data.referrerName}</strong>,
+      </p>
+      <p style="color: #475569; font-size: 15px; line-height: 1.6;">
+        Hệ thống Toyota Bình Dương xin thông báo về kết quả xử lý hồ sơ khách hàng do bạn giới thiệu:
+      </p>
+
+      <div style="margin: 20px 0; padding: 20px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; width: 40%;">Khách hàng:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.customerName.toUpperCase()}</td>
+          </tr>
+          ${
+            data.carInfo
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Nhu cầu:</td>
+            <td style="color: #1e293b;">${data.carInfo}</td>
+          </tr>`
+              : ""
+          }
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Trạng thái hiện tại:</td>
+            <td style="padding: 4px 0;">
+              <span style="background-color: ${isApproved ? "#f1f5f9" : "#dcfce7"}; color: ${isApproved ? "#475569" : "#16a34a"}; padding: 2px 10px; border-radius: 4px; font-weight: bold; border: 1px solid ${isApproved ? "#e2e8f0" : "#bbf7d0"};">
+                ${statusLabel.toUpperCase()}
+              </span>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <p style="color: #475569; font-size: 14px; font-style: italic; line-height: 1.6;">
+        ${
+          isApproved
+            ? "Hiện tại do một số lý do khách quan từ phía khách hàng hoặc nhu cầu chưa phù hợp, chúng tôi xin phép tạm dừng chăm sóc hồ sơ này. Hệ thống sẽ thông báo ngay cho bạn nếu khách hàng có nhu cầu trở lại."
+            : "Yêu cầu dừng hồ sơ đã bị từ chối. Đội ngũ bán hàng sẽ tiếp tục nỗ lực tương tác và chăm sóc khách hàng này để đạt được kết quả tốt nhất."
+        }
+      </p>
+
+      <div style="border-top: 1px solid #f1f5f9; margin-top: 25px; padding-top: 20px; text-align: center;">
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;">Cảm ơn bạn đã luôn tin tưởng và đồng hành cùng Toyota Bình Dương.</p>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/referrals" 
+           style="background-color: #1e293b; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">
+           XEM DANH SÁCH GIỚI THIỆU
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 12px; color: #94a3b8;">
+      Đây là email tự động từ hệ thống CRM Toyota Bình Dương
+    </div>
+  </div>
+  `;
+};
