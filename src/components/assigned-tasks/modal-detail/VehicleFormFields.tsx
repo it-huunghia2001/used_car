@@ -192,7 +192,7 @@ export const VehicleFormFields = ({
           <Form.Item
             name="urgencyLevel"
             label="Trạng thái khách hàng"
-            rules={[{ required: isBuyType ? false : true }]}
+            rules={[{ required:  true }]}
           >
             <Select
               placeholder="Chọn độ nóng"

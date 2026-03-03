@@ -150,6 +150,65 @@ export const getReferralTypeTag = (type: string) => {
   }
 };
 
+export const getReferralTypeTagStaff = (type: string) => {
+  switch (type) {
+    case "SELL":
+      return (
+        <Tag
+          color="orange"
+          className="bg-orange-500/20 border-orange-500/30 text-orange-300 px-3 uppercase text-[10px] font-bold m-0 rounded-lg"
+        >
+          BÁN XE
+        </Tag>
+      );
+    case "BUY":
+      return (
+        <Tag
+          color="green"
+          className="bg-emerald-500/20 border-emerald-500/30 text-emerald-300 px-3 uppercase text-[10px] font-bold m-0 rounded-lg"
+        >
+          MUA XE
+        </Tag>
+      );
+    case "VALUATION":
+      return (
+        <Tag
+          color="purple"
+          className="bg-purple-500/20 border-purple-500/30 text-purple-300 px-3 uppercase text-[10px] font-bold m-0 rounded-lg"
+        >
+          ĐỊNH GIÁ
+        </Tag>
+      );
+    case "SELL_TRADE_NEW":
+      return (
+        <Tag
+          color="blue"
+          className="bg-blue-500/20 border-blue-500/30 text-blue-300 px-3 uppercase text-[10px] font-bold m-0 rounded-lg"
+        >
+          ĐỔI XE MỚI
+        </Tag>
+      );
+    case "SELL_TRADE_USED":
+      return (
+        <Tag
+          color="cyan"
+          className="bg-cyan-500/20 border-cyan-500/30 text-cyan-300 px-3 uppercase text-[10px] font-bold m-0 rounded-lg"
+        >
+          ĐỔI XE LƯỚT
+        </Tag>
+      );
+    default:
+      return (
+        <Tag
+          color="default"
+          className="px-3 uppercase text-[10px] font-bold m-0 rounded-lg"
+        >
+          KĐ
+        </Tag>
+      );
+  }
+};
+
 export const getOwnerTypeVn = (type: string) => {
   switch (type) {
     case "PERSONAL":

@@ -1327,3 +1327,78 @@ export const contactActivityEmailTemplate = (data: {
   </div>
   `;
 };
+
+export const selfCreatedLeadEmailTemplate = (data: {
+  staffName: string;
+  branchName: string;
+  customerName: string;
+  customerPhone: string;
+  customerType: string; // "BUY" | "SELL" | ...
+  carInfo: string; // Tên xe hoặc Mã kho
+  note?: string;
+}) => {
+  const isBuy = data.customerType === "BUY";
+  const typeLabel = isBuy ? "MUA XE" : "BÁN/ĐỔI XE";
+  const typeColor = isBuy ? "#16a34a" : "#dc2626"; // Xanh cho Mua, Đỏ cho Bán
+
+  return `
+  <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+    <div style="background-color: #1e293b; padding: 25px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 20px; text-transform: uppercase;">Toyota Bình Dương</h1>
+      <p style="color: #94a3b8; margin: 5px 0 0 0; font-size: 14px;">Thông báo: Nhân viên tự tạo hồ sơ mới</p>
+    </div>
+
+    <div style="padding: 30px; background-color: #ffffff;">
+      <div style="margin-bottom: 20px; text-align: center;">
+        <span style="background-color: ${typeColor}; color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold;">
+          LOẠI: ${typeLabel}
+        </span>
+      </div>
+
+      <p style="color: #475569; font-size: 16px;">
+        Hệ thống ghi nhận nhân viên <strong>${data.staffName}</strong> (${data.branchName}) vừa tự thêm một khách hàng mới vào hệ thống.
+      </p>
+
+      <div style="margin: 20px 0; padding: 20px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h3 style="margin: 0 0 15px 0; color: #1e293b; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+          Thông tin khách hàng
+        </h3>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; width: 40%;">Khách hàng:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.customerName.toUpperCase()}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Số điện thoại:</td>
+            <td style="font-weight: bold; color: #1e293b;">${data.customerPhone}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b;">Nhu cầu xe:</td>
+            <td style="color: #2563eb; font-weight: bold;">${data.carInfo}</td>
+          </tr>
+          ${
+            data.note
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; vertical-align: top;">Ghi chú:</td>
+            <td style="color: #1e293b; font-style: italic;">"${data.note}"</td>
+          </tr>`
+              : ""
+          }
+        </table>
+      </div>
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/customers" 
+           style="background-color: #1e293b; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">
+           KIỂM TRA HỆ THỐNG
+        </a>
+      </div>
+    </div>
+
+    <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 12px; color: #94a3b8;">
+      © CRM Toyota Bình Dương - Báo cáo tự động
+    </div>
+  </div>
+  `;
+};

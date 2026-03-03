@@ -130,7 +130,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
       demand: translateStatus(item.type),
       status: translateStatus(item.status),
       level: translateStatus(item.urgencyLevel),
-      branch: item.branchName || "Toyota Bình Dương",
+      branch: item.branch.name || "Toyota Bình Dương",
       staff: item.assignedTo?.fullName,
       dateIn: dayjs(item.createdAt).format("DD/MM/YYYY"),
       timeIn: dayjs(item.createdAt).format("HH:mm"),
@@ -178,12 +178,13 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     { header: "PHÂN LOẠI KH", key: "level", width: 15 }, // Khách nóng, ấm, lạnh
     { header: "TRẠNG THÁI", key: "status", width: 15 },
     { header: "CHI NHÁNH", key: "branch", width: 20 },
-    { header: "NV TƯ VẤN (TVBH)", key: "staff", width: 22 },
 
-    // Nhóm: Thời gian & Nguồn
+    // Nhóm: Nhân sự & Nguồn
+    { header: "NV TIẾP NHẬN", key: "staff", width: 20 },
     { header: "NGÀY NHẬN", key: "dateIn", width: 12 },
-    { header: "NGUỒN CHI TIẾT", key: "source", width: 20 },
-    { header: "CHIẾN DỊCH", key: "campaign", width: 20 }, // Marketing campaign
+    { header: "GIỜ NHẬN", key: "timeIn", width: 10 },
+    { header: "NGƯỜI GIỚI THIỆU", key: "refStaff", width: 20 },
+    { header: "BỘ PHẬN GT", key: "source", width: 20 },
 
     // Nhóm: Khách hàng
     { header: "TÊN KHÁCH HÀNG", key: "name", width: 25 },
@@ -194,9 +195,6 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     // Nhóm: Nhu cầu xe (Rất quan trọng)
     { header: "MODEL QUAN TÂM", key: "model", width: 20 },
     { header: "PHIÊN BẢN", key: "grade", width: 15 },
-
-    // Nhóm: Tài chính & Giá
-    { header: "NGÂN HÀNG DỰ KIẾN", key: "bank", width: 20 },
 
     // Nhóm: Chăm sóc khách hàng
     { header: "LẦN LH GẦN NHẤT", key: "lastDate", width: 12 },
@@ -215,7 +213,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
       stt: index + 1,
       level: translateStatus(item.urgencyLevel),
       status: translateStatus(item.status),
-      branch: item.branchName || "Toyota Bình Dương",
+      branch: item.branch.name || "Toyota Bình Dương",
       staff: item.assignedTo?.fullName,
       dateIn: dayjs(item.createdAt).format("DD/MM/YYYY"),
       source: item.sourceName || item.referrer?.department?.name || "Trực tiếp",
@@ -224,6 +222,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
       phone: item.phone,
       province: item.province,
       address: item.address,
+      refStaff: item.referrer?.fullName,
       model: item.carModel?.name || "---",
       grade: item.carModel?.grade || "---",
       color: item.favoriteColor || "---",
@@ -236,6 +235,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
       lastDate: item.lastContactAt
         ? dayjs(item.lastContactAt).format("DD/MM/YYYY")
         : "",
+      timeIn: dayjs(item.createdAt).format("HH:mm"),
       lastRes: item.lastContactResult,
       count: item.contactCount || 0,
       nextDate: isFuture ? dayjs(item.nextContactAt).format("DD/MM/YYYY") : "",

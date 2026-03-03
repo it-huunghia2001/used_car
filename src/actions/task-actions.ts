@@ -28,6 +28,7 @@ import {
   loseResultEmailTemplate,
   purchaseResultEmailTemplate,
   saleApprovalRequestEmailTemplate,
+  selfCreatedLeadEmailTemplate,
   unfreezeAssignmentEmailTemplate,
 } from "@/lib/mail-templates";
 
@@ -1033,10 +1034,8 @@ export async function updateCustomerStatusAction(
     const now = new Date();
     const nextContactAt = nextContactAtStr ? new Date(nextContactAtStr) : null;
 
-    // Tách Transaction ra một biến để kiểm soát kết quả
     const result = await db.$transaction(
       async (tx) => {
-        // 1. Lấy dữ liệu cần thiết đồng thời
         const [config, currentTask, customer] = await Promise.all([
           tx.leadSetting.findFirst(),
           currentTaskId
@@ -1051,16 +1050,26 @@ export async function updateCustomerStatusAction(
         let isLate = false;
         let lateMinutes = 0;
 
-        // 2. Tính toán logic xử lý Task cũ
+        // --- LOGIC XỬ LÝ TRỄ HẠN (CẬP NHẬT) ---
         if (currentTask && currentTask.status === "PENDING") {
-          const deadline = dayjs(currentTask.scheduledAt).add(
-            maxLateMinutes,
-            "minute",
-          );
-          isLate = dayjs(now).isAfter(deadline);
-          lateMinutes = isLate ? dayjs(now).diff(deadline, "minute") : 0;
+          // Kiểm tra điều kiện miễn trừ trễ: Người giới thiệu chính là người đang xử lý
+          const isSelfReferral = customer.referrerId === customer.assignedToId;
 
-          // Cập nhật Task cũ
+          if (isSelfReferral) {
+            // Nếu tự giới thiệu tự xử lý: Không bao giờ đánh trễ
+            isLate = false;
+            lateMinutes = 0;
+          } else {
+            // Nếu là khách được giao từ người khác/hệ thống: Tính trễ bình thường
+            const deadline = dayjs(currentTask.scheduledAt).add(
+              maxLateMinutes,
+              "minute",
+            );
+            isLate = dayjs(now).isAfter(deadline);
+            lateMinutes = isLate ? dayjs(now).diff(deadline, "minute") : 0;
+          }
+
+          // Cập nhật Task cũ với kết quả tính toán trên
           await tx.task.update({
             where: { id: currentTaskId },
             data: {
@@ -1073,7 +1082,6 @@ export async function updateCustomerStatusAction(
           });
         }
 
-        // 4. THỰC THI SONG SONG CÁC LỆNH GHI (Tối ưu tốc độ tránh Timeout)
         const operations = [];
 
         // Cập nhật khách hàng
@@ -1088,25 +1096,24 @@ export async function updateCustomerStatusAction(
               nextContactNote: payload?.nextNote || null,
               lastContactResult: note || null,
               contactCount: { increment: 1 },
+              // Nếu bạn có trường isLate trên Customer thì cập nhật luôn (tùy thiết kế)
+              // isLate: isLate
             },
           }),
         );
 
         // Tạo Task mới nếu có hẹn
         if (nextContactAt) {
-          // --- LOGIC XÁC ĐỊNH TYPE THÔNG MINH ---
           let taskType: "SALES" | "PURCHASE" | "MAINTENANCE" = "SALES";
-
-          if (currentTask?.type === "MAINTENANCE") {
-            // Nếu đang xử lý task bảo dưỡng thì task hẹn tiếp theo cũng là bảo dưỡng
-            taskType = "MAINTENANCE";
-          } else if (customer.status === "DEAL_DONE") {
-            // Nếu khách đã chốt đơn xong xuôi, các lần gọi sau là chăm sóc bảo trì
+          if (
+            currentTask?.type === "MAINTENANCE" ||
+            customer.status === "DEAL_DONE"
+          ) {
             taskType = "MAINTENANCE";
           } else {
-            // Các trường hợp còn lại dựa theo nhu cầu gốc của khách
             taskType = customer.type === "BUY" ? "SALES" : "PURCHASE";
           }
+
           operations.push(
             tx.task.create({
               data: {
@@ -1141,12 +1148,9 @@ export async function updateCustomerStatusAction(
         );
 
         await Promise.all(operations);
-
         return { success: true, isLate, lateMinutes };
       },
-      {
-        timeout: 20000, // Tăng lên 15 giây để xử lý các tác vụ nặng
-      },
+      { timeout: 20000 },
     );
     if (result.success) {
       const customerDetail = await db.customer.findUnique({
@@ -1245,7 +1249,7 @@ export async function selfCreateCustomerAction(values: any) {
     }
 
     // 3. TRANSACTION LƯU DỮ LIỆU
-    return await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx) => {
       const now = new Date();
 
       // ÉP KIỂU SỐ THÀNH CHUỖI ĐỂ TRÁNH LỖI PRISMA
@@ -1331,7 +1335,7 @@ export async function selfCreateCustomerAction(values: any) {
                 ? `Khách quan tâm xe kho: ${inventoryCarData.stockCode}. ${values.note || ""}`
                 : `Khách tự khai thác - ${values.note || "Nghiệp vụ " + values.type}`,
               scheduledAt: now,
-              deadlineAt: dayjs(now).add(1, "year").toDate(),
+              deadlineAt: dayjs(now).add(10, "year").toDate(),
               assigneeId: auth.id,
               status: TaskStatus.PENDING,
               type: values.type === "BUY" ? "SALES" : "PURCHASE",
@@ -1358,6 +1362,59 @@ export async function selfCreateCustomerAction(values: any) {
 
       return { success: true, data: JSON.parse(JSON.stringify(customer)) };
     });
+    if (result.success) {
+      // Lấy thêm thông tin chi nhánh và danh sách quản lý để gửi mail
+      const branchManagers = await db.user.findMany({
+        where: {
+          branchId: auth.branchId,
+          role: { in: ["MANAGER", "SALE_MANAGER"] }, // Các role quản lý của chi nhánh
+          active: true,
+        },
+        select: { email: true },
+      });
+
+      // Lấy thêm email Admin tổng (nếu có role ADMIN)
+      const admins = await db.user.findMany({
+        where: { role: "ADMIN", active: true },
+        select: { email: true },
+      });
+
+      const allRecipients = [
+        ...branchManagers.map((m) => m.email),
+        ...admins.map((a) => a.email),
+      ].filter(Boolean);
+
+      if (allRecipients.length > 0) {
+        // Chuẩn bị thông tin xe
+        const carInfo = inventoryCarData
+          ? `Xe kho: ${inventoryCarData.stockCode} (${inventoryCarData.modelName})`
+          : values.carModelName || "Xe ngoài hệ thống";
+        const branch = auth.branchId
+          ? await db.branch.findUnique({
+              where: { id: auth.branchId },
+              select: { name: true },
+            })
+          : null;
+        const emailHtml = selfCreatedLeadEmailTemplate({
+          staffName: auth.fullName || auth.username,
+          branchName: branch?.name || "Chi nhánh hiện tại",
+          customerName: values.fullName,
+          customerPhone: values.phone,
+          customerType: values.type,
+          carInfo: carInfo,
+          note: values.note,
+        });
+
+        // Gửi mail (Sử dụng hàm gửi mail của bạn - ví dụ resend hoặc nodemailer)
+        await sendMail({
+          to: allRecipients,
+          subject: `[HỆ THỐNG] Nhân viên tự tạo khách hàng mới - ${values.fullName.toUpperCase()}`,
+          html: emailHtml,
+        });
+      }
+    }
+
+    return result;
   } catch (error: any) {
     console.error("Lỗi selfCreateCustomerAction:", error);
     return { success: false, error: error.message || "Lỗi hệ thống" };
@@ -1856,6 +1913,12 @@ export async function getMyCustomersAction(filters?: any) {
       whereCondition.OR = [
         { fullName: { contains: filters.searchText } },
         { phone: { contains: filters.searchText } },
+        // THÊM DÒNG NÀY: Search theo tên model xe
+        {
+          carModel: {
+            name: { contains: filters.searchText },
+          },
+        },
       ];
     }
     // Lọc Biển số

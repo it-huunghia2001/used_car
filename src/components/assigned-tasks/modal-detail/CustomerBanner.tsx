@@ -12,7 +12,7 @@ import {
   UserSwitchOutlined,
   GlobalOutlined,
 } from "@ant-design/icons";
-import { getReferralTypeTag } from "@/lib/status-helper";
+import { getReferralTypeTagStaff } from "@/lib/status-helper";
 
 const { Text, Title } = Typography;
 
@@ -96,7 +96,7 @@ export const CustomerBanner = ({
                     type="vertical"
                     className="bg-slate-700 h-4 hidden sm:block"
                   />
-                  {getReferralTypeTag(customerData.type)}
+                  {getReferralTypeTagStaff(customerData.type)}
                 </div>
 
                 {/* PHẦN ĐỊA CHỈ: Hiển thị Tỉnh thành và Địa chỉ chi tiết */}

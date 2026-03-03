@@ -71,6 +71,7 @@ export async function getExportCustomerData(
           department: { select: { name: true } },
         },
       },
+      note: true,
       carModel: { select: { name: true, grade: true } },
       leadCar: {
         select: {
@@ -81,6 +82,7 @@ export async function getExportCustomerData(
           tSurePrice: true,
           expectedPrice: true,
           finalPrice: true,
+          color: true,
         },
       },
 
@@ -115,6 +117,7 @@ export async function getExportCustomerData(
         }
       : null,
   }));
+  console.log(serializedData);
 
   return serializedData;
 }

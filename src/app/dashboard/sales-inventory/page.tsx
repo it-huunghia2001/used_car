@@ -61,7 +61,6 @@ import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalD
 import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
 import ModalApproveSales from "@/components/assigned-tasks/ModalApproveSales";
 import { UrgencyBadge } from "@/lib/urgencyBadge";
-import { log } from "console";
 import { getMeAction } from "@/actions/user-actions";
 import { getLeadStatusHelper } from "@/lib/status-helper";
 import ModalAddSelfLead from "@/components/assigned-tasks/ModalAddSelfLead";
@@ -105,33 +104,45 @@ export default function SalesTasksPage() {
     };
   }, []);
 
+  const loadCustomersOnly = async (search?: string) => {
+    setLoading(true);
+    try {
+      const myCustomers = await getMyCustomersAction({ searchText: search });
+      setCustomers(myCustomers);
+    } catch (err) {
+      messageApi.error("Lỗi tải danh sách khách hàng");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Nếu searchText trống thì có thể load lại mặc định hoặc không làm gì tùy logic
+    const delayDebounceFn = setTimeout(() => {
+      loadCustomersOnly(searchText);
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchText]);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const [
-        leads,
-        cars,
-        models,
-        maintenance,
-        myCustomers,
-        userData,
-        bReasons,
-      ]: any = await Promise.all([
-        getMyTasksAction(),
-        getAvailableCars(),
-        getCarModelsAction(),
-        getMaintenanceTasksAction(),
-        getMyCustomersAction(),
-        getMeAction(),
-        getBuyReasons(),
-      ]);
+      const [leads, cars, models, maintenance, userData, bReasons]: any =
+        await Promise.all([
+          getMyTasksAction(),
+          getAvailableCars(),
+          getCarModelsAction(),
+          getMaintenanceTasksAction(),
+          getMeAction(),
+          getBuyReasons(),
+        ]);
       setTasks(leads);
 
       setInventory(cars);
       setCarModels(models);
       setBuyReasons(bReasons);
       setMaintenanceTasks(maintenance);
-      setCustomers(myCustomers);
       setCurrentUser(userData);
     } catch (err) {
       messageApi.error("Lỗi tải dữ liệu");
@@ -228,7 +239,7 @@ export default function SalesTasksPage() {
     try {
       // Lưu ý: Đảm bảo thứ tự tham số truyền vào đúng với hàm requestLoseApproval ở Server
       const res = await requestLoseApproval(
-        selectedLead.id || selectedLead.customer.id, // customerId
+        selectedLead.id || selectedLead.id, // customerId
         values.reasonId, // reasonId
         values.note, // note
         values.status, // targetStatus (LOSE, FROZEN...)
@@ -292,23 +303,22 @@ export default function SalesTasksPage() {
                 size={45}
                 className={`${isTask ? "bg-emerald-500" : "bg-slate-800"}`}
               >
-                {record.customer.fullName?.[0]}
+                {record.fullName?.[0]}
               </Avatar>
               <div className="flex flex-col">
                 <Text strong className="text-base">
-                  {record.customer.fullName}
+                  {record.fullName}
                 </Text>
                 <Text type="secondary" className="text-xs font-mono">
-                  {record.customer.phone}
+                  {record.phone}
                 </Text>
               </div>
             </Space>
-            <UrgencyBadge type={record.customer.urgencyLevel} />
+            <UrgencyBadge type={record.urgencyLevel} />
           </div>
           <div className="bg-white/60 p-3 rounded-2xl border border-slate-100 mb-4">
             <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
-              <CarOutlined />{" "}
-              {record.customer.carModel?.name || "Nhu cầu chung"}
+              <CarOutlined /> {record.carModel?.name || "Nhu cầu chung"}
             </div>
           </div>
           <div className="flex justify-between items-center">
@@ -325,7 +335,7 @@ export default function SalesTasksPage() {
                 color="blue"
                 className="rounded-full border-none px-3 font-black text-[10px] uppercase"
               >
-                {record.customer.status}
+                {record.status}
               </Tag>
             )}
             <Space onClick={(e) => e.stopPropagation()}>
@@ -416,11 +426,11 @@ export default function SalesTasksPage() {
             />
           </div>
           {isMobile ? (
-            renderMobileFeed(filteredTasks, "TASK")
+            renderMobileFeed(customers, "TASK")
           ) : (
             <Card className="rounded-[2rem] border-none shadow-xl overflow-hidden">
               <Table
-                dataSource={filteredTasks}
+                dataSource={customers}
                 columns={[
                   {
                     title: "KHÁCH HÀNG",
@@ -428,13 +438,13 @@ export default function SalesTasksPage() {
                       <Space>
                         <div>
                           <Text strong className="block">
-                            {t.customer.fullName}
+                            {t.fullName}
                           </Text>
                           <Text type="secondary" className="text-[11px]">
-                            {t.customer.phone}
+                            {t.phone}
                           </Text>
                         </div>
-                        <UrgencyBadge type={t.customer.urgencyLevel} />
+                        <UrgencyBadge type={t.urgencyLevel} />
                       </Space>
                     ),
                   },
@@ -443,10 +453,10 @@ export default function SalesTasksPage() {
                     render: (t) => (
                       <div>
                         <Text strong className="text-emerald-700 text-[13px]">
-                          <CarOutlined /> {t.customer.carModel?.name}
+                          <CarOutlined /> {t.carModel?.name}
                         </Text>
                         <div className="text-[11px] text-slate-400">
-                          {t.customer.leadCar?.description || "Nhu cầu chung"}
+                          {t.leadCar?.description || "Nhu cầu chung"}
                         </div>
                       </div>
                     ),
@@ -561,11 +571,11 @@ export default function SalesTasksPage() {
             />
           </div>
           {isMobile ? (
-            renderMobileFeed(filteredCustomers, "CUSTOMER")
+            renderMobileFeed(customers, "CUSTOMER")
           ) : (
             <Card className="rounded-[2rem] border-none shadow-xl overflow-hidden bg-white/70 backdrop-blur-sm">
               <Table
-                dataSource={filteredCustomers}
+                dataSource={customers}
                 rowKey="id"
                 loading={loading}
                 pagination={{ pageSize: 8 }}
@@ -584,7 +594,10 @@ export default function SalesTasksPage() {
                           {r.fullName?.[0]}
                         </Avatar>
                         <div>
-                          <Text strong>{r.fullName}</Text>
+                          <div className="flex gap-2 items-center">
+                            <Text strong>{r.fullName}</Text>
+                            <UrgencyBadge type={r.urgencyLevel} />
+                          </div>
                           <div className="text-[11px] font-mono">{r.phone}</div>
                         </div>
                       </Space>
@@ -715,8 +728,6 @@ export default function SalesTasksPage() {
                       size="small"
                       className="bg-blue-600 rounded-lg text-[10px] mr-2"
                       onClick={() => {
-                        console.log(t);
-
                         handleMakeCall(t.customer?.phone || "");
                       }}
                     >

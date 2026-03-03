@@ -313,59 +313,63 @@ export const VehicleView = ({ lc, carModels, customerData }: any) => {
         </Col>
       </Row>
 
-      {/* --- SECTION 5: HÌNH ẢNH GIÁM ĐỊNH --- */}
-      <Divider className="mt-10!">
-        <Space>
-          <PictureOutlined className="text-rose-500" />
-          <Text strong className="uppercase text-slate-600">
-            Hình ảnh thực tế (Giám định)
-          </Text>
-        </Space>
-      </Divider>
-      <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 shadow-inner">
-        {carImages.length > 0 ? (
-          <Image.PreviewGroup>
-            <Row gutter={[12, 12]} style={{ transform: "translateZ(0)" }}>
-              {carImages.map((img: any, idx: number) => (
-                <CarImageItem
-                  key={idx}
-                  src={img.url || img.secure_url || img}
-                  idx={idx}
-                />
-              ))}
-            </Row>
-          </Image.PreviewGroup>
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="Chưa tải lên hình ảnh xe"
-          />
-        )}
-      </div>
+      {customerData.type !== "BUY" && (
+        <>
+          {/* --- SECTION 5: HÌNH ẢNH GIÁM ĐỊNH --- */}
+          <Divider className="mt-10!">
+            <Space>
+              <PictureOutlined className="text-rose-500" />
+              <Text strong className="uppercase text-slate-600">
+                Hình ảnh thực tế (Giám định)
+              </Text>
+            </Space>
+          </Divider>
+          <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 shadow-inner">
+            {carImages.length > 0 ? (
+              <Image.PreviewGroup>
+                <Row gutter={[12, 12]} style={{ transform: "translateZ(0)" }}>
+                  {carImages.map((img: any, idx: number) => (
+                    <CarImageItem
+                      key={idx}
+                      src={img.url || img.secure_url || img}
+                      idx={idx}
+                    />
+                  ))}
+                </Row>
+              </Image.PreviewGroup>
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Chưa tải lên hình ảnh xe"
+              />
+            )}
+          </div>
 
-      {/* --- SECTION 6: TÀI LIỆU HỒ SƠ --- */}
-      <Divider className="mt-10!">
-        <Space>
-          <FilePdfOutlined className="text-indigo-500" />
-          <Text strong className="uppercase text-slate-600">
-            Hồ sơ & Tài liệu pháp lý
-          </Text>
-        </Space>
-      </Divider>
-      <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 mb-6">
-        {documents.length > 0 ? (
-          <Row gutter={[16, 16]} style={{ transform: "translateZ(0)" }}>
-            {documents.map((doc: any, idx: number) => (
-              <DocumentItem key={idx} doc={doc} idx={idx} />
-            ))}
-          </Row>
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="Chưa có tài liệu đính kèm"
-          />
-        )}
-      </div>
+          {/* --- SECTION 6: TÀI LIỆU HỒ SƠ --- */}
+          <Divider className="mt-10!">
+            <Space>
+              <FilePdfOutlined className="text-indigo-500" />
+              <Text strong className="uppercase text-slate-600">
+                Hồ sơ & Tài liệu pháp lý
+              </Text>
+            </Space>
+          </Divider>
+          <div className="bg-slate-50/50 p-4 rounded-3xl border border-slate-100 mb-6">
+            {documents.length > 0 ? (
+              <Row gutter={[16, 16]} style={{ transform: "translateZ(0)" }}>
+                {documents.map((doc: any, idx: number) => (
+                  <DocumentItem key={idx} doc={doc} idx={idx} />
+                ))}
+              </Row>
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Chưa có tài liệu đính kèm"
+              />
+            )}
+          </div>
+        </>
+      )}
 
       {/* Pháp lý & Bảo hiểm */}
       <Row gutter={[24, 24]} className="mt-8">

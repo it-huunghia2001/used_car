@@ -18,24 +18,6 @@ import { getCurrentUser } from "@/lib/session-server";
 import dayjs from "@/lib/dayjs";
 import { getReferralTypeLabel } from "@/lib/utils";
 
-// interface CreateCustomerInput {
-//   fullName: string;
-//   phone: string;
-//   type: ReferralType;
-//   referrerId: string;
-//   carModelId?: string;
-//   carYear?: string;
-//   licensePlate?: string;
-//   budget?: string;
-//   expectedPrice?: string;
-//   note?: string;
-// }
-
-/**
- * 1. TẠO LỜI GIỚI THIỆU MỚI
- */
-// Thêm import hàm gửi mail và templates vào đầu file action
-
 /**
  * HÀM TẠO KHÁCH HÀNG TỪ NGƯỜI GIỚI THIỆU (REFERRAL)
  * Đã tách biệt luồng MUA và BÁN/ĐỔI để tránh chặn trùng nhầm

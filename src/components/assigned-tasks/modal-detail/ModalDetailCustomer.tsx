@@ -274,7 +274,6 @@ export default function ModalDetailCustomer({
             }
           />
         )}
-
         <Form form={form} layout="vertical">
           <Row gutter={[24, 24]}>
             {/* Cột trái: Thông tin xe */}
