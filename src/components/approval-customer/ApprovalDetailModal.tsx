@@ -302,8 +302,8 @@ export default function ModalApprovalDetail({
                     <Form.Item name="origin" label="Xuất xứ">
                       <Select
                         options={[
-                          { label: "VN", value: "Trong nước" },
-                          { label: "ORTHER", value: "Nhập khẩu" },
+                          { label: "Trong nước", value: "VN" },
+                          { label: "Nhập khẩu", value: "ORTHER" },
                         ]}
                       />
                     </Form.Item>
