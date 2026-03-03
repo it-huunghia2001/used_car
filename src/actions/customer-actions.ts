@@ -751,7 +751,7 @@ export async function getLeadsAction(params: {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { role, id, branchId, isGlobalManager } = user;
+  const { role, id: userId, branchId, isGlobalManager } = user;
   const {
     search,
     status,
