@@ -429,7 +429,7 @@ export async function approveCarPurchase(
           const carData = adminUpdatedData || purchaseData.carData;
           const contractData = adminUpdatedData
             ? {
-                price: adminUpdatedData.price,
+                price: adminUpdatedData.finalPrice,
                 contractNo: adminUpdatedData.contractNo,
               }
             : purchaseData.contractData;
@@ -455,6 +455,8 @@ export async function approveCarPurchase(
             carImages, // Bóc tách ra để loại bỏ khỏi spread
             documents, // Bóc tách ra để loại bỏ khỏi spread
             inspectorName, // Bóc tách ra để loại bỏ khỏi spread
+            finalPrice, // 👈 THÊM DÒNG NÀY: Loại bỏ finalPrice vì Car schema không có
+            tSurePrice, // 👈 NÊN THÊM: LeadCar có cái này nhưng Car thì không
             ...validCarFields
           } = carData;
 

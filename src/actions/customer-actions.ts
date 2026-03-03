@@ -488,51 +488,110 @@ export async function assignCustomerAction(
 /**
  * 5. LẤY DANH SÁCH (Bổ sung các trường thời gian mới)
  */
-export async function getCustomersAction() {
+
+export async function getCustomersAction(filters?: {
+  searchText?: string;
+  carModelName?: string;
+  page?: number;
+  pageSize?: number;
+}) {
   try {
-    // 1. Lấy thông tin người dùng hiện tại
+    // 1. Kiểm tra quyền hạn
     const currentUser = await getCurrentUser();
     if (!currentUser) throw new Error("Unauthorized");
 
-    // 2. Xác định phạm vi quyền hạn
+    // 2. Thiết lập thông số phân trang
+    const page = filters?.page || 1;
+    const pageSize = filters?.pageSize || 10;
+    const skip = (page - 1) * pageSize;
+
     const isGlobalPower =
       currentUser.role === "ADMIN" || currentUser.isGlobalManager;
 
-    // 3. Xây dựng điều kiện lọc (where)
+    // 3. Xây dựng điều kiện lọc (WHERE)
     const where: any = {};
 
-    // Nếu không có quyền Global, chỉ lấy khách hàng thuộc chi nhánh của người quản lý
+    // Phân quyền theo chi nhánh
     if (!isGlobalPower) {
       where.branchId = currentUser.branchId;
     }
 
-    const customers = await db.customer.findMany({
-      where, // Áp dụng bộ lọc chi nhánh
-      include: {
-        carModel: { select: { name: true } },
-        referrer: {
-          select: {
-            fullName: true,
-            username: true,
-            branch: { select: { name: true } },
-          },
-        },
-        assignedTo: { select: { fullName: true, id: true } },
-        activities: {
-          orderBy: { createdAt: "desc" },
-          include: { user: { select: { fullName: true } } },
-        },
-        // Đảm bảo lấy thông tin chi nhánh của khách hàng
-        branch: { select: { name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // Logic tìm kiếm nâng cao
+    const andConditions: any[] = [];
 
-    // Trả về dữ liệu sạch
-    return JSON.parse(JSON.stringify(customers));
+    // Tìm kiếm tổng hợp (Tên, SĐT, Biển số)
+    if (filters?.searchText) {
+      andConditions.push({
+        OR: [
+          { fullName: { contains: filters.searchText } },
+          { phone: { contains: filters.searchText } },
+          {
+            licensePlate: { contains: filters.searchText },
+          },
+        ],
+      });
+    }
+
+    // Tìm kiếm theo tên xe (Nhập ký tự - Lọc qua quan hệ bảng carModel)
+    if (filters?.carModelName) {
+      andConditions.push({
+        carModel: {
+          name: { contains: filters.carModelName },
+        },
+      });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+
+    // 4. Thực thi truy vấn song song (Đếm tổng và Lấy dữ liệu trang)
+    const [total, customers] = await Promise.all([
+      db.customer.count({ where }),
+      db.customer.findMany({
+        where,
+        include: {
+          carModel: { select: { name: true } },
+          referrer: {
+            select: {
+              fullName: true,
+              username: true,
+              branch: { select: { name: true } },
+            },
+          },
+          activities: {
+            orderBy: { createdAt: "desc" }, // Mới nhất lên đầu
+            include: {
+              user: { select: { fullName: true } }, // Ai làm
+              reason: { select: { content: true } }, // Lý do (nếu có)
+            },
+          },
+          assignedTo: { select: { fullName: true, id: true } },
+          // Thêm các quan hệ khác nếu modal chi tiết cần dùng
+          branch: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: skip,
+        take: pageSize,
+      }),
+    ]);
+
+    // 5. Trả về kết quả có cấu trúc phân trang
+    return {
+      data: JSON.parse(JSON.stringify(customers)),
+      pagination: {
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
   } catch (error: any) {
     console.error("Lỗi getCustomersAction:", error);
-    return [];
+    return {
+      data: [],
+      pagination: { total: 0, page: 1, pageSize: 10, totalPages: 0 },
+    };
   }
 }
 export async function getMyReferralsAction() {

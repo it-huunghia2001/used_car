@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -15,3 +17,11 @@ export const getReferralTypeLabel = (type: string) => {
   };
   return labels[type] || type;
 };
+
+export function debounce(func: Function, wait: number) {
+  let timeout: NodeJS.Timeout;
+  return (...args: any) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}

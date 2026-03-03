@@ -65,6 +65,7 @@ import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndL
 import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
 import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
 import { getBuyReasons } from "@/actions/sell-reason-actions";
+import { debounce } from "@/lib/utils";
 
 const { Title, Text } = Typography;
 
@@ -96,6 +97,7 @@ export default function AssignedTasksPage() {
   const [sellReasons, setSellReasons] = useState<any[]>([]);
   const [buyReasons, setBuyReasons] = useState<any[]>([]);
   const [allStaffAPPRAISER, setAllStaffAPPRAISER] = useState<any[]>([]);
+
   const [advancedFilters, setAdvancedFilters] = useState({
     searchText: "",
     licensePlate: "",
@@ -104,7 +106,15 @@ export default function AssignedTasksPage() {
     contactDateRange: null as any, // Ngày cần liên hệ (scheduledAt)
     inspectStatus: "ALL", // Trạng thái xem xe
   });
+  const [searchVisual, setSearchVisual] = useState(advancedFilters.searchText);
 
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((value: string) => {
+        setAdvancedFilters((prev) => ({ ...prev, searchText: value }));
+      }, 500),
+    [],
+  );
   // --- LOAD DATA ---
   const loadData = async () => {
     setLoading(true);
@@ -446,15 +456,9 @@ export default function AssignedTasksPage() {
               <Input
                 placeholder="Tên hoặc số điện thoại..."
                 prefix={<SearchOutlined className="text-blue-500" />}
-                className="rounded-2xl h-11 border-none bg-slate-100 focus:bg-white transition-all shadow-inner"
+                className="rounded-2xl h-11 border-none bg-slate-100 shadow-inner"
                 allowClear
-                value={advancedFilters.searchText}
-                onChange={(e) =>
-                  setAdvancedFilters({
-                    ...advancedFilters,
-                    searchText: e.target.value,
-                  })
-                }
+                onChange={(e) => debouncedSearch(e.target.value)} // Gọi hàm debounce
               />
             </div>
 

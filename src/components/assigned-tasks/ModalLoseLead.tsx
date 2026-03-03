@@ -151,7 +151,7 @@ export default function ModalLoseLead({
             placeholder={
               reasons.length > 0
                 ? "Chọn lý do từ danh sách..."
-                : "Đang tải danh sách lý do..."
+                : "admin chưa setup lý do"
             }
             options={reasons.map((r) => ({ label: r.content, value: r.id }))}
             showSearch
