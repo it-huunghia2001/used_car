@@ -86,7 +86,6 @@ export default function ModalApprovalDetail({
         const car = parsed.carData || parsed;
         const contract = parsed.contractData || {};
         const realCustomer = selectedActivity.customer || {};
-        console.log(contract);
 
         form.setFieldsValue({
           ...car,

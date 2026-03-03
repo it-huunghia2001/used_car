@@ -104,7 +104,7 @@ export default function ModalApproveTransaction({
         conditionGrade: values.conditionGrade,
         isCertified: values.isCertified,
         certificationNote: values.certificationNote,
-
+        tSurePrice: values.tSurePrice,
         carImages: carImageUrls,
         documents: documentUrls,
         // Xử lý Date
