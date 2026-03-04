@@ -335,6 +335,7 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Nhân viên giới thiệu", key: "refStaff", width: 20 },
     { header: "Nguồn giới thiệu", key: "source", width: 25 },
     { header: "Tên khách hàng", key: "name", width: 25 },
+    { header: "Đánh giá trạng thái", key: "level", width: 15 },
     { header: "Địa chỉ", key: "address", width: 30 },
     { header: "Tỉnh", key: "province", width: 15 },
     { header: "Model", key: "model", width: 15 },
@@ -345,7 +346,6 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Tình trạng xem xe", key: "inspectStatus", width: 15 },
     { header: "Giá T-SURE", key: "tsurePrice", width: 15 },
     { header: "Giá bán KH", key: "expPrice", width: 15 },
-    { header: "Đánh giá trạng thái", key: "level", width: 15 },
     { header: "Ngày liên hệ gần nhất", key: "lastDate", width: 15 },
     { header: "Kết quả LH gần nhất", key: "lastRes", width: 30 },
     { header: "Số lần LH", key: "count", width: 10 },
@@ -366,6 +366,7 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
       refStaff: item.referrer?.fullName,
       source: item.referrer?.department?.name || "Vãng lai",
       name: item.fullName,
+      level: translateStatus(item.urgencyLevel),
       address: item.address,
       province: item.province,
       model: item.carModel?.name,
@@ -381,7 +382,6 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
         item.leadCar?.expectedPrice || item.expectedPrice
           ? Number(item.leadCar?.expectedPrice || item.expectedPrice)
           : null,
-      level: translateStatus(item.urgencyLevel),
       lastDate: item.lastContactAt
         ? dayjs(item.lastContactAt).format("DD/MM/YYYY")
         : "",
@@ -411,12 +411,12 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "NVBH Tiếp nhận", key: "staff", width: 20 },
     { header: "Ngày nhận thông tin", key: "dateIn", width: 15 },
     { header: "Tên khách hàng", key: "name", width: 25 },
+    { header: "Đánh giá trạng thái", key: "level", width: 15 },
     { header: "Địa chỉ", key: "address", width: 40 },
     { header: "Tỉnh", key: "province", width: 30 },
     { header: "Nguồn giới thiệu", key: "source", width: 25 },
     { header: "Ngân sách", key: "budget", width: 15 },
     { header: "Model quan tâm", key: "model", width: 15 },
-    { header: "Đánh giá trạng thái", key: "level", width: 15 },
     { header: "Ngày liên hệ gần nhất", key: "lastDate", width: 15 },
     { header: "Kết quả LH gần nhất", key: "lastRes", width: 30 },
     { header: "Số lần LH", key: "count", width: 10 },
@@ -434,12 +434,13 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
       staff: item.assignedTo?.fullName,
       dateIn: dayjs(item.createdAt).format("DD/MM/YYYY"),
       name: item.fullName,
+      level: translateStatus(item.urgencyLevel),
       address: `${item.province || ""} ${item.address || ""}`,
       province: item.province,
       source: item.referrer?.department?.name || "Vãng lai",
       budget: item.budget ? Number(item.budget) : null,
       model: item.carModel?.name,
-      level: translateStatus(item.urgencyLevel),
+
       lastDate: item.lastContactAt
         ? dayjs(item.lastContactAt).format("DD/MM/YYYY")
         : "",

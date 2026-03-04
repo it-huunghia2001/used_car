@@ -112,9 +112,6 @@ export async function middleware(req: NextRequest) {
   if (isPublic) return NextResponse.next();
 
   const token = req.cookies.get("used-car")?.value;
-  const justLoggedIn = req.cookies.get("just-logged-in")?.value;
-
-  if (!token && justLoggedIn) return NextResponse.next();
   if (!token) return NextResponse.redirect(new URL("/login", req.url));
 
   try {
@@ -126,8 +123,33 @@ export async function middleware(req: NextRequest) {
 
     const userRole = (payload.role as string) || "";
 
-    // 🛡️ 2. KIỂM TRA PHÂN QUYỀN CHẶN URL
-    // Sắp xếp route dài nhất lên trước để khớp chính xác nhất
+    // 🚀 LOGIC ĐIỀU HƯỚNG THEO ROLE KHI TRUY CẬP TRANG CHỦ HOẶC VỪA ĐĂNG NHẬP
+    if (pathname === "/" || pathname === "/dashboard") {
+      console.log(1111111111111111111111111111111);
+
+      if (userRole === "SALES_STAFF" || userRole === "PURCHASE_STAFF") {
+        return NextResponse.redirect(
+          new URL("/dashboard/staff-dashboard", req.url),
+        );
+      }
+
+      const isAdminOrManager = ["ADMIN", "MANAGER", "ADMIN_MANAGER"].includes(
+        userRole,
+      );
+      if (isAdminOrManager) {
+        // Giữ nguyên hoặc điều hướng đến trang quản trị mặc định nếu muốn
+        return pathname === "/"
+          ? NextResponse.redirect(new URL("/", req.url))
+          : NextResponse.next();
+      }
+
+      // Các role còn lại (REFERRER, APPRAISER,...)
+      return NextResponse.redirect(
+        new URL("/dashboard/referrals/new", req.url),
+      );
+    }
+
+    // 🛡️ 2. KIỂM TRA PHÂN QUYỀN CHẶN URL (RBAC)
     const sortedRoutes = Object.keys(ROLE_PERMISSIONS).sort(
       (a, b) => b.length - a.length,
     );
@@ -139,18 +161,14 @@ export async function middleware(req: NextRequest) {
       if (isMatch) {
         const allowedRoles = ROLE_PERMISSIONS[route];
         if (!allowedRoles.includes(userRole)) {
-          console.warn(
-            `🛑 Access Denied: Role ${userRole} tried to access ${pathname}`,
-          );
           return NextResponse.redirect(new URL("/403", req.url));
         }
-        break; // Khớp xong thoát vòng lặp
+        break;
       }
     }
 
     return NextResponse.next();
   } catch (err) {
-    console.log("🚩 Middleware Error:", err); // Thêm dòng này để debug
     return NextResponse.redirect(new URL("/login", req.url));
   }
 }
