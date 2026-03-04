@@ -82,7 +82,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
 
   // --- TRANG CHỦ & HỢP ĐỒNG DÙNG CHUNG ---
 
-  "/dashboard/contract": ["ADMIN", "SALES_STAFF", "PURCHASE_STAFF"],
+  "/dashboard/contract": ["ADMIN", "MANAGER", "SALES_STAFF", "PURCHASE_STAFF"],
   "/": [
     "ADMIN",
     "MANAGER",
