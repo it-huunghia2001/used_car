@@ -190,6 +190,11 @@ export default function ModalApprovalSalesDetail({
                 {Number(customer?.budget || 0).toLocaleString()}đ
               </Tag>
             </Descriptions.Item>
+            <Descriptions.Item label="Ngân sách">
+              <Tag color="blue">
+                {Number(leadCar.loyaltyNote || 0).toLocaleString()}đ
+              </Tag>
+            </Descriptions.Item>
           </Descriptions>
         </div>
 

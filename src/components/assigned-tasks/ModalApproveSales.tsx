@@ -296,6 +296,27 @@ export default function ModalApproveSales({
               />
             </Form.Item>
           </Col>
+          <Col span={24}>
+            <Form.Item
+              name="loyaltyNote"
+              label={
+                <Text strong>
+                  <InfoCircleOutlined /> Cài app/ mở thẻ tích điểm
+                </Text>
+              }
+              rules={[
+                {
+                  required: true,
+                  message: "nhập nội dung đã cài app/ mở thẻ tích điểm",
+                },
+              ]}
+            >
+              <Input.TextArea
+                rows={3}
+                placeholder="Cài app/ mở thẻ tích điểm"
+              />
+            </Form.Item>
+          </Col>
         </Row>
       </Form>
     </Modal>

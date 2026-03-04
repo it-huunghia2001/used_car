@@ -23,23 +23,21 @@ export async function getMyReferralHistory(params: {
     const { page = 1, pageSize = 10, search = "" } = params;
     const skip = (page - 1) * pageSize;
 
-    // Xây dựng điều kiện tìm kiếm
     const searchCondition = search
       ? {
           OR: [
             { fullName: { contains: search } },
             { phone: { contains: search } },
-            { licensePlate: { contains: search } }, // Tìm ở bảng Customer (nếu có lưu)
+            { licensePlate: { contains: search } },
             {
               leadCar: {
-                licensePlate: { contains: search }, // Tìm biển số ở bảng LeadCar
+                licensePlate: { contains: search },
               },
             },
           ],
         }
       : {};
 
-    // 1. ĐẾM TỔNG SỐ BẢN GHI (Để phân trang)
     const totalCount = await db.customer.count({
       where: {
         referrerId: user.id,
@@ -47,7 +45,6 @@ export async function getMyReferralHistory(params: {
       },
     });
 
-    // 2. LẤY DỮ LIỆU CÓ PHÂN TRANG VÀ TÌM KIẾM
     const referrals = await db.customer.findMany({
       where: {
         referrerId: user.id,
@@ -57,6 +54,15 @@ export async function getMyReferralHistory(params: {
         carModel: { select: { name: true, grade: true } },
         assignedTo: { select: { fullName: true, phone: true } },
         leadCar: { select: { licensePlate: true, modelName: true } },
+        // --- THÊM PHẦN NÀY ĐỂ LẤY LỊCH SỬ CHĂM SÓC ---
+        activities: {
+          orderBy: {
+            createdAt: "desc", // Sắp xếp mới nhất lên đầu
+          },
+          include: {
+            user: { select: { fullName: true } }, // Để biết ai là người ghi chú (nếu cần)
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -65,7 +71,6 @@ export async function getMyReferralHistory(params: {
       take: pageSize,
     });
 
-    // 3. XỬ LÝ DỮ LIỆU
     const processedData = referrals.map((item) => {
       const isSuccess = item.status === "DEAL_DONE";
 
@@ -83,6 +88,13 @@ export async function getMyReferralHistory(params: {
         ...item,
         groupLabel,
         isSuccess,
+        // Chuyển mảng activities thành careHistory để khớp với code UI ở bước trước
+        careHistory: item.activities.map((act) => ({
+          createdAt: act.createdAt,
+          result: act.note,
+          status: act.status,
+          staffName: act.user?.fullName,
+        })),
       };
     });
 

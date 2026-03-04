@@ -278,9 +278,10 @@ model LeadCar {
   carModelId String?
   carModel   CarModel? @relation(fields: [carModelId], references: [id])
 
-  images    Json?
-  note      String?  @db.Text
-  updatedAt DateTime @updatedAt
+  images      Json?
+  note        String?  @db.Text
+  loyaltyNote String?  @db.Text
+  updatedAt   DateTime @updatedAt
 
   @@index([vin])
 }

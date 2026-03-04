@@ -704,8 +704,9 @@ export async function requestSaleApproval(
     carId: string;
     finalPrice: number;
     paymentMethod: string;
-    contractNo: string; // THÊM TRƯỜNG NÀY
+    contractNo: string;
     note: string;
+    loyaltyNote: string;
   },
   taskId?: string,
 ) {
@@ -730,16 +731,39 @@ export async function requestSaleApproval(
         });
         if (!car) throw new Error("Xe không tồn tại trong kho");
 
-        // 2. Xử lý Task (nếu có)
-        if (taskId && taskId !== customerId) {
-          await tx.task.updateMany({
-            where: { id: taskId, status: "PENDING" },
-            data: {
-              status: "COMPLETED",
-              completedAt: now,
-              // Logic tính trễ (isLate) có thể thêm ở đây nếu cần
-            },
+        let isTaskLate = false;
+        let taskLateMinutes = 0;
+
+        if (taskId && taskId !== "none") {
+          // Lấy thông tin Task để so sánh deadline
+          const task = await tx.task.findUnique({
+            where: { id: taskId },
+            select: { deadlineAt: true, assigneeId: true },
           });
+
+          if (task) {
+            // KIỂM TRA TỰ GIỚI THIỆU:
+            // Nếu người giới thiệu (referrerId) trùng với người đang xử lý (auth.id) -> Không tính trễ
+            const isSelfReferral = customer.referrerId === auth.id;
+
+            if (!isSelfReferral && now > task.deadlineAt) {
+              isTaskLate = true;
+              taskLateMinutes = Math.floor(
+                (now.getTime() - task.deadlineAt.getTime()) / (1000 * 60),
+              );
+            }
+
+            // Cập nhật trạng thái Task hoàn thành
+            await tx.task.update({
+              where: { id: taskId },
+              data: {
+                status: "COMPLETED",
+                completedAt: now,
+                isLate: isTaskLate,
+                lateMinutes: taskLateMinutes,
+              },
+            });
+          }
         }
 
         // 3. Cập nhật trạng thái khách hàng & Số hợp đồng dự kiến
@@ -752,6 +776,7 @@ export async function requestSaleApproval(
                 create: {
                   finalPrice: data.finalPrice,
                   note: `HĐ: ${data.contractNo} | HTTT: ${data.paymentMethod}`,
+                  loyaltyNote: data.loyaltyNote,
                 },
                 update: {
                   finalPrice: data.finalPrice,
