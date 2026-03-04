@@ -64,7 +64,19 @@ export default function MyReferralPage() {
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
 
-  const debouncedSearch = useDebounce(searchText, 500);
+  const debouncedSearch = useDebounce(searchText, 1000);
+
+  const [drawerWidth, setDrawerWidth] = useState<number | string>(500);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setDrawerWidth(window.innerWidth > 768 ? 500 : "100%");
+    };
+
+    handleResize(); // Chạy lần đầu
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const fetchData = useCallback(
     async (page: number, search: string) => {
@@ -369,11 +381,11 @@ export default function MyReferralPage() {
       <Drawer
         open={detailVisible}
         onClose={() => setDetailVisible(false)}
-        width={window.innerWidth > 768 ? 500 : "100%"}
+        width={drawerWidth}
         placement="right"
         closeIcon={null}
         headerStyle={{ display: "none" }}
-        bodyStyle={{ padding: 0, backgroundColor: "#fcfcfd" }}
+        style={{ padding: 0, backgroundColor: "#fcfcfd" }}
       >
         {selectedLead && (
           <div className="flex flex-col h-full">

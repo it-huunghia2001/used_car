@@ -233,10 +233,13 @@ model LeadCar {
   customerId String   @unique
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  modelName                     String?
-  grade                         String?
-  color                         String?
-  interiorColor                 String?
+  modelName     String?
+  grade         String?
+  color         String?
+  interiorColor String?
+
+  source LeadSource @default(OTHER)
+
   year                          Int?
   vin                           String?
   engineNumber                  String?
@@ -662,4 +665,16 @@ model Notification {
   content   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+enum LeadSource {
+  FACEBOOK
+  ZALO
+  WEBSITE
+  HOTLINE
+  WALK_IN
+  REFERRAL
+  TIKTOK
+  DIRECT_ADS
+  OTHER
 }

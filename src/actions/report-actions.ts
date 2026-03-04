@@ -4,6 +4,7 @@
 import dayjs from "@/lib/dayjs";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session-server";
+import { serializeData } from "@/utils/date-format";
 import { LeadStatus, ReferralType } from "@prisma/client";
 
 // Định nghĩa kiểu dữ liệu cho User từ Session
@@ -1153,4 +1154,301 @@ export async function getTradeReportAction(
     // Con số này hiển thị tổng số xe nhập mới trong kỳ báo cáo (tháng hoặc năm chọn)
     totalNewCarsYear: inboundCarsStats._sum.totalCars || 0,
   };
+}
+
+export async function getMyPerformanceReport(period: "day" | "month" | "year") {
+  try {
+    const auth = await getCurrentUser();
+    if (!auth)
+      return { success: false, message: "Không tìm thấy phiên đăng nhập" };
+
+    const myId = auth.id;
+    const now = dayjs();
+    const start = now.startOf(period).toDate();
+    const end = now.endOf(period).toDate();
+
+    // 1. Lấy toàn bộ khách hàng được giao trong kỳ
+    const customers = await db.customer.findMany({
+      where: {
+        assignedToId: myId,
+        createdAt: { gte: start, lte: end },
+      },
+      include: {
+        leadCar: true,
+        carModel: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // 2. Thống kê theo UrgencyLevel (Hot/Warm/Cool)
+    const urgencyStats = {
+      HOT: customers.filter((c) => c.urgencyLevel === "HOT").length,
+      WARM: customers.filter((c) => c.urgencyLevel === "WARM").length,
+      COOL: customers.filter((c) => c.urgencyLevel === "COOL").length,
+    };
+
+    // 3. Thống kê theo Tình trạng xem xe (InspectStatus)
+    const inspectStats = {
+      INSPECTED: customers.filter((c) => c.inspectStatus === "INSPECTED")
+        .length,
+      NOT_INSPECTED: customers.filter(
+        (c) => c.inspectStatus === "NOT_INSPECTED",
+      ).length,
+      APPOINTED: customers.filter((c) => c.inspectStatus === "APPOINTED")
+        .length,
+    };
+
+    // 4. Dữ liệu biểu đồ tăng trưởng (Theo tháng của năm hiện tại)
+    const yearStart = now.startOf("year").toDate();
+    const monthlyData = await db.customer.groupBy({
+      by: ["createdAt"],
+      where: {
+        assignedToId: myId,
+        createdAt: { gte: yearStart },
+      },
+      _count: { id: true },
+    });
+
+    // Gom nhóm dữ liệu theo tháng cho biểu đồ
+    const chartData = Array.from({ length: 12 }, (_, i) => ({
+      month: `T${i + 1}`,
+      leads: 0,
+    }));
+
+    monthlyData.forEach((item) => {
+      const m = dayjs(item.createdAt).month();
+      chartData[m].leads += item._count.id;
+    });
+
+    // 5. Thống kê tài chính & Task
+    const dealsDone = customers.filter((c) => c.status === "DEAL_DONE");
+    const totalRevenue = dealsDone.reduce(
+      (sum, curr) => sum + Number(curr.leadCar?.finalPrice || 0),
+      0,
+    );
+
+    const tasks = await db.task.findMany({
+      where: { assigneeId: myId, scheduledAt: { gte: start, lte: end } },
+    });
+    const lateTasks = tasks.filter(
+      (t) => t.isLate || t.status === "EXPIRED",
+    ).length;
+
+    return {
+      success: true,
+      summary: {
+        totalLeads: customers.length,
+        successDeals: dealsDone.length,
+        totalRevenue,
+        lateTasks,
+        onTimeRate:
+          tasks.length > 0
+            ? Math.round(((tasks.length - lateTasks) / tasks.length) * 100)
+            : 100,
+      },
+      urgencyStats,
+      inspectStats,
+      chartData,
+      customerList: customers.slice(0, 10), // Trả về 10 khách gần nhất
+      recentActivities: await db.leadActivity.findMany({
+        where: { createdById: myId },
+        include: { customer: { select: { fullName: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+    };
+  } catch (error) {
+    return { success: false, message: "Lỗi Server" };
+  }
+}
+
+export async function getDetailedPerformance(period: "day" | "month" | "year") {
+  try {
+    const auth = await getCurrentUser();
+    if (!auth) return { success: false, message: "Unauthorized" };
+
+    const myId = auth.id;
+    const now = dayjs();
+    const start = now.startOf(period).toDate();
+    const end = now.endOf(period).toDate();
+
+    // 1. Fetch khách hàng và các quan hệ liên quan
+    const customers = await db.customer.findMany({
+      where: { assignedToId: myId, createdAt: { gte: start, lte: end } },
+      include: { leadCar: true, carModel: true },
+    });
+
+    // 2. Thống kê theo Nhiệt độ (UrgencyType)
+    const urgency = {
+      hot: customers.filter((c) => c.urgencyLevel === "HOT").length,
+      warm: customers.filter((c) => c.urgencyLevel === "WARM").length,
+      cool: customers.filter((c) => c.urgencyLevel === "COOL").length,
+    };
+
+    // 3. Thống kê Xem xe (InspectStatus)
+    const inspection = {
+      done: customers.filter((c) => c.inspectStatus === "INSPECTED").length,
+      pending: customers.filter((c) => c.inspectStatus === "APPOINTED").length,
+      none: customers.filter((c) => c.inspectStatus === "NOT_INSPECTED").length,
+    };
+
+    // 4. Doanh thu & Tỷ lệ chốt
+    const deals = customers.filter((c) => c.status === "DEAL_DONE");
+    const revenue = deals.reduce(
+      (sum, c) => sum + Number(c.leadCar?.finalPrice || 0),
+      0,
+    );
+
+    // 5. Dữ liệu biểu đồ tháng (Dùng cho Chart)
+    const chartData = await Promise.all(
+      Array.from({ length: 6 }).map(async (_, i) => {
+        const d = dayjs().subtract(i, "month");
+        const count = await db.customer.count({
+          where: {
+            assignedToId: myId,
+            createdAt: {
+              gte: d.startOf("month").toDate(),
+              lte: d.endOf("month").toDate(),
+            },
+          },
+        });
+        return { name: d.format("MMM"), leads: count };
+      }),
+    ).then((res) => res.reverse());
+
+    return {
+      success: true,
+      summary: {
+        totalLeads: customers.length,
+        revenue,
+        dealCount: deals.length,
+        onTimeRate: 95, // Giả định từ logic Task của bạn
+      },
+      urgency,
+      inspection,
+      chartData,
+      rawLeads: customers.slice(0, 10), // Gửi 10 khách gần nhất
+    };
+  } catch (e) {
+    return { success: false, message: "Lỗi Server" };
+  }
+}
+
+export async function getAdvancedStaffReport(filters: {
+  period: "day" | "month" | "year" | "custom";
+  startDate?: Date;
+  endDate?: Date;
+  branchId?: string;
+}) {
+  try {
+    const auth = await getCurrentUser();
+    if (!auth) return { success: false, message: "Unauthorized" };
+
+    const myId = auth.id;
+    const now = dayjs();
+
+    // 1. Xử lý thời gian
+    let start = now.startOf(filters.period as any).toDate();
+    let end = now.endOf(filters.period as any).toDate();
+
+    if (filters.period === "custom" && filters.startDate && filters.endDate) {
+      start = dayjs(filters.startDate).startOf("day").toDate();
+      end = dayjs(filters.endDate).endOf("day").toDate();
+    }
+
+    // 2. Fetch dữ liệu khách hàng chính
+    const customers = await db.customer.findMany({
+      where: {
+        assignedToId: myId,
+        createdAt: { gte: start, lte: end },
+        ...(filters.branchId && { branchId: filters.branchId }),
+      },
+      include: {
+        carModel: true,
+        leadCar: true, // Vẫn lấy để hiển thị thông tin xe nhưng không tính doanh thu
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // 3. Phân tích Phễu Khách Hàng (Tập trung vào Volume)
+    const funnel = {
+      total: customers.length,
+      new: customers.filter((c) => c.status === "NEW").length,
+      contacted: customers.filter(
+        (c) => c.status !== "NEW" && c.status !== "FROZEN",
+      ).length,
+      inspected: customers.filter((c) => c.inspectStatus === "INSPECTED")
+        .length,
+      deals: customers.filter((c) => c.status === "DEAL_DONE").length,
+    };
+
+    // 4. Phân tích chất lượng (Nhiệt độ)
+    const leadQuality = {
+      hot: customers.filter((c) => c.urgencyLevel === "HOT").length,
+      warm: customers.filter((c) => c.urgencyLevel === "WARM").length,
+      cool: customers.filter((c) => c.urgencyLevel === "COOL").length,
+      frozen: customers.filter((c) => c.status === "FROZEN").length,
+      late: customers.filter((c) => c.isLate).length,
+    };
+
+    // 5. Thống kê theo nguồn khách (Source) thay cho tài chính
+    const sourceStats = customers.reduce((acc: any, curr) => {
+      const source = curr.type || "Chưa phân loại"; // type: FACEBOOK, ZALO, SHOWROOM...
+      acc[source] = (acc[source] || 0) + 1;
+      return acc;
+    }, {});
+
+    // 6. Thống kê Task & Hiệu suất làm việc
+    const tasks = await db.task.findMany({
+      where: {
+        assigneeId: myId,
+        scheduledAt: { gte: start, lte: end },
+      },
+    });
+
+    const taskStats = {
+      total: tasks.length,
+      completed: tasks.filter((t) => t.status === "COMPLETED").length,
+      pending: tasks.filter((t) => t.status === "PENDING").length,
+      late: tasks.filter((t) => t.isLate).length,
+    };
+
+    // 7. Trend: Lấy số lượng khách 6 tháng gần nhất
+    const trendData = await Promise.all(
+      Array.from({ length: 6 }).map(async (_, i) => {
+        const d = dayjs().subtract(i, "month");
+        const count = await db.customer.count({
+          where: {
+            assignedToId: myId,
+            createdAt: {
+              gte: d.startOf("month").toDate(),
+              lte: d.endOf("month").toDate(),
+            },
+          },
+        });
+        return { month: d.format("MM/YYYY"), count };
+      }),
+    );
+
+    // Chuẩn bị object report cuối cùng (Không còn Decimal từ tài chính)
+    const reportData = {
+      funnel,
+      leadQuality,
+      sourceStats: Object.entries(sourceStats).map(([name, value]) => ({
+        name,
+        value,
+      })),
+      taskStats,
+      trend: trendData.reverse(),
+      rawLeads: customers.slice(0, 50), // Trả về danh sách để hiển thị table
+    };
+
+    return {
+      success: true,
+      data: serializeData(reportData),
+    };
+  } catch (error) {
+    console.error("REPORT_ERROR:", error);
+    return { success: false, message: "Không thể tải báo cáo" };
+  }
 }

@@ -55,6 +55,13 @@ export default function LoginPage() {
           setTimeout(() => {
             window.location.href = "/dashboard/referrals/new"; // Dùng cái này sẽ ép trình duyệt load lại hoàn toàn, an toàn hơn router.push
           }, 100);
+        } else if (
+          (res?.data as any)?.role === "SALES_STAFF" ||
+          (res?.data as any)?.role === "PURCHASE_STAFF"
+        ) {
+          setTimeout(() => {
+            window.location.href = "/dashboard/staff-dashboard"; // Dùng cái này sẽ ép trình duyệt load lại hoàn toàn, an toàn hơn router.push
+          }, 100);
         } else {
           setTimeout(() => {
             window.location.href = "/"; // Dùng cái này sẽ ép trình duyệt load lại hoàn toàn, an toàn hơn router.push

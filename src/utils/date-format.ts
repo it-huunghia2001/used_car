@@ -43,3 +43,15 @@ export const getDeadlineStatus = (date: string | Date | null | undefined) => {
 
   return { color: "success", text: "Còn hạn", isSafe: true };
 };
+
+export function serializeData<T>(data: T): T {
+  return JSON.parse(
+    JSON.stringify(data, (key, value) =>
+      typeof value === "bigint"
+        ? value.toString()
+        : value?.constructor?.name === "Decimal"
+          ? value.toNumber()
+          : value,
+    ),
+  );
+}

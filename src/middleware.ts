@@ -9,6 +9,8 @@ const APP_NAME = "used-car";
 // 🔐 ĐỊNH NGHĨA QUYỀN TRUY CẬP DỰA TRÊN SIDEBAR
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   // --- NHÂN SỰ & HỆ THỐNG ---
+  "/dashboard/staff-dashboard": ["SALES_STAFF", "PURCHASE_STAFF"],
+
   "/dashboard/users": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
   "/dashboard/schedules": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
   "/dashboard/settings": ["ADMIN"], // isGlobal check thêm ở UI
@@ -79,6 +81,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
 
   // --- TRANG CHỦ & HỢP ĐỒNG DÙNG CHUNG ---
+
   "/dashboard/contract": ["ADMIN", "SALES_STAFF", "PURCHASE_STAFF"],
   "/": [
     "ADMIN",
