@@ -241,7 +241,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
             },
           ],
         },
-        hasAccess(["ADMIN", "MANAGER"]) && {
+        (hasAccess(["ADMIN"]) || isGobal) && {
           key: "/dashboard/new-car-inbound",
           icon: <CarOutlined />,
           label: <Link href="/dashboard/new-car-inbound">IM Xe mới</Link>,
