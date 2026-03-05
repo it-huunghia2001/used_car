@@ -209,17 +209,16 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
   }
 
   try {
-    // 1. Tách carImages và documents ra khỏi dữ liệu kỹ thuật
-    // carImages và documents chỉ dành cho bảng Customer
+    const now = new Date();
+
+    // 1. Chuẩn hóa dữ liệu kỹ thuật xe (Cho bảng LeadCar)
     const { carImages, documents, ...carTechnicalInfo } = values.carData;
 
-    // 2. Chuẩn hóa dữ liệu kỹ thuật xe (Cho bảng LeadCar) - LOẠI BỎ carImages khỏi đây
     const formattedLeadCarData = {
       ...carTechnicalInfo,
       year: carTechnicalInfo.year ? Number(carTechnicalInfo.year) : null,
       odo: carTechnicalInfo.odo ? Number(carTechnicalInfo.odo) : 0,
       seats: carTechnicalInfo.seats ? Number(carTechnicalInfo.seats) : 5,
-      // Ép kiểu Date cho Prisma
       registrationDeadline: carTechnicalInfo.registrationDeadline
         ? new Date(carTechnicalInfo.registrationDeadline)
         : null,
@@ -237,80 +236,101 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
         : 0,
     };
 
-    const result = await db.$transaction(async (tx) => {
-      // 1. Lấy thông tin khách hàng
-      const customer = await tx.customer.findUnique({
-        where: { id: leadId },
-        include: { branch: true },
-      });
+    const result = await db.$transaction(
+      async (tx) => {
+        // 2. Lấy thông tin khách hàng & Kiểm tra tính chính trực của dữ liệu
+        const customer = await tx.customer.findUnique({
+          where: { id: leadId },
+          include: { branch: true },
+        });
 
-      if (!customer) throw new Error("Không tìm thấy khách hàng");
-      if (customer.status === LeadStatus.PENDING_DEAL_APPROVAL) {
-        throw new Error("Hồ sơ này đã được gửi duyệt trước đó");
-      }
+        if (!customer) throw new Error("Không tìm thấy khách hàng");
+        if (customer.status === LeadStatus.PENDING_DEAL_APPROVAL) {
+          throw new Error("Hồ sơ này đã được gửi duyệt trước đó");
+        }
 
-      const now = new Date();
+        // Xác định nếu nhân viên hiện tại tự giới thiệu khách này
+        const isSelfReferral = customer.referrerId === auth.id;
 
-      // 2. Cập nhật trạng thái Task
-      await tx.task.updateMany({
-        where: {
-          customerId: leadId,
-          assigneeId: auth.id,
-          status: "PENDING",
-        },
-        data: {
-          status: "COMPLETED",
-          completedAt: now,
-          content: `Đã gửi yêu cầu phê duyệt thu mua. Giá chốt: ${Number(values.contractData.price).toLocaleString()} VNĐ`,
-        },
-      });
+        // 3. XỬ LÝ ĐÓNG TẤT CẢ CÁC TASK ĐANG MỞ
+        // Tìm tất cả task PENDING của khách hàng này
+        const openTasks = await tx.task.findMany({
+          where: {
+            customerId: leadId,
+            status: "PENDING",
+          },
+        });
 
-      // 3. Cập nhật bảng Customer (Lưu carImages và documents vào ĐÚNG nơi)
-      await tx.customer.update({
-        where: { id: leadId },
-        data: {
-          status: LeadStatus.PENDING_DEAL_APPROVAL,
-          nextContactAt: null,
-          carImages: carImages || [],
-          documents: documents || [],
-        },
-      });
+        if (openTasks.length > 0) {
+          const updateTaskPromises = openTasks.map((t) => {
+            let isLate = false;
+            let lateMinutes = 0;
 
-      // 4. Tạo Activity Snapshot
-      const activity = await tx.leadActivity.create({
-        data: {
-          customerId: leadId,
-          status: LeadStatus.PENDING_DEAL_APPROVAL,
-          note: JSON.stringify({
-            requestType: "CAR_PURCHASE",
-            carData: formattedLeadCarData, // Lưu bản snapshot đã sạch
-            contractData: values.contractData,
-            submittedAt: now.toISOString(),
-          }),
-          createdById: auth.id,
-        },
-      });
+            // Logic: Nếu không phải tự giới thiệu và đã quá hạn thì tính trễ
+            if (!isSelfReferral && now > t.deadlineAt) {
+              isLate = true;
+              lateMinutes = Math.floor(
+                (now.getTime() - t.deadlineAt.getTime()) / (1000 * 60),
+              );
+            }
 
-      // 5. Đồng bộ vào LeadCar (Sử dụng dữ liệu đã loại bỏ carImages/documents)
-      await tx.leadCar.upsert({
-        where: { customerId: leadId },
-        update: formattedLeadCarData,
-        create: {
-          customerId: leadId,
-          ...formattedLeadCarData,
-        },
-      });
+            return tx.task.update({
+              where: { id: t.id },
+              data: {
+                status: "COMPLETED",
+                completedAt: now,
+                isLate: isLate,
+                lateMinutes: lateMinutes,
+                content: `Đã đóng tự động khi gửi duyệt thu mua. Giá chốt: ${Number(values.contractData.price).toLocaleString()}đ`,
+              },
+            });
+          });
+          await Promise.all(updateTaskPromises);
+        }
 
-      return {
-        activityId: activity.id,
-        customerName: customer.fullName,
-        branchId: customer.branchId,
-        branchName: customer.branch?.name || "Chi nhánh gốc",
-      };
-    });
+        // 4. Cập nhật bảng Customer
+        await tx.customer.update({
+          where: { id: leadId },
+          data: {
+            status: LeadStatus.PENDING_DEAL_APPROVAL,
+            nextContactAt: null, // Xóa lịch hẹn tiếp theo vì đã chốt
+            carImages: carImages || [],
+            documents: documents || [],
+          },
+        });
 
-    // 6. GỬI THÔNG BÁO EMAIL (Chạy nền)
-    (async () => {
+        // 5. Đồng bộ vào LeadCar (Dữ liệu chi tiết xe định giá)
+        await tx.leadCar.upsert({
+          where: { customerId: leadId },
+          update: formattedLeadCarData,
+          create: {
+            customerId: leadId,
+            ...formattedLeadCarData,
+          },
+        });
+
+        // 6. Tạo Activity Log (Snapshot)
+        const activity = await tx.leadActivity.create({
+          data: {
+            customerId: leadId,
+            status: LeadStatus.PENDING_DEAL_APPROVAL,
+            note: `[YÊU CẦU DUYỆT MUA] HĐ: ${values.contractData.contractNo}. Xe: ${formattedLeadCarData.modelName}. Giá: ${Number(values.contractData.price).toLocaleString()}đ.${isSelfReferral ? " (Khách tự khai thác)" : ""}`,
+            createdById: auth.id,
+          },
+        });
+
+        return {
+          activityId: activity.id,
+          customerName: customer.fullName,
+          branchId: customer.branchId,
+          branchName: customer.branch?.name || "Chi nhánh gốc",
+        };
+      },
+      { timeout: 25000 },
+    );
+
+    // 7. GỬI THÔNG BÁO EMAIL (Background Task)
+    const sendNotification = async () => {
       try {
         const managers = await db.user.findMany({
           where: {
@@ -328,7 +348,7 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
         if (managerEmails.length > 0) {
           await sendMail({
             to: managerEmails.join(","),
-            subject: `[PHÊ DUYỆT] Đề nghị chốt Thu mua: ${result.customerName.toUpperCase()}`,
+            subject: `[DUYỆT THU MUA] ${result.customerName.toUpperCase()} - HĐ: ${values.contractData.contractNo}`,
             html: dealApprovalRequestEmailTemplate({
               staffName: auth.fullName || auth.username,
               customerName: result.customerName,
@@ -341,11 +361,13 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
             }),
           });
         }
-      } catch (mailError) {
-        console.error("Lỗi gửi mail phê duyệt:", mailError);
+      } catch (err) {
+        console.error("Lỗi gửi mail phê duyệt thu mua:", err);
       }
-    })();
+    };
+    sendNotification();
 
+    // 8. Revalidate Cache
     revalidatePath("/dashboard/assigned-tasks");
     revalidatePath("/dashboard/approvals");
     revalidatePath(`/dashboard/customers/${leadId}`);
@@ -353,7 +375,10 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
     return { success: true, activityId: result.activityId };
   } catch (error: any) {
     console.error("Purchase Approval Error:", error);
-    return { success: false, error: error.message || "Lỗi hệ thống" };
+    return {
+      success: false,
+      error: error.message || "Lỗi hệ thống khi gửi duyệt thu mua",
+    };
   }
 }
 // 2. Phê duyệt nhập kho (Giải nén JSON, tạo Car VÀ tạo CarOwnerHistory)
