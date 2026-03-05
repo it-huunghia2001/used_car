@@ -861,6 +861,11 @@ export async function getLeadsAction(params: {
         { fullName: { contains: search } },
         { phone: { contains: search } },
         { licensePlate: { contains: search } },
+        {
+          carModel: {
+            name: { contains: search },
+          },
+        },
       ],
     });
   }

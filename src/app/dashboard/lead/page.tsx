@@ -65,6 +65,22 @@ export default function LeadsPage() {
   const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [dateRange, setDateRange] = useState<any>(null);
+  const [tempSearch, setTempSearch] = useState(""); // Lưu giá trị đang gõ
+
+  const handleSearch = () => {
+    setFilters((prev) => ({
+      ...prev,
+      search: tempSearch,
+      page: 1, // Luôn reset về trang 1 khi tìm kiếm mới
+    }));
+  };
+
+  // Hàm xử lý khi nhấn phím Enter
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   const [filters, setFilters] = useState({
     page: 1,
@@ -450,12 +466,23 @@ export default function LeadsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
             <Input
-              placeholder="Tìm tên, SĐT..."
-              prefix={<SearchOutlined className="text-slate-300" />}
-              className="h-11 rounded-2xl bg-slate-50 border-none"
+              placeholder="Tìm tên, SĐT, biển số..."
+              prefix={<SearchOutlined className="text-slate-400" />}
+              className="h-11 rounded-2xl bg-white border border-slate-200 shadow-sm"
               allowClear
-              onChange={(e) =>
-                setFilters({ ...filters, search: e.target.value, page: 1 })
+              value={tempSearch}
+              onChange={(e) => setTempSearch(e.target.value)} // Chỉ cập nhật state tạm
+              onKeyDown={handleKeyDown} // Bấm Enter để tìm
+              suffix={
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<SearchOutlined />}
+                  onClick={handleSearch} // Click nút để tìm
+                  className="rounded-lg bg-indigo-600 hover:bg-indigo-700 flex items-center"
+                >
+                  Tìm
+                </Button>
               }
             />
             <Select
