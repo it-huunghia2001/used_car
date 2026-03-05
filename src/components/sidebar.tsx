@@ -272,7 +272,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
       type: "group",
       label: !collapsed ? "HỆ THỐNG" : "",
       children: [
-        (role === "ADMIN" || isGobal) && {
+        {
           key: "/dashboard/users",
           icon: <TeamOutlined />,
           label: <Link href="/dashboard/users">Nhân sự</Link>,
