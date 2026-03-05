@@ -109,8 +109,11 @@ export async function createCustomerAction(rawData: any) {
 
     if (data.type === "BUY") {
       // 1. Lấy khoảng thời gian từ 00:00 đến 23:59 của ngày hôm nay
-      const startOfToday = dayjs().startOf("day").toDate();
-      const endOfToday = dayjs().endOf("day").toDate();
+      const nowVN = dayjs().tz("Asia/Ho_Chi_Minh");
+
+      // 2. Lấy mốc đầu ngày và cuối ngày chuẩn VN
+      const startOfToday = nowVN.startOf("day").toDate();
+      const endOfToday = nowVN.endOf("day").toDate();
 
       // 2. Truy vấn lịch trực trong khoảng ngày (tránh lệch miligiây hoặc múi giờ)
       const schedules = await db.salesSchedule.findMany({
