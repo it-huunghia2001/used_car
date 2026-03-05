@@ -2,10 +2,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use server";
 
+import dayjs from "@/lib/dayjs";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 
+dayjs.extend(utc);
+dayjs.extend(timezone);
 // 1. Lấy danh sách lịch trực theo tháng
 export async function getMonthlySchedules(branchId: string, month: Date) {
   try {
@@ -35,28 +39,24 @@ export async function upsertSchedule(
   userId: string,
 ) {
   try {
-    // KỸ THUẬT QUAN TRỌNG:
-    // .tz() sẽ chuyển 17:00:00 UTC thành 00:00:00 VN
-    // sau đó .startOf("day") sẽ chốt đúng ngày đó.
+    // Sử dụng trực tiếp dayjs đã được extend ở trên
     const targetDate = dayjs(date)
       .tz("Asia/Ho_Chi_Minh")
       .startOf("day")
       .toDate();
 
-    console.log("Ngày sau khi chuẩn hóa (VN):", targetDate);
-    // Kết quả sẽ luôn là 00:00:00.000 của ngày bạn chọn trên UI
+    console.log("Dữ liệu gửi lên:", date);
+    console.log(
+      "Chuẩn hóa VN:",
+      dayjs(targetDate).format("YYYY-MM-DD HH:mm:ss"),
+    );
 
-    // Truy vấn dùng targetDate đã chuẩn hóa
     const exist = await db.salesSchedule.findFirst({
-      where: {
-        date: targetDate,
-        userId,
-        branchId,
-      },
+      where: { date: targetDate, userId, branchId },
     });
 
     if (exist)
-      return { success: false, error: "Nhân viên đã có lịch ngày này" };
+      return { success: false, error: "Nhân viên đã có trong lịch ngày này" };
 
     await db.salesSchedule.create({
       data: { date: targetDate, branchId, userId },
@@ -65,8 +65,8 @@ export async function upsertSchedule(
     revalidatePath("/dashboard/schedules");
     return { success: true };
   } catch (error: any) {
-    console.error("Upsert Schedule Error:", error);
-    return { success: false, error: "Lỗi hệ thống khi lưu lịch trực" };
+    console.error("Lỗi chi tiết:", error);
+    return { success: false, error: "Lỗi hệ thống" };
   }
 }
 

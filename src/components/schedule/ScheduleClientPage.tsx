@@ -156,9 +156,9 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
     for (let i = 1; i <= daysInMonth; i++) {
       const date = selectedDate.date(i);
       const dayData = schedules.filter((s) =>
-        dayjs(s.date).isSame(date, "day"),
+        dayjs(s.date).tz("Asia/Ho_Chi_Minh").isSame(date, "day"),
       );
-      const isToday = dayjs().isSame(date, "day");
+      const isToday = dayjs().tz("Asia/Ho_Chi_Minh").isSame(date, "day");
 
       items.push(
         <div
