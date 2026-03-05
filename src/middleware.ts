@@ -124,26 +124,34 @@ export async function middleware(req: NextRequest) {
     const userRole = (payload.role as string) || "";
 
     // 🚀 LOGIC ĐIỀU HƯỚNG THEO ROLE KHI TRUY CẬP TRANG CHỦ HOẶC VỪA ĐĂNG NHẬP
+    // 🚀 LOGIC ĐIỀU HƯỚNG THEO ROLE
     if (pathname === "/" || pathname === "/dashboard") {
-      console.log(1111111111111111111111111111111);
-
+      // 1. Đối với Nhân viên
       if (userRole === "SALES_STAFF" || userRole === "PURCHASE_STAFF") {
         return NextResponse.redirect(
           new URL("/dashboard/staff-dashboard", req.url),
         );
       }
 
-      const isAdminOrManager = ["ADMIN", "MANAGER", "ADMIN_MANAGER"].includes(
-        userRole,
-      );
+      // 2. Đối với Admin/Manager
+      const isAdminOrManager = [
+        "ADMIN",
+        "MANAGER",
+        "ADMIN_MANAGER",
+        "SALE_MANAGER",
+      ].includes(userRole);
       if (isAdminOrManager) {
-        // Giữ nguyên hoặc điều hướng đến trang quản trị mặc định nếu muốn
-        return pathname === "/"
-          ? NextResponse.redirect(new URL("/", req.url))
-          : NextResponse.next();
+        // Nếu đang ở "/", hãy đưa họ vào trang quản lý khách hàng (để tránh loop)
+        if (pathname === "/") {
+          return NextResponse.redirect(
+            new URL("/dashboard/customers", req.url),
+          );
+        }
+        return NextResponse.next();
       }
 
-      // Các role còn lại (REFERRER, APPRAISER,...)
+      // 3. Đối với các Role khác (REFERRER...)
+      // Redirect to referrals page for other roles
       return NextResponse.redirect(
         new URL("/dashboard/referrals/new", req.url),
       );
