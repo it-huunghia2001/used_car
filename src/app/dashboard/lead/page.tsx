@@ -93,13 +93,14 @@ export default function LeadsPage() {
   });
 
   const handleDateChange = (dates: any) => {
-    setDateRange(dates); // Thêm dòng này
+    setDateRange(dates);
     if (dates) {
       setFilters({
         ...filters,
         page: 1,
-        startDate: dates[0].startOf("day").toISOString(),
-        endDate: dates[1].endOf("day").toISOString(),
+        // Dùng format để giữ đúng ngày bạn nhìn thấy trên màn hình
+        startDate: dates[0].format("YYYY-MM-DD"),
+        endDate: dates[1].format("YYYY-MM-DD"),
       });
     } else {
       setFilters({
@@ -154,11 +155,14 @@ export default function LeadsPage() {
     setExportLoading(true);
     try {
       // Chuyển đổi string từ filters sang đối tượng Date hoặc undefined
-      const sDate = filters.startDate ? new Date(filters.startDate) : undefined;
-      const eDate = filters.endDate ? new Date(filters.endDate) : undefined;
-      console.log(sDate);
-      console.log(eDate);
+      const sDate = filters.startDate
+        ? dayjs(filters.startDate).startOf("day").toDate()
+        : undefined;
+      const eDate = filters.endDate
+        ? dayjs(filters.endDate).endOf("day").toDate()
+        : undefined;
 
+      console.log("Ngày bắt đầu gửi đi:", sDate); // Sẽ thấy đúng 01/04/2026
       // Truyền sDate, eDate (kiểu Date) vào hàm
       const exportData = await getExportCustomerData(
         sDate,
