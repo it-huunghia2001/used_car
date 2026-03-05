@@ -48,7 +48,9 @@ const { Title, Text } = Typography;
 
 export default function ScheduleClientPage({ currentUser, branches }: any) {
   const isPrivileged =
-    currentUser.role === "ADMIN" || currentUser.isGlobalManager === true;
+    currentUser.role === "ADMIN" ||
+    currentUser.isGlobalManager === true ||
+    currentUser.role === "MANAGER";
   const [selectedBranchId, setSelectedBranchId] = useState(
     isPrivileged ? branches[0]?.id : currentUser.branchId,
   );
