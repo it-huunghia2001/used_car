@@ -81,18 +81,25 @@ export default function ModalContractDetail({
 
   // Hàm xử lý hiển thị chuẩn xác
   // 1. Link để xem trực tiếp (Fix lỗi render và lỗi 401)
+  // 1. Link để xem trực tiếp
   const getContractDisplayUrl = (url: string) => {
     if (!url) return "";
-    // Đảm bảo link luôn ở định dạng /image/ để trình duyệt có thể đọc PDF
-    return url.replace("/raw/upload/", "/image/upload/");
+    // Đảm bảo PDF có thể hiển thị trong trình duyệt
+    // Chuyển đổi từ /raw/ thành /image/ là một mẹo của Cloudinary để render PDF như ảnh
+    // NHƯNG nếu file thực sự là PDF, hãy đảm bảo extension là .pdf
+    let formattedUrl = url.replace("/raw/upload/", "/image/upload/");
+    if (!formattedUrl.toLowerCase().endsWith(".pdf")) {
+      formattedUrl += ".pdf";
+    }
+    return formattedUrl;
   };
 
-  // 2. Link để tải về (Thêm fl_attachment để ép trình duyệt download)
+  // 2. Link để tải về
   const getContractDownloadUrl = (url: string) => {
     if (!url) return "";
-    const displayUrl = getContractDisplayUrl(url);
-    // Thêm tham số fl_attachment vào giữa URL
-    return displayUrl.replace("/upload/", "/upload/fl_attachment/");
+    // Thêm flags fl_attachment để ép tải về
+    const baseUrl = url.replace("/upload/", "/upload/fl_attachment/");
+    return baseUrl;
   };
   return (
     <Modal

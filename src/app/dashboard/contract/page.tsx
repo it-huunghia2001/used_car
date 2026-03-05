@@ -85,7 +85,7 @@ export default function ContractPage() {
     const resourceType = "image";
 
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`,
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
       { method: "POST", body: formData },
     );
 
