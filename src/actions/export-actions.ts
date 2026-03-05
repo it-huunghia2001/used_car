@@ -24,8 +24,8 @@ export async function getExportCustomerData(
 
   if (startDate && endDate) {
     whereClause.createdAt = {
-      gte: dayjs(startDate).startOf("day").toDate(),
-      lte: dayjs(endDate).endOf("day").toDate(),
+      gte: dayjs.tz(startDate, "Asia/Ho_Chi_Minh").startOf("day").toDate(),
+      lte: dayjs.tz(endDate, "Asia/Ho_Chi_Minh").endOf("day").toDate(),
     };
   }
 
