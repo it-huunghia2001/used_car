@@ -31,7 +31,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   "/dashboard/assigned-tasks": ["ADMIN", "PURCHASE_STAFF", "APPRAISER"],
   "/dashboard/contract-purchase": ["ADMIN", "PURCHASE_STAFF"],
   "/dashboard/purchase/history": ["ADMIN", "PURCHASE_STAFF"],
-  "/dashboard/new-car-inbound": ["ADMIN"],
+  "/dashboard/new-car-inbound": ["ADMIN", "SALE_MANAGER", "MANAGER"],
   "/dashboard/new-car-report": ["ADMIN"],
 
   // Nếu bạn có trang chi tiết theo ID (ví dụ dynamic route)

@@ -241,11 +241,6 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
             },
           ],
         },
-        (hasAccess(["ADMIN"]) || isGobal) && {
-          key: "/dashboard/new-car-inbound",
-          icon: <CarOutlined />,
-          label: <Link href="/dashboard/new-car-inbound">IM Xe mới</Link>,
-        },
       ],
     },
     {
@@ -259,6 +254,19 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         },
       ],
     },
+
+    (hasAccess(["ADMIN", "SALE_MANAGER"]) || isGobal) && {
+      type: "group",
+      label: !collapsed ? "IM Xe mới" : "",
+      children: [
+        {
+          key: "/dashboard/new-car-inbound",
+          icon: <CarOutlined />,
+          label: <Link href="/dashboard/new-car-inbound">IM Xe mới</Link>,
+        },
+      ],
+    },
+
     // 4. HỆ THỐNG
     hasAccess(["ADMIN", "MANAGER"]) && {
       type: "group",
