@@ -454,7 +454,7 @@ model Task {
   deadlineAt  DateTime // Thời gian Admin quy định phải hoàn thành (Deadline)
   completedAt DateTime? // Thời gian thực tế bấm nút "Hoàn thành"
 
-  type        TaskType   @default(SALES) // Thêm dòng này
+  type        TaskType   @default(SALES)
   status      TaskStatus @default(PENDING)
   isLate      Boolean    @default(false)
   lateMinutes Int        @default(0)

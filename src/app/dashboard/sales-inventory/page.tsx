@@ -353,16 +353,7 @@ export default function SalesTasksPage() {
                   setIsContactModalOpen(true);
                 }}
               />
-              <Button
-                type="primary"
-                className="bg-emerald-600 border-none font-bold rounded-xl"
-                onClick={() => {
-                  setSelectedLead(item);
-                  setIsSalesModalOpen(true);
-                }}
-              >
-                CHỐT BÁN
-              </Button>
+
               <Button
                 danger
                 shape="circle"
@@ -507,18 +498,6 @@ export default function SalesTasksPage() {
                             setIsContactModalOpen(true);
                           }}
                         />
-
-                        <Button
-                          type="primary"
-                          size="small"
-                          className="bg-emerald-600 border-none font-bold"
-                          onClick={() => {
-                            setSelectedLead(record);
-                            setIsSalesModalOpen(true);
-                          }}
-                        >
-                          CHỐT BÁN
-                        </Button>
                         <Button
                           danger
                           icon={<CloseCircleOutlined />}

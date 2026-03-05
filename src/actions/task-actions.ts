@@ -711,62 +711,104 @@ export async function requestSaleApproval(
   taskId?: string,
 ) {
   try {
+    // 0. Kiểm tra quyền truy cập
     const auth = await getCurrentUser();
-    if (!auth) throw new Error("Unauthorized");
+    if (!auth)
+      throw new Error("Phiên làm việc hết hạn. Vui lòng đăng nhập lại.");
 
     const now = new Date();
 
     const result = await db.$transaction(
       async (tx) => {
-        // 1. Lấy dữ liệu cần thiết
+        // 1. Lấy dữ liệu Khách hàng và Xe (khóa dòng để tránh race condition nếu cần)
         const customer = await tx.customer.findUnique({
           where: { id: customerId },
           include: { branch: true },
         });
-        if (!customer) throw new Error("Khách hàng không tồn tại");
+        if (!customer)
+          throw new Error("Khách hàng không tồn tại trên hệ thống.");
 
         const car = await tx.car.findUnique({
           where: { id: data.carId },
-          select: { stockCode: true, modelName: true },
+          select: { id: true, stockCode: true, modelName: true, status: true },
         });
-        if (!car) throw new Error("Xe không tồn tại trong kho");
 
-        let isTaskLate = false;
-        let taskLateMinutes = 0;
+        if (!car) throw new Error("Xe không tồn tại trong kho.");
+        if (car.status === "SOLD")
+          throw new Error("Xe này đã được bán cho khách hàng khác.");
 
+        // Kiểm tra xem nhân viên hiện tại có phải người giới thiệu khách này không
+        const isSelfReferral = customer.referrerId === auth.id;
+
+        // 2. Xử lý Task chỉ định (Task trực tiếp dẫn đến việc chốt sale)
         if (taskId && taskId !== "none") {
-          // Lấy thông tin Task để so sánh deadline
-          const task = await tx.task.findUnique({
+          const mainTask = await tx.task.findUnique({
             where: { id: taskId },
-            select: { deadlineAt: true, assigneeId: true },
           });
 
-          if (task) {
-            // KIỂM TRA TỰ GIỚI THIỆU:
-            // Nếu người giới thiệu (referrerId) trùng với người đang xử lý (auth.id) -> Không tính trễ
-            const isSelfReferral = customer.referrerId === auth.id;
+          if (mainTask && mainTask.status === "PENDING") {
+            let isLate = false;
+            let lateMinutes = 0;
 
-            if (!isSelfReferral && now > task.deadlineAt) {
-              isTaskLate = true;
-              taskLateMinutes = Math.floor(
-                (now.getTime() - task.deadlineAt.getTime()) / (1000 * 60),
+            // Logic: Không tính trễ nếu tự giới thiệu, ngược lại so sánh deadline
+            if (!isSelfReferral && now > mainTask.deadlineAt) {
+              isLate = true;
+              lateMinutes = Math.floor(
+                (now.getTime() - mainTask.deadlineAt.getTime()) / (1000 * 60),
               );
             }
 
-            // Cập nhật trạng thái Task hoàn thành
             await tx.task.update({
               where: { id: taskId },
               data: {
                 status: "COMPLETED",
                 completedAt: now,
-                isLate: isTaskLate,
-                lateMinutes: taskLateMinutes,
+                isLate: isLate,
+                lateMinutes: lateMinutes,
+                content: `Hoàn thành thông qua chốt bán HĐ: ${data.contractNo}`,
               },
             });
           }
         }
 
-        // 3. Cập nhật trạng thái khách hàng & Số hợp đồng dự kiến
+        // 3. XỬ LÝ ĐÓNG TẤT CẢ TASK ĐANG MỞ CỦA KHÁCH HÀNG NÀY
+        // Tìm các task khác chưa hoàn thành
+        const otherOpenTasks = await tx.task.findMany({
+          where: {
+            customerId: customerId,
+            status: { in: ["PENDING"] },
+            id: { not: taskId },
+          },
+        });
+
+        if (otherOpenTasks.length > 0) {
+          const closeTaskPromises = otherOpenTasks.map((t) => {
+            let tIsLate = false;
+            let tLateMinutes = 0;
+
+            // Vẫn áp dụng logic: Không tính trễ nếu tự giới thiệu
+            if (!isSelfReferral && now > t.deadlineAt) {
+              tIsLate = true;
+              tLateMinutes = Math.floor(
+                (now.getTime() - t.deadlineAt.getTime()) / (1000 * 60),
+              );
+            }
+
+            return tx.task.update({
+              where: { id: t.id },
+              data: {
+                status: "CANCELLED",
+                completedAt: now,
+                isLate: tIsLate,
+                lateMinutes: tLateMinutes,
+                content: "Tự động đóng do khách hàng đã tiến hành chốt bán.",
+              },
+            });
+          });
+          await Promise.all(closeTaskPromises);
+        }
+
+        // 4. Cập nhật trạng thái khách hàng & Thông tin Deal (LeadCar)
         await tx.customer.update({
           where: { id: customerId },
           data: {
@@ -775,34 +817,39 @@ export async function requestSaleApproval(
               upsert: {
                 create: {
                   finalPrice: data.finalPrice,
-                  note: `HĐ: ${data.contractNo} | HTTT: ${data.paymentMethod}`,
+                  note: `HĐ: ${data.contractNo} | HTTT: ${data.paymentMethod} | Ghi chú: ${data.note}`,
                   loyaltyNote: data.loyaltyNote,
                 },
                 update: {
                   finalPrice: data.finalPrice,
                   note: `HĐ: ${data.contractNo} | HTTT: ${data.paymentMethod} | Ghi chú: ${data.note}`,
+                  loyaltyNote: data.loyaltyNote,
                 },
               },
             },
           },
         });
 
-        // 4. Ghi log hoạt động phê duyệt
-        const activity = await tx.leadActivity.create({
-          data: {
-            customerId: customerId,
-            status: "PENDING_DEAL_APPROVAL",
-            note: `[YÊU CẦU CHỐT BÁN] HĐ: ${data.contractNo}. Xe: ${car.stockCode}. Giá: ${data.finalPrice.toLocaleString()}đ.`,
-            createdById: auth.id,
-          },
-        });
-
-        // 5. Khóa xe
+        // 5. Khóa xe trong kho (BOOKED)
         await tx.car.update({
           where: { id: data.carId },
           data: {
             status: "BOOKED",
-            contractNumber: data.contractNo, // Lưu tạm số hợp đồng vào xe
+            contractNumber: data.contractNo,
+          },
+        });
+
+        // 6. Ghi nhật ký hoạt động (Activity Log)
+        const activityNote = `[YÊU CẦU CHỐT BÁN] HĐ: ${data.contractNo}. Xe: ${car.stockCode}. Giá: ${data.finalPrice.toLocaleString()}đ.${
+          isSelfReferral ? " (Khách tự khai thác)" : ""
+        }`;
+
+        const activity = await tx.leadActivity.create({
+          data: {
+            customerId: customerId,
+            status: "PENDING_DEAL_APPROVAL",
+            note: activityNote,
+            createdById: auth.id,
           },
         });
 
@@ -811,36 +858,39 @@ export async function requestSaleApproval(
           customerName: customer.fullName,
           branchId: customer.branchId,
           branchName: customer.branch?.name || "Hệ thống",
-          car,
+          carInfo: car,
         };
       },
-      { timeout: 20000 },
+      { timeout: 30000 }, // Tăng timeout cho các giao dịch phức tạp
     );
 
-    // 6. Gửi Email (Background Task)
-    (async () => {
+    // 7. Thông báo cho cấp quản lý (Background Task - Không đợi email gửi xong mới trả kết quả UI)
+    const triggerEmails = async () => {
       try {
         const managers = await db.user.findMany({
           where: {
             active: true,
             OR: [
               { isGlobalManager: true },
-              { role: "MANAGER", branchId: result.branchId },
+              {
+                role: { in: ["MANAGER", "SALE_MANAGER"] },
+                branchId: result.branchId,
+              },
             ],
           },
           select: { email: true },
         });
 
-        const emails = managers.map((m) => m.email).filter(Boolean);
-        if (emails.length > 0) {
+        const emailList = managers.map((m) => m.email).filter(Boolean);
+        if (emailList.length > 0) {
           await sendMail({
-            to: emails.join(","),
+            to: emailList.join(","),
             subject: `[DUYỆT BÁN] HĐ ${data.contractNo} - Khách hàng: ${result.customerName.toUpperCase()}`,
             html: saleApprovalRequestEmailTemplate({
               staffName: auth.fullName || auth.username,
               customerName: result.customerName,
-              carName: result.car.modelName,
-              stockCode: result.car.stockCode,
+              carName: result.carInfo.modelName,
+              stockCode: result.carInfo.stockCode,
               finalPrice: data.finalPrice,
               paymentMethod: data.paymentMethod,
               contractNo: data.contractNo,
@@ -850,17 +900,27 @@ export async function requestSaleApproval(
           });
         }
       } catch (err) {
-        console.error("Lỗi gửi mail phê duyệt bán:", err);
+        console.error("Lỗi Background Email:", err);
       }
-    })();
+    };
 
+    triggerEmails();
+
+    // 8. Làm mới dữ liệu UI
     revalidatePath("/dashboard/sales-tasks");
     revalidatePath("/dashboard/approvals");
+    revalidatePath(`/dashboard/customers/${customerId}`);
 
-    return { success: true };
+    return {
+      success: true,
+      message: "Yêu cầu phê duyệt đã được gửi thành công.",
+    };
   } catch (error: any) {
     console.error("Sale Approval Error:", error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error.message || "Đã xảy ra lỗi trong quá trình xử lý yêu cầu.",
+    };
   }
 }
 /**
