@@ -126,28 +126,19 @@ export async function middleware(req: NextRequest) {
     // 🚀 LOGIC ĐIỀU HƯỚNG THEO ROLE KHI TRUY CẬP TRANG CHỦ HOẶC VỪA ĐĂNG NHẬP
     // 🚀 LOGIC ĐIỀU HƯỚNG THEO ROLE
     if (pathname === "/" || pathname === "/dashboard") {
-      // 1. Đối với Nhân viên
+      // 1. Nếu là Admin hoặc Quản lý: Cho phép truy cập tiếp (giữ nguyên tại "/")
+      const isAdminOrManager = ["ADMIN", "MANAGER", "ADMIN_MANAGER"].includes(
+        userRole,
+      );
+      if (isAdminOrManager) {
+        return NextResponse.next();
+      }
+
+      // 2. Nếu là Nhân viên nghiệp vụ: Chuyển đến staff-dashboard
       if (userRole === "SALES_STAFF" || userRole === "PURCHASE_STAFF") {
         return NextResponse.redirect(
           new URL("/dashboard/staff-dashboard", req.url),
         );
-      }
-
-      // 2. Đối với Admin/Manager
-      const isAdminOrManager = [
-        "ADMIN",
-        "MANAGER",
-        "ADMIN_MANAGER",
-        "SALE_MANAGER",
-      ].includes(userRole);
-      if (isAdminOrManager) {
-        // Nếu đang ở "/", hãy đưa họ vào trang quản lý khách hàng (để tránh loop)
-        if (pathname === "/") {
-          return NextResponse.redirect(
-            new URL("/dashboard/customers", req.url),
-          );
-        }
-        return NextResponse.next();
       }
 
       // 3. Đối với các Role khác (REFERRER...)
