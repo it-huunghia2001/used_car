@@ -11,23 +11,41 @@ import timezone from "dayjs/plugin/timezone";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 // 1. Lấy danh sách lịch trực theo tháng
+// 1. Lấy danh sách lịch trực theo tháng
 export async function getMonthlySchedules(branchId: string, month: Date) {
   try {
-    const startOfMonth = dayjs(month).startOf("month").toDate();
-    const endOfMonth = dayjs(month).endOf("month").toDate();
+    // Ép mốc thời gian về đúng múi giờ VN để tính toán đầu/cuối tháng
+    const startOfMonth = dayjs(month)
+      .tz("Asia/Ho_Chi_Minh")
+      .startOf("month")
+      .toDate();
+
+    const endOfMonth = dayjs(month)
+      .tz("Asia/Ho_Chi_Minh")
+      .endOf("month")
+      .toDate();
+
+    console.log("Truy vấn chi nhánh:", branchId);
+    console.log("Từ ngày (UTC):", startOfMonth.toISOString());
+    console.log("Đến ngày (UTC):", endOfMonth.toISOString());
 
     const data = await db.salesSchedule.findMany({
       where: {
         branchId,
-        date: { gte: startOfMonth, lte: endOfMonth },
+        date: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
       },
       include: {
         user: { select: { id: true, fullName: true, username: true } },
       },
       orderBy: { date: "asc" },
     });
+
     return { success: true, data: JSON.parse(JSON.stringify(data)) };
   } catch (error) {
+    console.error("Lỗi getMonthlySchedules:", error);
     return { success: false, data: [] };
   }
 }
