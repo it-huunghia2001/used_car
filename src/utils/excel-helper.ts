@@ -81,6 +81,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     { header: "STT", key: "stt", width: 5 },
     { header: "PHÂN LOẠI", key: "demand", width: 15 },
     { header: "TRẠNG THÁI", key: "status", width: 15 },
+    { header: "LÝ DO ĐÓNG BĂNG/LOST", key: "reasonDetail", width: 15 },
     { header: "MỨC ĐỘ ƯU TIÊN", key: "level", width: 15 },
     { header: "CHI NHÁNH", key: "branch", width: 20 },
 
@@ -122,6 +123,13 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
   ];
 
   sellLeads.forEach((item, index) => {
+    const reasonDetail =
+      item.status === "FROZEN"
+        ? item.frozenReason
+        : item.status === "LOSE" || item.status === "CANCELLED"
+          ? item.lostReason
+          : "";
+
     const isFuture =
       item.nextContactAt && dayjs(item.nextContactAt).isAfter(today);
 
@@ -129,6 +137,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
       stt: index + 1,
       demand: translateStatus(item.type),
       status: translateStatus(item.status),
+      reasonDetail: reasonDetail || "",
       level: translateStatus(item.urgencyLevel),
       branch: item.branch.name || "Toyota Bình Dương",
       staff: item.assignedTo?.fullName,
@@ -177,6 +186,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     { header: "STT", key: "stt", width: 5 },
     { header: "PHÂN LOẠI KH", key: "level", width: 15 }, // Khách nóng, ấm, lạnh
     { header: "TRẠNG THÁI", key: "status", width: 15 },
+    { header: "LÝ DO ĐÓNG BĂNG/LOST", key: "reasonDetail", width: 15 },
     { header: "CHI NHÁNH", key: "branch", width: 20 },
 
     // Nhóm: Nhân sự & Nguồn
@@ -208,11 +218,17 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
   buyLeads.forEach((item, index) => {
     const isFuture =
       item.nextContactAt && dayjs(item.nextContactAt).isAfter(today);
-
+    const reasonDetail =
+      item.status === "FROZEN"
+        ? item.frozenReason
+        : item.status === "LOSE" || item.status === "CANCELLED"
+          ? item.lostReason
+          : "";
     const row = sheet2.addRow({
       stt: index + 1,
       level: translateStatus(item.urgencyLevel),
       status: translateStatus(item.status),
+      reasonDetail: reasonDetail || "",
       branch: item.branch.name || "Toyota Bình Dương",
       staff: item.assignedTo?.fullName,
       dateIn: dayjs(item.createdAt).format("DD/MM/YYYY"),
@@ -336,6 +352,8 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Nguồn giới thiệu", key: "source", width: 25 },
     { header: "Tên khách hàng", key: "name", width: 25 },
     { header: "Đánh giá trạng thái", key: "level", width: 15 },
+    { header: "Tình trạng hồ sơ", key: "status", width: 15 },
+    { header: "Lý do Đóng băng/LOST", key: "reasonDetail", width: 15 },
     { header: "Địa chỉ", key: "address", width: 30 },
     { header: "Tỉnh", key: "province", width: 15 },
     { header: "Model", key: "model", width: 15 },
@@ -351,10 +369,15 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Số lần LH", key: "count", width: 10 },
     { header: "Ngày liên hệ tiếp theo", key: "nextDate", width: 15 },
     { header: "Nội dung liên hệ tiếp theo", key: "nextNote", width: 30 },
-    { header: "Tình trạng hồ sơ", key: "status", width: 15 },
   ];
 
   sellLeads.forEach((item) => {
+    const reasonDetail =
+      item.status === "FROZEN"
+        ? item.frozenReason
+        : item.status === "LOSE" || item.status === "CANCELLED"
+          ? item.lostReason
+          : "";
     const isFutureAppointment =
       item.nextContactAt && dayjs(item.nextContactAt).isAfter(today, "day");
     const row = sheet1.addRow({
@@ -367,6 +390,7 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
       source: item.referrer?.department?.name || "Vãng lai",
       name: item.fullName,
       level: translateStatus(item.urgencyLevel),
+      reasonDetail: reasonDetail || "",
       address: item.address,
       province: item.province,
       model: item.carModel?.name,
@@ -412,6 +436,8 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Ngày nhận thông tin", key: "dateIn", width: 15 },
     { header: "Tên khách hàng", key: "name", width: 25 },
     { header: "Đánh giá trạng thái", key: "level", width: 15 },
+    { header: "Tình trạng hồ sơ", key: "status", width: 15 },
+    { header: "Lý do Đóng băng/LOST", key: "reasonDetail", width: 15 },
     { header: "Địa chỉ", key: "address", width: 40 },
     { header: "Tỉnh", key: "province", width: 30 },
     { header: "Nguồn giới thiệu", key: "source", width: 25 },
@@ -422,10 +448,15 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Số lần LH", key: "count", width: 10 },
     { header: "Ngày liên hệ tiếp theo", key: "nextDate", width: 15 },
     { header: "Nội dung liên hệ tiếp theo", key: "nextNote", width: 30 },
-    { header: "Tình trạng", key: "status", width: 15 },
   ];
 
   buyLeads.forEach((item) => {
+    const reasonDetail =
+      item.status === "FROZEN"
+        ? item.frozenReason
+        : item.status === "LOSE" || item.status === "CANCELLED"
+          ? item.lostReason
+          : "";
     const isFutureAppointment =
       item.nextContactAt && dayjs(item.nextContactAt).isAfter(today, "day");
     const row = sheet2.addRow({
@@ -435,6 +466,7 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
       dateIn: dayjs(item.createdAt).format("DD/MM/YYYY"),
       name: item.fullName,
       level: translateStatus(item.urgencyLevel),
+      reasonDetail: reasonDetail || "",
       address: `${item.province || ""} ${item.address || ""}`,
       province: item.province,
       source: item.referrer?.department?.name || "Vãng lai",

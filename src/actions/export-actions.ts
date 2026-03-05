@@ -67,6 +67,7 @@ export async function getExportCustomerData(
           source: true, // Lấy nguồn từ LeadCar
         },
       },
+
       contracts: { select: { id: true } },
       tasks: {
         where: { status: "PENDING" },
@@ -76,7 +77,10 @@ export async function getExportCustomerData(
       activities: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        include: { user: { select: { fullName: true } } },
+        include: {
+          user: { select: { fullName: true } },
+          reason: { select: { content: true } }, // Quan trọng: Lấy nội dung lý do từ LeadReason
+        },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -86,6 +90,20 @@ export async function getExportCustomerData(
   const serializedData = customers.map((customer) => {
     const latestActivity = customer.activities[0];
     const leadCar = customer.leadCar;
+
+    // Tìm lý do đóng băng (Tìm trong lịch sử bản ghi có trạng thái FROZEN)
+    const frozenActivity = customer.activities.find(
+      (a) => a.status === "FROZEN",
+    );
+    const frozenReason =
+      frozenActivity?.reason?.content || frozenActivity?.note || "N/A";
+
+    // Tìm lý do thất bại (Tìm trong lịch sử bản ghi có trạng thái LOSE hoặc CANCELLED)
+    const lostActivity = customer.activities.find(
+      (a) => a.status === "LOSE" || a.status === "CANCELLED",
+    );
+    const lostReason =
+      lostActivity?.reason?.content || lostActivity?.note || "N/A";
 
     // --- LOGIC A: Xử lý TYPE (ReferralType) nếu NULL ---
     let finalType = customer.type;
@@ -134,6 +152,11 @@ export async function getExportCustomerData(
     return {
       ...customer,
       // Ghi đè các giá trị đã qua tính toán
+      frozenReason: customer.status === "FROZEN" ? frozenReason : "N/A",
+      lostReason:
+        customer.status === "LOSE" || customer.status === "CANCELLED"
+          ? lostReason
+          : "N/A",
       type: finalType,
       urgencyLevel: calculatedUrgency,
       isLate: isCurrentlyLate,
