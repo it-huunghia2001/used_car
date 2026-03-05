@@ -25,6 +25,7 @@ import {
   upsertUserAction,
   deleteUserAction,
   approveUserAction,
+  getMeAction,
 } from "@/actions/user-actions";
 import {
   getDepartmentsAction,
@@ -60,9 +61,38 @@ export default function UserManagementPage() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isApproveOpen, setIsApproveOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isFullRole, setIsFullRole] = useState<boolean>(false);
 
   // ✅ 1. Tách logic load data và bỏ dependency searchText khỏi useCallback nếu dùng search cứng
   // Hoặc giữ lại nhưng phải xử lý useEffect cẩn thận.
+  const initData = async () => {
+    try {
+      // Lấy thông tin mình là ai từ server
+      const me = await getMeAction();
+      setCurrentUser(me.data);
+
+      setIsFullRole(
+        me.data.role === "ADMIN" ||
+          (me.data.role === "MANAGER" &&
+            me.data.isGlobalManager &&
+            me.data.branchId === "cmletrxfg00007x8c9yk3o7ek"),
+      );
+
+      const [d, b] = await Promise.all([
+        getDepartmentsAction(),
+        getBranchesAction(),
+      ]);
+      setDepartments(d);
+      setBranches(b);
+    } catch (err) {
+      console.error("Lỗi:", err);
+    }
+  };
+  useEffect(() => {
+    initData();
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -177,6 +207,7 @@ export default function UserManagementPage() {
           </div>
 
           <div className="flex flex-row gap-2 w-full lg:w-auto">
+            {/* Chỉ ADMIN mới thấy nút Phê duyệt và Thêm mới */}
             <Badge
               count={pendingUsers.length}
               offset={[-2, 2]}
@@ -193,19 +224,21 @@ export default function UserManagementPage() {
                 </span>
               </Button>
             </Badge>
-            <Button
-              type="primary"
-              danger
-              icon={<UserAddOutlined />}
-              className="rounded-xl h-10 md:h-11 font-bold shadow-lg shadow-red-100 flex-1 lg:flex-none"
-              onClick={() => {
-                setEditingUser(null);
-                form.resetFields();
-                setIsEditOpen(true);
-              }}
-            >
-              THÊM <span className="hidden sm:inline-block">NHÂN SỰ</span>
-            </Button>
+            {isFullRole && (
+              <Button
+                type="primary"
+                danger
+                icon={<UserAddOutlined />}
+                className="rounded-xl h-10 md:h-11 font-bold shadow-lg shadow-red-100 flex-1 lg:flex-none"
+                onClick={() => {
+                  setEditingUser(null);
+                  form.resetFields();
+                  setIsEditOpen(true);
+                }}
+              >
+                THÊM <span className="hidden sm:inline-block">NHÂN SỰ</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -278,6 +311,7 @@ export default function UserManagementPage() {
       />
 
       <UserFormModal
+        isFullRole={isFullRole}
         open={isEditOpen}
         onCancel={() => setIsEditOpen(false)}
         editingUser={editingUser}

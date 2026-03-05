@@ -6,6 +6,7 @@ import { IdcardOutlined, PhoneOutlined } from "@ant-design/icons";
 const { Text } = Typography;
 
 export default function UserFormModal({
+  isFullRole,
   open,
   onCancel,
   editingUser,
@@ -105,104 +106,125 @@ export default function UserFormModal({
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
-            <Form.Item
-              name="isGlobalManager"
-              label="Quản trị tổng"
-              valuePropName="checked"
-            >
-              <Switch />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item name="active" label="Hoạt động" valuePropName="checked">
-              <Switch checkedChildren="ON" unCheckedChildren="OFF" />
-            </Form.Item>
-          </Col>
+          {isFullRole && (
+            <>
+              <Col span={12}>
+                <Form.Item
+                  name="isGlobalManager"
+                  label="Quản trị tổng"
+                  valuePropName="checked"
+                >
+                  <Switch />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="active"
+                  label="Hoạt động"
+                  valuePropName="checked"
+                >
+                  <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+                </Form.Item>
+              </Col>
 
-          <Col span={24} className="mt-4">
-            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-              <Row gutter={24}>
-                <Col span={6}>
-                  <Form.Item
-                    name="role"
-                    label="Phân quyền"
-                    rules={[{ required: true }]}
-                  >
-                    <Select className="h-10">
-                      <Select.Option value="ADMIN">Admin</Select.Option>
-                      <Select.Option value="MANAGER">Quản lý</Select.Option>
-                      <Select.Option value="PURCHASE_STAFF">
-                        Thu mua
-                      </Select.Option>
-                      <Select.Option value="SALES_STAFF">
-                        Bán hàng
-                      </Select.Option>
-                      <Select.Option value="APPRAISER">Giám định</Select.Option>
-                      <Select.Option value="REFERRER">Giới thiệu</Select.Option>
-                      <Select.Option value="SALE_MANAGER">
-                        Quản lý bán hàng
-                      </Select.Option>
-                      <Select.Option value="ADMIN_MANAGER">
-                        Quản lý Admin
-                      </Select.Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={6}>
-                  <Form.Item name="status" label="Quy trình Duyệt">
-                    <Select
-                      className="h-10"
-                      options={[
-                        { label: "Chờ duyệt", value: "PENDING" },
-                        { label: "Đã duyệt", value: "APPROVED" },
-                        { label: "Từ chối", value: "REJECTED" },
-                        { label: "Khóa (Ban)", value: "BANNED" },
-                      ]}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="password" label="Mật khẩu">
-                    <Input.Password
-                      className="h-10 rounded-lg"
-                      placeholder="••••••••"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </div>
-          </Col>
-
-          {["MANAGER", "PURCHASE_STAFF", "SALES_STAFF"].includes(roleValue) && (
-            <Col span={24} className="mt-4">
-              <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex gap-6 items-center">
-                <div className="bg-blue-600 p-3 rounded-xl text-white">
-                  <PhoneOutlined className="text-xl" />
-                </div>
-                <div className="flex-1">
-                  <Text strong className="text-blue-800 block mb-3">
-                    Cấu hình VoIP
-                  </Text>
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item name="extension" label="Ext" className="m-0">
-                        <Input placeholder="101" className="h-10 rounded-lg" />
+              <Col span={24} className="mt-4">
+                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <Row gutter={24}>
+                    <Col span={6}>
+                      <Form.Item
+                        name="role"
+                        label="Phân quyền"
+                        rules={[{ required: true }]}
+                      >
+                        <Select className="h-10">
+                          <Select.Option value="ADMIN">Admin</Select.Option>
+                          <Select.Option value="MANAGER">Quản lý</Select.Option>
+                          <Select.Option value="PURCHASE_STAFF">
+                            Thu mua
+                          </Select.Option>
+                          <Select.Option value="SALES_STAFF">
+                            Bán hàng
+                          </Select.Option>
+                          <Select.Option value="APPRAISER">
+                            Giám định
+                          </Select.Option>
+                          <Select.Option value="REFERRER">
+                            Giới thiệu
+                          </Select.Option>
+                          <Select.Option value="SALE_MANAGER">
+                            Quản lý bán hàng
+                          </Select.Option>
+                          <Select.Option value="ADMIN_MANAGER">
+                            Quản lý Admin
+                          </Select.Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name="status" label="Quy trình Duyệt">
+                        <Select
+                          className="h-10"
+                          options={[
+                            { label: "Chờ duyệt", value: "PENDING" },
+                            { label: "Đã duyệt", value: "APPROVED" },
+                            { label: "Từ chối", value: "REJECTED" },
+                            { label: "Khóa (Ban)", value: "BANNED" },
+                          ]}
+                        />
                       </Form.Item>
                     </Col>
                     <Col span={12}>
-                      <Form.Item
-                        name="extensionPwd"
-                        label="Mật khẩu SIP"
-                        className="m-0"
-                      >
-                        <Input.Password className="h-10 rounded-lg" />
+                      <Form.Item name="password" label="Mật khẩu">
+                        <Input.Password
+                          className="h-10 rounded-lg"
+                          placeholder="••••••••"
+                        />
                       </Form.Item>
                     </Col>
                   </Row>
                 </div>
-              </div>
-            </Col>
+              </Col>
+
+              {["MANAGER", "PURCHASE_STAFF", "SALES_STAFF"].includes(
+                roleValue,
+              ) && (
+                <Col span={24} className="mt-4">
+                  <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex gap-6 items-center">
+                    <div className="bg-blue-600 p-3 rounded-xl text-white">
+                      <PhoneOutlined className="text-xl" />
+                    </div>
+                    <div className="flex-1">
+                      <Text strong className="text-blue-800 block mb-3">
+                        Cấu hình VoIP
+                      </Text>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            name="extension"
+                            label="Ext"
+                            className="m-0"
+                          >
+                            <Input
+                              placeholder="101"
+                              className="h-10 rounded-lg"
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            name="extensionPwd"
+                            label="Mật khẩu SIP"
+                            className="m-0"
+                          >
+                            <Input.Password className="h-10 rounded-lg" />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </div>
+                  </div>
+                </Col>
+              )}
+            </>
           )}
         </Row>
       </Form>
