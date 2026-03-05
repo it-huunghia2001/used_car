@@ -156,9 +156,15 @@ export default function LeadsPage() {
       // Chuyển đổi string từ filters sang đối tượng Date hoặc undefined
       const sDate = filters.startDate ? new Date(filters.startDate) : undefined;
       const eDate = filters.endDate ? new Date(filters.endDate) : undefined;
+      console.log(sDate);
+      console.log(eDate);
 
       // Truyền sDate, eDate (kiểu Date) vào hàm
-      const exportData = await getExportCustomerData(sDate, eDate);
+      const exportData = await getExportCustomerData(
+        sDate,
+        eDate,
+        filters.branch,
+      );
 
       if (!exportData || exportData.length === 0) {
         return message.info("Không có dữ liệu");
