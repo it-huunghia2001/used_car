@@ -1498,7 +1498,7 @@ export async function selfCreateCustomerAction(values: any) {
       const branchManagers = await db.user.findMany({
         where: {
           branchId: auth.branchId,
-          role: { in: ["MANAGER", "SALE_MANAGER"] }, // Các role quản lý của chi nhánh
+          role: { in: ["MANAGER"] }, // Các role quản lý của chi nhánh
           active: true,
         },
         select: { email: true },
