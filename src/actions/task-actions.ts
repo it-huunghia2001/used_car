@@ -898,7 +898,7 @@ export async function requestSaleApproval(
             OR: [
               { isGlobalManager: true },
               {
-                role: { in: ["MANAGER", "SALE_MANAGER"] },
+                role: { in: ["MANAGER"] },
                 branchId: result.branchId,
               },
             ],
