@@ -32,21 +32,15 @@ import {
   RightOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
-import dayjs, { Dayjs } from "dayjs";
-import "dayjs/locale/vi";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
+
 import {
   getBranchSalesStaff,
   getMonthlySchedules,
   removeStaffFromSchedule,
   upsertSchedule,
 } from "@/actions/schedule-service";
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
-dayjs.locale("vi");
-dayjs.tz.setDefault("Asia/Ho_Chi_Minh");
+import dayjs from "@/lib/dayjs";
+import { Dayjs } from "dayjs";
 
 const { Title, Text } = Typography;
 

@@ -78,7 +78,7 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
   const menuItems: any[] = [
     // 1. TỔNG QUAN (Dành cho mọi nhân sự nội bộ)
 
-    hasAccess(["PURCHASE_STAFF", "PURCHASE_STAFF"]) && {
+    hasAccess(["SALES_STAFF", "PURCHASE_STAFF"]) && {
       key: "/dashboard/staff-dashboard",
       icon: <DashboardOutlined />,
       label: <Link href="/dashboard/staff-dashboard">Bảng hiệu suất</Link>,
