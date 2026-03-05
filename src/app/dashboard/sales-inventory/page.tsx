@@ -142,7 +142,6 @@ export default function SalesTasksPage() {
           getBuyReasons(),
         ]);
       setTasks(leads);
-      console.log(leads);
 
       setInventory(cars);
       setCarModels(models);

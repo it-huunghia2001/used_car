@@ -23,6 +23,7 @@ import {
   DatePicker,
   Spin,
   Empty,
+  Popconfirm,
 } from "antd";
 import {
   UserOutlined,
@@ -35,8 +36,10 @@ import {
   EnvironmentOutlined,
   PlusOutlined,
   RightOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import {
+  deleteCustomerAction,
   getLeadsAction,
   getOverdueCustomersAction,
 } from "@/actions/customer-actions";
@@ -152,6 +155,21 @@ export default function LeadsPage() {
       message.error("Lỗi xuất file");
     } finally {
       setExportLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await deleteCustomerAction(id);
+      if (res.success) {
+        message.success("Xóa khách hàng thành công");
+        loadData(); // Tải lại danh sách
+        setIsModalOpen(false); // Đóng modal nếu đang mở
+      } else {
+        message.error(res.error);
+      }
+    } catch (error) {
+      message.error("Có lỗi xảy ra khi xóa");
     }
   };
 
@@ -348,6 +366,33 @@ export default function LeadsPage() {
         <Text className="text-[12px] text-slate-500 font-mono">
           {dayjs(date).format("DD/MM/YYYY")}
         </Text>
+      ),
+    },
+    {
+      title: "THAO TÁC",
+      key: "action",
+      width: 80,
+      fixed: "right" as any,
+      render: (r: any) => (
+        <Popconfirm
+          title="Xóa khách hàng?"
+          description="Dữ liệu task và lịch sử sẽ bị xóa vĩnh viễn."
+          onConfirm={(e) => {
+            e?.stopPropagation(); // Ngăn sự kiện onClick của dòng
+            handleDelete(r.id);
+          }}
+          onCancel={(e) => e?.stopPropagation()}
+          okText="Xóa"
+          cancelText="Hủy"
+          okButtonProps={{ danger: true }}
+        >
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={(e) => e.stopPropagation()} // Ngăn mở Modal khi bấm nút xóa
+          />
+        </Popconfirm>
       ),
     },
   ];
@@ -575,6 +620,31 @@ export default function LeadsPage() {
             >
               ĐÓNG
             </Button>
+            <div className="flex gap-3">
+              <Popconfirm
+                title="Xóa khách hàng này?"
+                onConfirm={() => handleDelete(selectedLead.id)}
+                okText="Xóa"
+                cancelText="Hủy"
+                okButtonProps={{ danger: true, size: "large" }}
+              >
+                <Button
+                  danger
+                  size="large"
+                  className="rounded-2xl font-bold h-12 px-8"
+                  icon={<DeleteOutlined />}
+                />
+              </Popconfirm>
+
+              <Button
+                block
+                size="large"
+                className="bg-slate-900 text-white rounded-2xl font-bold h-12"
+                onClick={() => setIsModalOpen(false)}
+              >
+                ĐÓNG
+              </Button>
+            </div>
           </div>
         )}
       </Modal>

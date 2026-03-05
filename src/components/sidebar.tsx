@@ -248,22 +248,28 @@ export default function Sidebar({ role, isGobal }: SidebarProps) {
         },
       ],
     },
-
-    // 4. HỆ THỐNG
-    hasAccess(["ADMIN", "MANAGER"]) && {
+    {
       type: "group",
-      label: !collapsed ? "HỆ THỐNG" : "",
+      label: !collapsed ? "LỊCH TRỰC" : "",
       children: [
-        {
-          key: "/dashboard/users",
-          icon: <TeamOutlined />,
-          label: <Link href="/dashboard/users">Nhân sự</Link>,
-        },
         {
           key: "/dashboard/schedules",
           icon: <ScheduleOutlined />,
           label: <Link href="/dashboard/schedules">Lịch trực</Link>,
         },
+      ],
+    },
+    // 4. HỆ THỐNG
+    hasAccess(["ADMIN", "MANAGER"]) && {
+      type: "group",
+      label: !collapsed ? "HỆ THỐNG" : "",
+      children: [
+        (role === "ADMIN" || isGobal) && {
+          key: "/dashboard/users",
+          icon: <TeamOutlined />,
+          label: <Link href="/dashboard/users">Nhân sự</Link>,
+        },
+
         (role === "ADMIN" || isGobal) && {
           key: "settings",
           icon: <SettingOutlined />,

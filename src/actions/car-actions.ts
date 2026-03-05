@@ -321,7 +321,9 @@ export async function getAvailableCarsAction() {
     if (!user) return { success: false, message: "Phiên đăng nhập hết hạn" };
     const cars = await db.car.findMany({
       where: {
-        status: { in: ["READY_FOR_SALE", "REFURBISHING"] },
+        status: {
+          in: ["READY_FOR_SALE", "REFURBISHING", "NEW", "BOOKED", "PENDING"],
+        },
         isPublished: true,
       },
       select: {

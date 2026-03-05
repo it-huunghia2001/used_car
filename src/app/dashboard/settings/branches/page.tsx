@@ -31,6 +31,9 @@ import {
   deleteBranchAction,
 } from "@/actions/branch-actions";
 
+// IMPORT COMPONENT MỚI
+import StaffOnDutyCard from "@/components/StaffOnDutyCard";
+
 const { Title, Text } = Typography;
 
 export default function BranchSetupPage() {
@@ -39,7 +42,6 @@ export default function BranchSetupPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<any>(null);
   const [searchText, setSearchText] = useState("");
-
   const [formValues, setFormValues] = useState({ name: "", address: "" });
 
   const loadData = async () => {
@@ -75,7 +77,7 @@ export default function BranchSetupPage() {
   const filteredData = branches.filter(
     (b) =>
       b.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      b.address?.toLowerCase().includes(searchText.toLowerCase())
+      b.address?.toLowerCase().includes(searchText.toLowerCase()),
   );
 
   const columns = [
@@ -125,15 +127,17 @@ export default function BranchSetupPage() {
 
   return (
     <div className="p-4 md:p-8 bg-[#f8fafc] min-h-screen">
-      <div className="max-w-5xl mx-auto">
-        {/* Header Responsive */}
+      <div className="max-w-7xl mx-auto">
+        {" "}
+        {/* Tăng max-width lên để đủ chỗ cho 2 cột */}
+        {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <Title level={3} className="!mb-0 uppercase">
               <ShopOutlined /> Hệ thống Chi nhánh
             </Title>
             <Text type="secondary">
-              Quản lý danh sách Showroom trên toàn hệ thống
+              Quản lý danh sách Showroom và nhân sự trực ca
             </Text>
           </div>
           <Button
@@ -150,31 +154,48 @@ export default function BranchSetupPage() {
             THÊM CHI NHÁNH
           </Button>
         </div>
+        {/* Layout chia 2 cột */}
+        <Row gutter={[24, 24]}>
+          {/* CỘT TRÁI: QUẢN LÝ CHI NHÁNH */}
+          <Col xs={24} lg={16} xl={17}>
+            {/* Search Bar */}
+            <Card className="mb-6 shadow-sm border-none rounded-xl">
+              <Input
+                placeholder="Tìm tên hoặc địa chỉ chi nhánh..."
+                prefix={<SearchOutlined className="text-gray-400" />}
+                size="large"
+                className="rounded-lg"
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+            </Card>
 
-        {/* Search Bar */}
-        <Card className="mb-6 shadow-sm border-none rounded-xl">
-          <Input
-            placeholder="Tìm tên hoặc địa chỉ chi nhánh..."
-            prefix={<SearchOutlined className="text-gray-400" />}
-            size="large"
-            className="rounded-lg"
-            onChange={(e) => setSearchText(e.target.value)}
-          />
-        </Card>
+            {/* Table */}
+            <Card className="shadow-sm border-none rounded-2xl overflow-hidden">
+              <Table
+                dataSource={filteredData}
+                columns={columns}
+                rowKey="id"
+                loading={loading}
+                pagination={{ pageSize: 10 }}
+                scroll={{ x: 400 }}
+              />
+            </Card>
+          </Col>
 
-        {/* Table - Ant Design Table tự xử lý scroll ngang trên mobile */}
-        <Card className="shadow-sm border-none rounded-2xl overflow-hidden">
-          <Table
-            dataSource={filteredData}
-            columns={columns}
-            rowKey="id"
-            loading={loading}
-            pagination={{ pageSize: 10 }}
-            scroll={{ x: 400 }} // Hỗ trợ mobile scroll ngang
-          />
-        </Card>
+          {/* CỘT PHẢI: NHÂN VIÊN TRỰC CA */}
+          <Col xs={24} lg={8} xl={7}>
+            <StaffOnDutyCard />
 
-        {/* Modal Responsive */}
+            {/* Có thể thêm một card hướng dẫn nhỏ ở đây */}
+            <Card className="mt-4 bg-blue-50 border-none rounded-xl">
+              <Text italic type="secondary" className="text-xs">
+                * Danh sách nhân viên trực ca được cập nhật tự động dựa trên
+                lịch trực Sales mỗi ngày.
+              </Text>
+            </Card>
+          </Col>
+        </Row>
+        {/* Modal Setup Chi nhánh */}
         <Modal
           title={editingBranch ? "SỬA CHI NHÁNH" : "THÊM CHI NHÁNH MỚI"}
           open={isModalOpen}

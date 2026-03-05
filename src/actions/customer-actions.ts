@@ -108,19 +108,39 @@ export async function createCustomerAction(rawData: any) {
     let assignmentLog = "";
 
     if (data.type === "BUY") {
-      // Phân bổ theo lịch trực Sales
+      // 1. Lấy khoảng thời gian từ 00:00 đến 23:59 của ngày hôm nay
+      const startOfToday = dayjs().startOf("day").toDate();
+      const endOfToday = dayjs().endOf("day").toDate();
+
+      // 2. Truy vấn lịch trực trong khoảng ngày (tránh lệch miligiây hoặc múi giờ)
       const schedules = await db.salesSchedule.findMany({
-        where: { date: todayStart, branchId: referrer.branchId },
+        where: {
+          branchId: referrer.branchId,
+          date: {
+            gte: startOfToday,
+            lte: endOfToday,
+          },
+        },
         select: { userId: true },
       });
+
       const onDutyIds = schedules.map((s) => s.userId);
-      const staff = await db.user.findFirst({
-        where: { id: { in: onDutyIds }, role: "SALES_STAFF", active: true },
-        orderBy: { lastAssignedAt: "asc" },
-      });
-      if (staff) {
-        assignedStaffId = staff.id;
-        assignmentLog = "Phân bổ tự động theo lịch trực Sales.";
+
+      if (onDutyIds.length > 0) {
+        // 3. Tìm nhân viên SALES đang trực, ưu tiên người ít nhận khách nhất (xoay vòng)
+        const staff = await db.user.findFirst({
+          where: {
+            id: { in: onDutyIds },
+            role: "SALES_STAFF",
+            active: true,
+          },
+          orderBy: { lastAssignedAt: "asc" }, // Quan trọng: Người nào nhận khách xa nhất sẽ được ưu tiên
+        });
+
+        if (staff) {
+          assignedStaffId = staff.id;
+          assignmentLog = `Phân bổ tự động cho ${staff.fullName} theo lịch trực Sales.`;
+        }
       }
     } else {
       // Phân bổ xoay vòng cho Thu mua
@@ -267,51 +287,53 @@ export async function createCustomerAction(rawData: any) {
     if (result) {
       const typeLabelVn = getReferralTypeLabel(result.type);
 
-      // Truy vấn thêm thông tin chi nhánh và email người giới thiệu để đảm bảo dữ liệu chính xác
-      const [branch, referrerUser] = await Promise.all([
+      // 1. Fetch toàn bộ dữ liệu cần thiết 1 lần duy nhất
+      const [branch, referrerUser, staff, branchAdmins] = await Promise.all([
         referrer.branchId
           ? db.branch.findUnique({ where: { id: referrer.branchId } })
           : null,
-        db.user.findUnique({ where: { id: auth.id }, select: { email: true } }), // Lấy email từ DB
+        db.user.findUnique({ where: { id: auth.id }, select: { email: true } }),
+        assignedStaffId
+          ? db.user.findUnique({
+              where: { id: assignedStaffId },
+              select: { email: true, fullName: true, phone: true },
+            })
+          : null,
+        db.user.findMany({
+          where: {
+            branchId: referrer.branchId,
+            role: {
+              in: ["ADMIN", "MANAGER"],
+            },
+            active: true,
+          },
+          select: { email: true },
+        }),
       ]);
 
       const branchName = branch?.name || "Hệ thống";
       const referrerEmail = referrerUser?.email;
-
       const emailPromises = [];
 
       // A. Gửi cho nhân viên được phân bổ
-      if (assignedStaffId) {
-        const staff = await db.user.findUnique({
-          where: { id: assignedStaffId },
-          select: { email: true, fullName: true },
-        });
-        if (staff?.email) {
-          emailPromises.push(
-            sendMail({
-              to: staff.email,
-              subject: `[NHIỆM VỤ] Phân bổ khách hàng: ${result.fullName.toUpperCase()}`,
-              html: staffAssignmentEmailTemplate({
-                customerName: result.fullName,
-                customerPhone: result.phone,
-                typeLabel: typeLabelVn,
-                details: result.note || "Không có ghi chú thêm",
-                branchName,
-              }),
+      if (staff?.email) {
+        emailPromises.push(
+          sendMail({
+            to: staff.email,
+            subject: `[NHIỆM VỤ] Phân bổ khách hàng: ${result.fullName.toUpperCase()}`,
+            html: staffAssignmentEmailTemplate({
+              customerName: result.fullName,
+              customerPhone: result.phone,
+              typeLabel: typeLabelVn,
+              details: result.note || "Không có ghi chú thêm",
+              branchName,
             }),
-          );
-        }
+          }),
+        );
       }
 
-      // B. Gửi cho toàn bộ Admin chi nhánh
-      const branchAdmins = await db.user.findMany({
-        where: { branchId: referrer.branchId, role: "ADMIN", active: true },
-        select: { email: true },
-      });
-      const adminEmails = branchAdmins
-        .map((a) => a.email)
-        .filter(Boolean) as string[];
-
+      // B. Gửi cho Admin chi nhánh
+      const adminEmails = branchAdmins.map((a) => a.email).filter(Boolean);
       if (adminEmails.length > 0) {
         emailPromises.push(
           sendMail({
@@ -328,12 +350,8 @@ export async function createCustomerAction(rawData: any) {
         );
       }
 
-      // C. Gửi xác nhận cho Người giới thiệu (Lấy email từ DB)
+      // C. Gửi xác nhận cho Người giới thiệu
       if (referrerEmail) {
-        const staff = await db.user.findUnique({
-          where: { id: assignedStaffId ?? undefined },
-          select: { email: true, fullName: true, phone: true },
-        });
         emailPromises.push(
           sendMail({
             to: referrerEmail,
@@ -349,8 +367,7 @@ export async function createCustomerAction(rawData: any) {
         );
       }
 
-      // Thực thi gửi tất cả email cùng lúc để không block main thread quá lâu
-      // Sử dụng allSettled để nếu 1 mail lỗi, các mail khác vẫn đi bình thường
+      // Thực thi (Giữ nguyên logic non-blocking của bạn vì nó rất tốt)
       Promise.allSettled(emailPromises).then((results) => {
         results.forEach((res, i) => {
           if (res.status === "rejected") {
@@ -1195,4 +1212,106 @@ export async function getLeadsWithoutSensitiveAction(params: {
   }));
 
   return { data: serializedData, total };
+}
+
+export async function getStaffOnDutyAction() {
+  try {
+    const auth = await getCurrentUser();
+    if (!auth || !auth.id) {
+      throw new Error("Phiên đăng nhập hết hạn.");
+    }
+
+    // 1. Xác định khoảng thời gian của ngày hôm nay
+    const todayStart = dayjs().startOf("day").toDate();
+    const todayEnd = dayjs().endOf("day").toDate();
+
+    // 2. Truy vấn lịch trực của TẤT CẢ chi nhánh
+    const schedules = await db.salesSchedule.findMany({
+      where: {
+        date: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+      include: {
+        branch: {
+          select: { name: true }, // Lấy tên chi nhánh để hiển thị ở UI
+        },
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            role: true,
+            active: true,
+            lastAssignedAt: true,
+            branchId: true,
+          },
+        },
+      },
+    });
+
+    // 3. Chuẩn hóa dữ liệu trả về (kèm thông tin chi nhánh)
+    const staffOnDuty = schedules
+      .filter((s) => s.user && s.user.active)
+      .map((s) => ({
+        ...s.user,
+        branchName: s.branch?.name || "N/A",
+      }));
+
+    return {
+      success: true,
+      data: JSON.parse(JSON.stringify(staffOnDuty)),
+    };
+  } catch (error: any) {
+    console.error("🔥 getStaffOnDutyAction Error:", error.message);
+    return { success: false, error: "Lỗi hệ thống khi lấy danh sách trực." };
+  }
+}
+
+export async function deleteCustomerAction(customerId: string) {
+  try {
+    // 1. Kiểm tra quyền hạn
+    const auth = await getCurrentUser();
+    if (!auth || !auth.id) throw new Error("Phiên đăng nhập hết hạn.");
+
+    // Lưu ý: Có thể thêm kiểm tra Role ở đây, ví dụ chỉ ADMIN mới được xóa
+    if (auth.role !== "ADMIN" || !auth.isGlobalManager)
+      throw new Error("Bạn không có quyền thực hiện thao tác này.");
+
+    // 2. Thực hiện xóa trong Transaction
+    await db.$transaction(async (tx) => {
+      // A. Xóa các Task liên quan đến khách hàng
+      await tx.task.deleteMany({
+        where: { customerId: customerId },
+      });
+
+      // B. Xóa các LeadActivity (Nhật ký chăm sóc)
+      await tx.leadActivity.deleteMany({
+        where: { customerId: customerId },
+      });
+
+      // C. Xóa LeadCar (Thông tin xe giám định - Quan hệ 1:1)
+      await tx.leadCar.deleteMany({
+        where: { customerId: customerId },
+      });
+
+      // D. Cuối cùng mới xóa Customer
+      await tx.customer.delete({
+        where: { id: customerId },
+      });
+    });
+
+    // 3. Làm mới cache dữ liệu
+    revalidatePath("/dashboard/customers");
+
+    return {
+      success: true,
+      message: "Đã xóa khách hàng và các dữ liệu liên quan.",
+    };
+  } catch (error: any) {
+    console.error("🔥 deleteCustomerAction Error:", error.message);
+    return { success: false, error: error.message || "Lỗi khi xóa dữ liệu." };
+  }
 }

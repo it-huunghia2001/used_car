@@ -1025,7 +1025,13 @@ export async function getAvailableCars() {
     const cars = await db.car.findMany({
       where: {
         status: {
-          in: [CarStatus.READY_FOR_SALE, CarStatus.REFURBISHING],
+          in: [
+            CarStatus.READY_FOR_SALE,
+            CarStatus.REFURBISHING,
+            CarStatus.BOOKED,
+            CarStatus.NEW,
+            CarStatus.PENDING,
+          ],
         },
       },
       select: {

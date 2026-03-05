@@ -12,7 +12,6 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   "/dashboard/staff-dashboard": ["SALES_STAFF", "PURCHASE_STAFF"],
 
   "/dashboard/users": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
-  "/dashboard/schedules": ["ADMIN", "MANAGER", "ADMIN_MANAGER"],
   "/dashboard/settings": ["ADMIN"], // isGlobal check thêm ở UI
 
   // --- QUẢN TRỊ VẬN HÀNH (ADMIN/MANAGER),"ADMIN_MANAGER" ---
@@ -70,6 +69,16 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     "SALE_MANAGER",
   ],
   "/dashboard/profile": [
+    "ADMIN",
+    "MANAGER",
+    "ADMIN_MANAGER",
+    "SALES_STAFF",
+    "PURCHASE_STAFF",
+    "APPRAISER",
+    "REFERRER",
+    "SALE_MANAGER",
+  ],
+  "/dashboard/schedules": [
     "ADMIN",
     "MANAGER",
     "ADMIN_MANAGER",

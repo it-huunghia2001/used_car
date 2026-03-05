@@ -83,6 +83,7 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
   }, [loadData]);
 
   const onAddStaff = async (userId: string) => {
+    if (!isPrivileged) return; // Chặn thực thi
     setActionLoading("adding");
     const dateString = selectedDate.format("YYYY-MM-DD");
     try {
@@ -101,6 +102,7 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
   };
 
   const onDeleteStaff = async (id: string) => {
+    if (!isPrivileged) return; // Chặn thực thi
     setActionLoading(id);
     try {
       const res = await removeStaffFromSchedule(id);
@@ -205,9 +207,15 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
                   {dayData.length} Sales
                 </Tag>
               )}
-              <PlusOutlined
-                className={isToday ? "text-white" : "text-slate-300"}
-              />
+              {isPrivileged ? (
+                <PlusOutlined
+                  className={isToday ? "text-white" : "text-slate-300"}
+                />
+              ) : (
+                <RightOutlined
+                  className={isToday ? "text-white" : "text-slate-300"}
+                />
+              )}
             </div>
           </div>
         </div>,
@@ -328,28 +336,31 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
             />
           </div>
 
-          <div>
-            <label className="text-slate-400 text-[10px] font-bold uppercase mb-2 block">
-              Thêm nhân viên trực
-            </label>
-            <Select
-              className="w-full h-12 rounded-xl"
-              placeholder="Tìm tên nhân viên..."
-              onChange={onAddStaff}
-              value={null}
-              showSearch
-              loading={actionLoading === "adding"}
-            >
-              {staffList.map((s) => (
-                <Select.Option key={s.id} value={s.id} label={s.fullName}>
-                  <Space>
-                    <Avatar size="small">{s.fullName?.charAt(0)}</Avatar>
-                    {s.fullName}
-                  </Space>
-                </Select.Option>
-              ))}
-            </Select>
-          </div>
+          {/* Thay thế đoạn label và Select thêm nhân viên */}
+          {isPrivileged && (
+            <div>
+              <label className="text-slate-400 text-[10px] font-bold uppercase mb-2 block">
+                Thêm nhân viên trực
+              </label>
+              <Select
+                className="w-full h-12 rounded-xl"
+                placeholder="Tìm tên nhân viên..."
+                onChange={onAddStaff}
+                value={null}
+                showSearch
+                loading={actionLoading === "adding"}
+              >
+                {staffList.map((s) => (
+                  <Select.Option key={s.id} value={s.id} label={s.fullName}>
+                    <Space>
+                      <Avatar size="small">{s.fullName?.charAt(0)}</Avatar>
+                      {s.fullName}
+                    </Space>
+                  </Select.Option>
+                ))}
+              </Select>
+            </div>
+          )}
 
           <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 space-y-3">
             <Text
@@ -378,13 +389,15 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
                       </Avatar>
                       <Text className="font-bold">{s.user.fullName}</Text>
                     </Space>
-                    <Popconfirm
-                      title="Gỡ lịch trực?"
-                      onConfirm={() => onDeleteStaff(s.id)}
-                      okButtonProps={{ loading: actionLoading === s.id }}
-                    >
-                      <Button type="text" danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
+                    {isPrivileged && (
+                      <Popconfirm
+                        title="Gỡ lịch trực?"
+                        onConfirm={() => onDeleteStaff(s.id)}
+                        okButtonProps={{ loading: actionLoading === s.id }}
+                      >
+                        <Button type="text" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    )}
                   </div>
                 ))}
               {schedules.filter((s) =>
