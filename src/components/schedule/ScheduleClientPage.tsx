@@ -32,6 +32,8 @@ import {
   RightOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
+import locale from "antd/es/date-picker/locale/vi_VN";
+import "dayjs/locale/vi";
 
 import {
   getBranchSalesStaff,
@@ -68,6 +70,9 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
         getMonthlySchedules(selectedBranchId, startOfMonth),
         getBranchSalesStaff(selectedBranchId),
       ]);
+
+      console.log(resSched.data);
+      console.log(resStaff.data);
 
       if (resSched.success) setSchedules(resSched.data);
       if (resStaff.success) setStaffList(resStaff.data);
@@ -257,7 +262,8 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
               picker="month"
               format="MMMM-YYYY"
               value={selectedDate}
-              onChange={(d) => d && setSelectedDate(d)}
+              locale={locale}
+              onChange={(d) => d && setSelectedDate(d.tz("Asia/Ho_Chi_Minh"))}
               allowClear={false}
               className="w-full sm:w-48 h-12 rounded-2xl bg-slate-50 border-slate-100 font-bold text-indigo-600"
             />
@@ -286,11 +292,14 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
             <Calendar
               className="premium-calendar"
               value={selectedDate}
+              locale={locale}
               cellRender={dateCellRender}
               headerRender={() => null} // Đã có bộ lọc ở trên
               onSelect={(d, info) => {
                 if (info.source === "date") {
-                  setSelectedDate(d);
+                  // 2. Ép ngày được chọn về đúng múi giờ VN để tránh lệch khi mở Modal
+                  const vnDate = d.tz("Asia/Ho_Chi_Minh");
+                  setSelectedDate(vnDate);
                   setIsModalOpen(true);
                 }
               }}

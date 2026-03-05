@@ -43,6 +43,7 @@ export async function upsertSchedule(
     const targetDate = dayjs(date)
       .tz("Asia/Ho_Chi_Minh")
       .startOf("day")
+      .add(1, "hour")
       .toDate();
 
     console.log("Dữ liệu gửi lên:", date);

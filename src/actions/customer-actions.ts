@@ -1214,6 +1214,12 @@ export async function getLeadsWithoutSensitiveAction(params: {
   return { data: serializedData, total };
 }
 
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 export async function getStaffOnDutyAction() {
   try {
     const auth = await getCurrentUser();
@@ -1221,11 +1227,21 @@ export async function getStaffOnDutyAction() {
       throw new Error("Phiên đăng nhập hết hạn.");
     }
 
-    // 1. Xác định khoảng thời gian của ngày hôm nay
-    const todayStart = dayjs().startOf("day").toDate();
-    const todayEnd = dayjs().endOf("day").toDate();
+    // 1. Xác định "Bây giờ" theo giờ VN
+    const nowVN = dayjs().tz("Asia/Ho_Chi_Minh");
 
-    // 2. Truy vấn lịch trực của TẤT CẢ chi nhánh
+    // 2. Lấy mốc 00:00:00 và 23:59:59 của ngày hôm nay tại VN
+    const todayStart = nowVN.startOf("day").toDate();
+    const todayEnd = nowVN.endOf("day").toDate();
+
+    // Log để kiểm tra (Server console)
+    console.log(
+      "Truy vấn lịch từ:",
+      todayStart.toISOString(),
+      "đến:",
+      todayEnd.toISOString(),
+    );
+
     const schedules = await db.salesSchedule.findMany({
       where: {
         date: {
@@ -1234,9 +1250,7 @@ export async function getStaffOnDutyAction() {
         },
       },
       include: {
-        branch: {
-          select: { name: true }, // Lấy tên chi nhánh để hiển thị ở UI
-        },
+        branch: { select: { name: true } },
         user: {
           select: {
             id: true,
@@ -1252,7 +1266,6 @@ export async function getStaffOnDutyAction() {
       },
     });
 
-    // 3. Chuẩn hóa dữ liệu trả về (kèm thông tin chi nhánh)
     const staffOnDuty = schedules
       .filter((s) => s.user && s.user.active)
       .map((s) => ({
