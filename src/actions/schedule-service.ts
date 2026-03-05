@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use server";
 
@@ -29,19 +30,33 @@ export async function getMonthlySchedules(branchId: string, month: Date) {
 
 // 2. Thêm nhân viên vào lịch trực
 export async function upsertSchedule(
-  date: Date,
+  date: Date | string,
   branchId: string,
   userId: string,
 ) {
   try {
-    const targetDate = dayjs(date).startOf("day").toDate();
+    // KỸ THUẬT QUAN TRỌNG:
+    // .tz() sẽ chuyển 17:00:00 UTC thành 00:00:00 VN
+    // sau đó .startOf("day") sẽ chốt đúng ngày đó.
+    const targetDate = dayjs(date)
+      .tz("Asia/Ho_Chi_Minh")
+      .startOf("day")
+      .toDate();
 
-    // Tránh trùng lặp trong cùng 1 ngày
+    console.log("Ngày sau khi chuẩn hóa (VN):", targetDate);
+    // Kết quả sẽ luôn là 00:00:00.000 của ngày bạn chọn trên UI
+
+    // Truy vấn dùng targetDate đã chuẩn hóa
     const exist = await db.salesSchedule.findFirst({
-      where: { date: targetDate, userId, branchId },
+      where: {
+        date: targetDate,
+        userId,
+        branchId,
+      },
     });
+
     if (exist)
-      return { success: false, error: "Nhân viên đã có trong lịch ngày này" };
+      return { success: false, error: "Nhân viên đã có lịch ngày này" };
 
     await db.salesSchedule.create({
       data: { date: targetDate, branchId, userId },
@@ -49,8 +64,9 @@ export async function upsertSchedule(
 
     revalidatePath("/dashboard/schedules");
     return { success: true };
-  } catch (error) {
-    return { success: false, error: "Lỗi hệ thống" };
+  } catch (error: any) {
+    console.error("Upsert Schedule Error:", error);
+    return { success: false, error: "Lỗi hệ thống khi lưu lịch trực" };
   }
 }
 

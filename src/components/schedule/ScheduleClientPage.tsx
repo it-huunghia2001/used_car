@@ -61,10 +61,14 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
     if (!selectedBranchId) return;
     setLoading(true);
     try {
+      // Chuẩn hóa ngày đầu tháng theo giờ VN
+      const startOfMonth = selectedDate.startOf("month").toDate();
+
       const [resSched, resStaff] = await Promise.all([
-        getMonthlySchedules(selectedBranchId, selectedDate.toDate()),
+        getMonthlySchedules(selectedBranchId, startOfMonth),
         getBranchSalesStaff(selectedBranchId),
       ]);
+
       if (resSched.success) setSchedules(resSched.data);
       if (resStaff.success) setStaffList(resStaff.data);
     } finally {
@@ -77,19 +81,27 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
   }, [loadData]);
 
   const onAddStaff = async (userId: string) => {
-    if (!isPrivileged) return; // Chặn thực thi
+    if (!isPrivileged) return;
     setActionLoading("adding");
-    const dateString = selectedDate.format("YYYY-MM-DD");
+
     try {
+      // Ép ngày về 00:00:00 theo múi giờ VN để Server không bị lệch 7 tiếng
+      const vnDate = selectedDate.startOf("day").toDate();
+
       const res = await upsertSchedule(
-        dateString as any,
+        vnDate as any, // Truyền trực tiếp Object Date đã chuẩn hóa
         selectedBranchId,
         userId,
       );
+
       if (res.success) {
         message.success("Đã cập nhật lịch trực");
         loadData();
-      } else message.error(res.error);
+      } else {
+        message.error(res.error);
+      }
+    } catch (error) {
+      message.error("Lỗi kết nối hệ thống");
     } finally {
       setActionLoading(null);
     }
@@ -111,13 +123,17 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
 
   // Render cho máy tính (Lưới lịch)
   const dateCellRender = (value: Dayjs) => {
-    const dayData = schedules.filter((s) => dayjs(s.date).isSame(value, "day"));
+    // So sánh chỉ ngày/tháng/năm, bỏ qua giờ phút giây
+    const dayData = schedules.filter((s) =>
+      dayjs(s.date).tz("Asia/Ho_Chi_Minh").isSame(value, "day"),
+    );
+
     return (
       <div className="flex flex-col gap-1 mt-1 overflow-hidden">
         {dayData.slice(0, 2).map((item) => (
           <div
             key={item.id}
-            className="flex items-center gap-1 bg-indigo-50 px-1 py-0.5 rounded text-[10px] border border-indigo-100 truncate shadow-sm"
+            className="flex items-center gap-1 bg-indigo-50 px-1 py-0.5 rounded text-[10px] truncate shadow-sm"
           >
             <Badge status="processing" color="#4f46e5" />
             <span className="truncate text-indigo-700 font-medium">
@@ -133,7 +149,6 @@ export default function ScheduleClientPage({ currentUser, branches }: any) {
       </div>
     );
   };
-
   // Render cho điện thoại (Danh sách Card)
   const renderMobileListView = () => {
     const daysInMonth = selectedDate.daysInMonth();
