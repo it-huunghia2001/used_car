@@ -27,7 +27,12 @@ import { getAvailableCarsAction } from "@/actions/car-actions";
 
 const { Title, Text } = Typography;
 
-export default function FormBuyCar({ carModels, userId, onSuccess }: any) {
+export default function FormBuyCar({
+  carModels,
+  userId,
+  userRole,
+  onSuccess,
+}: any) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [availableCars, setAvailableCars] = useState<any[]>([]);
@@ -183,20 +188,94 @@ export default function FormBuyCar({ carModels, userId, onSuccess }: any) {
           </Col>
 
           <Col xs={24} md={8}>
-            <Form.Item name="carYear" label="Đời xe từ">
-              <InputNumber className="w-full" placeholder="2022" />
+            <Form.Item name="carYear" label="Đời xe">
+              <InputNumber className="w-full!" placeholder="2022" />
             </Form.Item>
           </Col>
 
-          <Col span={24}>
+          <Col xs={24} md={12}>
             <Form.Item name="budget" label="Ngân sách (VNĐ)">
               <InputNumber
-                className="w-full"
+                className="w-full!"
                 formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
                 addonAfter="VNĐ"
               />
             </Form.Item>
           </Col>
+
+          {(userRole === "SALES_STAFF" || userRole === "PURCHASE_STAFF") && (
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="source"
+                label={
+                  <Text strong className="text-slate-600">
+                    Nguồn chi tiết
+                  </Text>
+                }
+                rules={[
+                  {
+                    required: true,
+                    message: "Vui lòng chọn nguồn khách hàng!",
+                  },
+                ]}
+              >
+                <Select
+                  className="w-full"
+                  placeholder="Chọn nguồn khách hàng"
+                  options={[
+                    {
+                      label: <span>🏢 NGUỒN CÔNG TY (DLr)</span>,
+                      title: "Nguồn công ty",
+                      options: [
+                        { value: "FB_COMPANY", label: "🔵 Fanpage - DLr" },
+                        { value: "WEB_COMPANY", label: "🌐 Web - DLr" },
+                        { value: "ZALO_OA", label: "💬 Zalo OA - DLr" },
+                        {
+                          value: "YOUTUBE_COMPANY",
+                          label: "🔴 Youtube - DLr",
+                        },
+                        { value: "TIKTOK_COMPANY", label: "🎵 Tiktok - DLr" },
+                        { value: "GOOGLE_MAP", label: "📍 Google Map - DLr" },
+                        { value: "FB_TMV", label: "🩺 Lead TMV" },
+                        { value: "SHROOM", label: "🍄 Shroom" },
+                        { value: "EVENT", label: "🎉 Sự kiện" },
+                      ],
+                    },
+                    {
+                      label: <span>👤 NGUỒN CÁ NHÂN KHAI THÁC</span>,
+                      title: "Nguồn cá nhân",
+                      options: [
+                        { value: "ZALO_PERSONAL", label: "📱 Zalo cá nhân" },
+                        { value: "FB_PERSONAL", label: "👥 Fanpage cá nhân" },
+                        {
+                          value: "TIKTOK_PERSONAL",
+                          label: "🎥 Tiktok cá nhân",
+                        },
+                        {
+                          value: "YOUTUBE_PERSONAL",
+                          label: "🎬 Youtube cá nhân",
+                        },
+                        { value: "WEB_PERSONAL", label: "💻 Web cá nhân" },
+                        { value: "OLD_CUSTOMER", label: "🤝 Khách hàng cũ" },
+                        {
+                          value: "COMMUNITY",
+                          label: "🏛️ Diễn đàn / Hội nhóm",
+                        },
+                        { value: "BROKER", label: "🔗 Môi giới" },
+                      ],
+                    },
+                    {
+                      label: <span>📑 KHÁC</span>,
+                      options: [
+                        { value: "HOTLINE", label: "📞 Hotline" },
+                        { value: "WALK_IN", label: "🚶 Khách vãng lai" },
+                      ],
+                    },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          )}
 
           <Col span={24}>
             <Form.Item name="note" label="Ghi chú nhu cầu chi tiết">

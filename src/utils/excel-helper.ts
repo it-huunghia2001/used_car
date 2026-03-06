@@ -30,6 +30,40 @@ const translateStatus = (status: string) => {
   return map[status] || status;
 };
 
+const translateSource = (source: string) => {
+  const map: Record<string, string> = {
+    // --- NGUỒN CÔNG TY (Dlr) ---
+    FB_COMPANY: "Fanpage - DLr",
+    FB_TMV: "Lead TMV",
+    WEB_COMPANY: "Web - DLr",
+    ZALO_OA: "Zalo OA - DLr",
+    YOUTUBE_COMPANY: "Youtube - DLr",
+    TIKTOK_COMPANY: "Tiktok - DLr",
+    GOOGLE_MAP: "Google Map - DLr",
+    SHROOM: "Shroom",
+    EVENT: "Sự kiện",
+
+    // --- NGUỒN CÁ NHÂN KHAI THÁC ---
+    ZALO_PERSONAL: "Zalo cá nhân",
+    FB_PERSONAL: "Fanpage cá nhân",
+    TIKTOK_PERSONAL: "Tiktok cá nhân",
+    YOUTUBE_PERSONAL: "Youtube cá nhân",
+    WEB_PERSONAL: "Web cá nhân",
+    OLD_CUSTOMER: "Khách hàng cũ",
+    COMMUNITY: "Diễn đàn/Hội nhóm",
+    BROKER: "Môi giới",
+
+    INTERNAL: "Nội bộ", // Case dự phòng cho dữ liệu cũ
+
+    // --- TRỰC TIẾP ---
+    HOTLINE: "Hotline",
+    WALK_IN: "Khách vãng lai",
+    OTHER: "Nguồn khác",
+  };
+
+  return map[source] || source;
+};
+
 // Định dạng số ngăn cách dấu chấm: #,##0 (Excel sẽ tự động đổi dấu phẩy thành dấu chấm theo cấu hình vùng của máy tính người dùng)
 
 const NUMBER_FORMAT = "#,##0";
@@ -91,6 +125,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     { header: "GIỜ NHẬN", key: "timeIn", width: 10 },
     { header: "NGƯỜI GIỚI THIỆU", key: "refStaff", width: 20 },
     { header: "BỘ PHẬN GT", key: "source", width: 20 },
+    { header: "NGỒN CHI TIẾT", key: "sourceDetail", width: 25 },
 
     // Nhóm: Khách hàng
     { header: "TÊN KHÁCH HÀNG", key: "name", width: 25 },
@@ -145,6 +180,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
       timeIn: dayjs(item.createdAt).format("HH:mm"),
       refStaff: item.referrer?.fullName,
       source: item.referrer?.department?.name,
+      sourceDetail: translateSource(item.source),
       name: item.fullName,
       phone: item.phone,
       province: item.province,
@@ -195,6 +231,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     { header: "GIỜ NHẬN", key: "timeIn", width: 10 },
     { header: "NGƯỜI GIỚI THIỆU", key: "refStaff", width: 20 },
     { header: "BỘ PHẬN GT", key: "source", width: 20 },
+    { header: "NGỒN CHI TIẾT", key: "sourceDetail", width: 25 },
 
     // Nhóm: Khách hàng
     { header: "TÊN KHÁCH HÀNG", key: "name", width: 25 },
@@ -233,6 +270,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
       staff: item.assignedTo?.fullName,
       dateIn: dayjs(item.createdAt).format("DD/MM/YYYY"),
       source: item.sourceName || item.referrer?.department?.name || "Trực tiếp",
+      sourceDetail: translateSource(item.source),
       campaign: item.campaignName || "---",
       name: item.fullName,
       phone: item.phone,
@@ -350,6 +388,8 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Giờ nhận thông tin", key: "timeIn", width: 12 },
     { header: "Nhân viên giới thiệu", key: "refStaff", width: 20 },
     { header: "Nguồn giới thiệu", key: "source", width: 25 },
+    { header: "Nguồn chi tiết", key: "sourceDetail", width: 25 },
+
     { header: "Tên khách hàng", key: "name", width: 25 },
     { header: "Đánh giá trạng thái", key: "level", width: 15 },
     { header: "Tình trạng hồ sơ", key: "status", width: 15 },
@@ -388,6 +428,7 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
       timeIn: dayjs(item.createdAt).format("HH:mm"),
       refStaff: item.referrer?.fullName,
       source: item.referrer?.department?.name || "Vãng lai",
+      sourceDetail: translateSource(item.source),
       name: item.fullName,
       level: translateStatus(item.urgencyLevel),
       reasonDetail: reasonDetail || "",
@@ -441,6 +482,7 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Địa chỉ", key: "address", width: 40 },
     { header: "Tỉnh", key: "province", width: 30 },
     { header: "Nguồn giới thiệu", key: "source", width: 25 },
+    { header: "Nguồn chi tiết", key: "sourceDetail", width: 25 },
     { header: "Ngân sách", key: "budget", width: 15 },
     { header: "Model quan tâm", key: "model", width: 15 },
     { header: "Ngày liên hệ gần nhất", key: "lastDate", width: 15 },
@@ -470,6 +512,7 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
       address: `${item.province || ""} ${item.address || ""}`,
       province: item.province,
       source: item.referrer?.department?.name || "Vãng lai",
+      sourceDetail: translateSource(item.source),
       budget: item.budget ? Number(item.budget) : null,
       model: item.carModel?.name,
 

@@ -145,11 +145,11 @@ model Customer {
   referralDate DateTime @default(now())
 
   assignedToId String?
-  assignedTo   User?     @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  assignedTo   User?      @relation("AssignedLeads", fields: [assignedToId], references: [id])
   assignedAt   DateTime?
-
-  branchId String?
-  branch   Branch? @relation("BranchCustomers", fields: [branchId], references: [id])
+  source       LeadSource @default(INTERNAL)
+  branchId     String?
+  branch       Branch?    @relation("BranchCustomers", fields: [branchId], references: [id])
 
   fullName String
   phone    String
@@ -668,13 +668,23 @@ model Notification {
 }
 
 enum LeadSource {
-  FACEBOOK
-  ZALO
-  WEBSITE
+  ZALO_OA // Zalo của công ty (Zalo Official Account)
+  ZALO_PERSONAL // Zalo do nhân viên tự khai thác
+  FACEBOOK_ADS // Fanpage công ty / Lead TMV
+  FACEBOOK_PERSONAL // Fanpage cá nhân
+  WEBSITE_COMPANY
+  WEBSITE_PERSONAL
+  TIKTOK_COMPANY
+  TIKTOK_PERSONAL
+  YOUTUBE_COMPANY
+  YOUTUBE_PERSONAL
+  GOOGLE_MAPS
+  SHROOM
+  EVENT
+  REFERRAL // Khách cũ Môi giới
+  COMMUNITY // Diễn đàn Hội nhóm
   HOTLINE
   WALK_IN
-  REFERRAL
-  TIKTOK
-  DIRECT_ADS
+  INTERNAL
   OTHER
 }

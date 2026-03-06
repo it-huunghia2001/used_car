@@ -64,7 +64,6 @@ export async function getExportCustomerData(
           expectedPrice: true,
           finalPrice: true,
           color: true,
-          source: true, // Lấy nguồn từ LeadCar
         },
       },
 
@@ -106,17 +105,6 @@ export async function getExportCustomerData(
       lostActivity?.reason?.content || lostActivity?.note || "N/A";
 
     // --- LOGIC A: Xử lý TYPE (ReferralType) nếu NULL ---
-    let finalType = customer.type;
-    if (!finalType) {
-      // So sánh dựa trên nguồn (LeadSource) từ LeadCar
-      if (leadCar?.source === "HOTLINE" || leadCar?.source === "WALK_IN") {
-        finalType = "BUY" as any;
-      } else if (leadCar?.source === "FACEBOOK" || leadCar?.source === "ZALO") {
-        finalType = "SELL" as any;
-      } else {
-        finalType = "VALUATION" as any; // Mặc định nếu không xác định được
-      }
-    }
 
     // --- LOGIC B: Kiểm tra liên hệ gần nhất & Độ trễ ---
     // Lấy ngày liên hệ thực tế từ activity mới nhất hoặc trường lastContactAt
@@ -157,7 +145,6 @@ export async function getExportCustomerData(
         customer.status === "LOSE" || customer.status === "CANCELLED"
           ? lostReason
           : "N/A",
-      type: finalType,
       urgencyLevel: calculatedUrgency,
       isLate: isCurrentlyLate,
 

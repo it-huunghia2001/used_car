@@ -1410,6 +1410,7 @@ export async function selfCreateCustomerAction(values: any) {
 
           // LƯU TRƯỜNG XE MUỐN ĐỔI (TRADE-IN)
           tradeInModelId: values.tradeInModelId || null,
+          source: values.source,
 
           licensePlate: inventoryCarData
             ? inventoryCarData.licensePlate

@@ -18,12 +18,21 @@ export default function NewReferralPage() {
   >("SELL");
   const [carModels, setCarModels] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     // Lấy thông tin user hiện tại
     fetch("/api/auth/me")
       .then((res) => res.json())
-      .then((data) => setUserId(data.id));
+      .then((data) => {
+        // Gán cả 2 giá trị từ object data nhận được
+        if (data) {
+          setUserId(data.id);
+          setUserRole(data.role); // Role này sẽ dùng để ẩn/hiện cái Select Nguồn chi tiết
+        }
+      })
+      .catch((err) => console.error("Lỗi lấy thông tin user:", err));
+
     // Lấy danh mục xe
     getCarModelsAction().then(setCarModels);
   }, []);
@@ -72,6 +81,7 @@ export default function NewReferralPage() {
                 carModels={carModels}
                 userId={userId}
                 onSuccess={() => setStep("SELECT")}
+                userRole={userRole}
               />
             )}
             {referralType === "BUY" && (
@@ -79,6 +89,7 @@ export default function NewReferralPage() {
                 carModels={carModels}
                 userId={userId}
                 onSuccess={() => setStep("SELECT")}
+                userRole={userRole}
               />
             )}
           </div>

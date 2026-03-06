@@ -376,6 +376,66 @@ export default function ModalSelfAddCustomer({
               />
             </Form.Item>
           </Col>
+          <Col xs={24} md={12}>
+            <Form.Item
+              name="source"
+              label={
+                <Text strong className="text-slate-600">
+                  Nguồn chi tiết
+                </Text>
+              }
+              rules={[
+                { required: true, message: "Vui lòng chọn nguồn khách hàng!" },
+              ]}
+            >
+              <Select
+                size="large"
+                className="w-full"
+                placeholder="Chọn nguồn khách hàng"
+                options={[
+                  {
+                    label: <span>🏢 NGUỒN CÔNG TY (DLr)</span>,
+                    title: "Nguồn công ty",
+                    options: [
+                      { value: "FB_COMPANY", label: "🔵 Fanpage - DLr" },
+                      { value: "WEB_COMPANY", label: "🌐 Web - DLr" },
+                      { value: "ZALO_OA", label: "💬 Zalo OA - DLr" },
+                      { value: "YOUTUBE_COMPANY", label: "🔴 Youtube - DLr" },
+                      { value: "TIKTOK_COMPANY", label: "🎵 Tiktok - DLr" },
+                      { value: "GOOGLE_MAP", label: "📍 Google Map - DLr" },
+                      { value: "FB_TMV", label: "🩺 Lead TMV" },
+                      { value: "SHROOM", label: "🍄 Shroom" },
+                      { value: "EVENT", label: "🎉 Sự kiện" },
+                    ],
+                  },
+                  {
+                    label: <span>👤 NGUỒN CÁ NHÂN KHAI THÁC</span>,
+                    title: "Nguồn cá nhân",
+                    options: [
+                      { value: "ZALO_PERSONAL", label: "📱 Zalo cá nhân" },
+                      { value: "FB_PERSONAL", label: "👥 Fanpage cá nhân" },
+                      { value: "TIKTOK_PERSONAL", label: "🎥 Tiktok cá nhân" },
+                      {
+                        value: "YOUTUBE_PERSONAL",
+                        label: "🎬 Youtube cá nhân",
+                      },
+                      { value: "WEB_PERSONAL", label: "💻 Web cá nhân" },
+                      { value: "OLD_CUSTOMER", label: "🤝 Khách hàng cũ" },
+                      { value: "COMMUNITY", label: "🏛️ Diễn đàn / Hội nhóm" },
+                      { value: "BROKER", label: "🔗 Môi giới" },
+                    ],
+                  },
+                  {
+                    label: <span>📑 KHÁC</span>,
+                    options: [
+                      { value: "HOTLINE", label: "📞 Hotline" },
+                      { value: "WALK_IN", label: "🚶 Khách vãng lai" },
+                    ],
+                  },
+                ]}
+              />
+            </Form.Item>
+          </Col>
           <Col span={24}>
             <Form.Item
               name="note"
