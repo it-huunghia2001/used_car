@@ -19,23 +19,26 @@ import dayjs from "@/lib/dayjs";
 import { getReferralTypeLabel } from "@/lib/utils";
 
 const calculateDeadline = (startTime: Date, maxLateMinutes: number) => {
-  const dayjsTime = dayjs(startTime);
-  const hour = dayjsTime.hour();
-  const minute = dayjsTime.minute();
+  // Chuyển đổi sang múi giờ VN
+  const vnTime = dayjs(startTime).tz("Asia/Ho_Chi_Minh");
 
-  // Kiểm tra nếu sau 16:30 (16h30p)
+  const hour = vnTime.hour();
+  const minute = vnTime.minute();
+
+  // Kiểm tra nếu sau 16:30
   if (hour > 16 || (hour === 16 && minute >= 30)) {
-    // Trả về 08:30 sáng ngày hôm sau
-    return dayjsTime
+    // Trả về 08:30 sáng ngày hôm sau (vẫn giữ múi giờ VN)
+    return vnTime
       .add(1, "day")
       .set("hour", 8)
       .set("minute", 30)
       .set("second", 0)
-      .toDate();
+      .set("millisecond", 0)
+      .toDate(); // Prisma sẽ tự chuyển về UTC khi lưu DB
   }
 
   // Nếu trong giờ hành chính, cộng thêm số phút quy định
-  return dayjsTime.add(maxLateMinutes, "minute").toDate();
+  return vnTime.add(maxLateMinutes, "minute").toDate();
 };
 
 /**
