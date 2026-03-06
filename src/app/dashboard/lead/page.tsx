@@ -53,7 +53,7 @@ import {
 } from "@/utils/excel-helper";
 
 const { Text, Title } = Typography;
-const { Option } = Select;
+const { Option, OptGroup } = Select;
 
 export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
@@ -520,9 +520,32 @@ export default function LeadsPage() {
               }
             >
               <Option value="ALL">Tất cả trạng thái</Option>
-              <Option value="NEW">Mới</Option>
-              <Option value="FOLLOW_UP">Đang chăm sóc</Option>
-              <Option value="DEAL_DONE">Đã chốt</Option>
+
+              {/* Nhóm Đang xử lý */}
+              <OptGroup label="Tiến độ xử lý">
+                <Option value="NEW">Mới (Chưa nhận)</Option>
+                <Option value="PENDING_VIEW">Chờ xem/Tiếp nhận</Option>
+                <Option value="FOLLOW_UP">Đang chăm sóc</Option>
+                <Option value="CONTACTED">Đã liên hệ</Option>
+                <Option value="INSPECTING">Đang xem xe/Lái thử</Option>
+              </OptGroup>
+
+              {/* Nhóm Phê duyệt */}
+              <OptGroup label="Đang phê duyệt">
+                <Option value="PENDING_DEAL_APPROVAL">Chờ duyệt chốt</Option>
+                <Option value="PENDING_LOSE_APPROVAL">
+                  Chờ duyệt đóng hồ sơ
+                </Option>
+                <Option value="REJECTED_APPROVAL">Bị từ chối phê duyệt</Option>
+              </OptGroup>
+
+              {/* Nhóm Kết quả */}
+              <OptGroup label="Kết thúc">
+                <Option value="DEAL_DONE">Thành công (Đã chốt)</Option>
+                <Option value="LOSE">Thất bại (Lose)</Option>
+                <Option value="CANCELLED">Đã hủy</Option>
+                <Option value="FROZEN">Tạm dừng (Đóng băng)</Option>
+              </OptGroup>
             </Select>
             <DatePicker.RangePicker
               format="DD/MM/YYYY"

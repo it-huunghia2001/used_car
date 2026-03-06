@@ -12,21 +12,14 @@ import {
   Card,
   Typography,
   message,
-  Badge,
-  Tooltip,
   Segmented,
   Divider,
   Avatar,
   Input,
-  Row,
-  Col,
-  Form,
+  Tabs,
 } from "antd";
 import {
-  SyncOutlined,
   DollarOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
   HistoryOutlined,
   UserAddOutlined,
   CarOutlined,
@@ -36,6 +29,8 @@ import {
   ThunderboltOutlined,
   CalendarOutlined,
   CloseCircleOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
 
 // Actions
@@ -52,24 +47,22 @@ import {
   selfCreateCustomerAction,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
+import { getMeAction } from "@/actions/user-actions";
+import { getBuyReasons } from "@/actions/sell-reason-actions";
+import { getLeadStatusHelper } from "@/lib/status-helper";
 import dayjs from "@/lib/dayjs";
 
 // Components
 import ModalLoseLead from "@/components/assigned-tasks/ModalLoseLead";
 import ModalContactAndLeadCar from "@/components/assigned-tasks/ModalContactAndLeadCar";
 import ModalDetailCustomer from "@/components/assigned-tasks/modal-detail/ModalDetailCustomer";
-import ModalSelfAddCustomer from "@/components/assigned-tasks/ModalSelfAddCustomer";
 import ModalApproveSales from "@/components/assigned-tasks/ModalApproveSales";
-import { UrgencyBadge } from "@/lib/urgencyBadge";
-import { getMeAction } from "@/actions/user-actions";
-import { getLeadStatusHelper } from "@/lib/status-helper";
 import ModalAddSelfLead from "@/components/assigned-tasks/ModalAddSelfLead";
-import { getBuyReasons } from "@/actions/sell-reason-actions";
+import { UrgencyBadge } from "@/lib/urgencyBadge";
 
 const { Title, Text } = Typography;
 
 export default function SalesTasksPage() {
-  const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -79,6 +72,7 @@ export default function SalesTasksPage() {
   const [reasons, setReasons] = useState<any[]>([]);
   const [filterType, setFilterType] = useState<string>("Tất cả");
   const [searchText, setSearchText] = useState("");
+  const [filterUrgency, setFilterUrgency] = useState<string>("ALL");
   const [isMobile, setIsMobile] = useState(false);
 
   // Modal States
@@ -91,45 +85,26 @@ export default function SalesTasksPage() {
   const [maintenanceTasks, setMaintenanceTasks] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [buyReasons, setBuyReasons] = useState<any[]>([]);
-  const [now, setNow] = useState(dayjs());
 
-  const [filterUrgency, setFilterUrgency] = useState<string>("ALL");
-
+  // --- EFFECT ---
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     handleResize();
     window.addEventListener("resize", handleResize);
-    const timer = setInterval(() => setNow(dayjs()), 30000);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      clearInterval(timer);
-    };
+    loadInitialData();
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const loadCustomersOnly = async (search?: string, urgency?: string) => {
-    setLoading(true);
-    try {
-      const myCustomers = await getMyCustomersAction({
-        searchText: search,
-        urgencyLevel: urgency,
-      });
-      setCustomers(myCustomers);
-    } catch (err) {
-      messageApi.error("Lỗi tải danh sách khách hàng");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Sync khách hàng khi search hoặc filter urgency thay đổi
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      // Gọi API với cả 2 tham số
       loadCustomersOnly(searchText, filterUrgency);
-    }, 400); // 400ms để tránh spam API khi gõ phím
-
+    }, 400);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchText, filterUrgency]); // Chạy lại khi 1 trong 2 cái này thay đổi
+  }, [searchText, filterUrgency]);
 
-  const loadData = async () => {
+  // --- API CALLS ---
+  const loadInitialData = async () => {
     setLoading(true);
     try {
       const [leads, cars, models, maintenance, userData, bReasons]: any =
@@ -142,33 +117,37 @@ export default function SalesTasksPage() {
           getBuyReasons(),
         ]);
       setTasks(leads);
-
       setInventory(cars);
       setCarModels(models);
       setBuyReasons(bReasons);
       setMaintenanceTasks(maintenance);
-      setCurrentUser(userData);
+      setCurrentUser(userData.data);
+      console.log(userData.data);
     } catch (err) {
-      messageApi.error("Lỗi tải dữ liệu");
+      messageApi.error("Lỗi tải dữ liệu hệ thống");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const loadCustomersOnly = async (search?: string, urgency?: string) => {
+    try {
+      const myCustomers = await getMyCustomersAction({
+        searchText: search,
+        urgencyLevel: urgency === "ALL" ? undefined : urgency,
+      });
+      setCustomers(myCustomers);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
+  // --- LOGIC XỬ LÝ ---
   const handleMakeCall = (customerPhone: string) => {
     if (!customerPhone) return;
-
-    // Lấy extension từ thông tin user đã load (hoặc từ props/session)
     const extension = currentUser?.extension || "";
-
-    // Nối chuỗi: [Mã extension][Số điện thoại]
-    const finalPhoneNumber = `${extension}${customerPhone}`;
-
-    window.location.href = `tel:${finalPhoneNumber}`;
+    window.location.href = `tel:${extension}${customerPhone}`;
+    console.log(`tel:${extension}${customerPhone}`);
   };
 
   const filteredTasks = useMemo(() => {
@@ -183,47 +162,44 @@ export default function SalesTasksPage() {
     });
   }, [tasks, searchText, filterType]);
 
+  // --- ACTIONS ---
   const onFinishAddCustomer = async (values: any) => {
     setLoading(true);
     try {
       const res = await selfCreateCustomerAction(values);
-
       if (res.success) {
-        messageApi.success("Khách hàng đã được thêm thành công!");
+        messageApi.success("Đã thêm khách hàng mới!");
         setIsAddModalOpen(false);
-        form.resetFields();
-        loadData(); // Reload data to show the new customer
+        loadInitialData();
       } else {
-        const errorMsg =
-          (res as any).error || "Dữ liệu này đã tồn tại trong hệ thống.";
-        messageApi.error(errorMsg);
+        messageApi.error("error" in res ? res.error : "Dữ liệu đã tồn tại.");
       }
-    } catch (error: any) {
-      messageApi.error(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // --- ACTIONS ---
   const onContactFinish = async (values: any) => {
     setLoading(true);
     try {
-      const result = await updateCustomerStatusAction(
+      const targetId =
         selectedLead?.customerId ||
-          selectedLead?.id ||
-          selectedLead?.customer?.customerId ||
-          selectedLead?.customer?.id,
+        selectedLead?.id ||
+        selectedLead?.customer?.id;
+      const taskId = selectedLead?.id || selectedLead?.customer?.id;
+
+      const result = await updateCustomerStatusAction(
+        targetId,
         "CONTACTED",
         values.note,
-        selectedLead?.id || selectedLead?.customer?.id,
+        taskId,
         values.nextContactAt ? dayjs(values.nextContactAt).toISOString() : null,
         { nextNote: values.nextContactNote },
       );
       if (result.success) {
-        messageApi.success("Đã cập nhật");
+        messageApi.success("Cập nhật tương tác thành công");
         setIsContactModalOpen(false);
-        loadData();
+        loadInitialData();
       }
     } finally {
       setLoading(false);
@@ -233,135 +209,479 @@ export default function SalesTasksPage() {
   const onFailFinish = async (values: any) => {
     setLoading(true);
     try {
-      // Lưu ý: Đảm bảo thứ tự tham số truyền vào đúng với hàm requestLoseApproval ở Server
       const res = await requestLoseApproval(
-        selectedLead.id || selectedLead.id, // customerId
-        values.reasonId, // reasonId
-        values.note, // note
-        values.status, // targetStatus (LOSE, FROZEN...)
+        selectedLead.id,
+        values.reasonId,
+        values.note,
+        values.status,
       );
-
       if (res.success) {
-        // ✅ TRƯỜNG HỢP THÀNH CÔNG
-        messageApi.success("Đã gửi yêu cầu phê duyệt thành công");
-        setIsFailModalOpen(false); // Chỉ đóng modal khi thành công
-        form.resetFields(); // Reset form để lần sau mở lại không bị dính dữ liệu cũ
-        loadData();
+        messageApi.success("Đã gửi yêu cầu phê duyệt đóng hồ sơ");
+        setIsFailModalOpen(false);
+        loadInitialData();
       } else {
-        // ❌ TRƯỜNG HỢP THẤT BẠI (Lỗi chặn trùng, lỗi logic...)
-        // messageApi.error sẽ hiển thị thông báo: "Hồ sơ này đang có một yêu cầu phê duyệt khác..."
-        messageApi.error(res.error || "Không thể gửi yêu cầu phê duyệt");
+        messageApi.error(res.error);
       }
-    } catch (error: any) {
-      // Lỗi kết nối hoặc lỗi server crash
-      messageApi.error("Lỗi hệ thống: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const TableCountdown = ({ deadline, isOverdue, minutesOverdue }: any) => {
+    const [timeLeft, setTimeLeft] = useState<number>(0);
+
+    useEffect(() => {
+      const timer = setInterval(() => {
+        const diff = dayjs(deadline).diff(dayjs(), "second");
+        setTimeLeft(diff);
+      }, 1000);
+      return () => clearInterval(timer);
+    }, [deadline]);
+
+    if (isOverdue || timeLeft <= 0) {
+      return (
+        <div className="flex flex-col">
+          <Text className="text-[12px] font-bold text-red-500">
+            {dayjs(deadline).format("HH:mm DD/MM")}
+          </Text>
+          <Tag
+            color="error"
+            className="w-fit m-0 text-[10px] font-bold animate-pulse"
+          >
+            TRỄ {minutesOverdue}m
+          </Tag>
+        </div>
+      );
+    }
+
+    const d = Math.floor(timeLeft / (3600 * 24));
+    const h = Math.floor((timeLeft % (3600 * 24)) / 3600);
+    const m = Math.floor((timeLeft % 3600) / 60);
+    const s = timeLeft % 60;
+
+    // Render logic rút gọn
+    const renderTimeText = () => {
+      if (d > 0) return `${d}n ${h}h`; // Còn trên 1 ngày: chỉ hiện Ngày & Giờ
+      if (h > 0) return `${h}h ${m}p`; // Còn trong ngày: chỉ hiện Giờ & Phút
+      return `${m}p ${s}s`; // Dưới 1 giờ: hiện Phút & Giây
+    };
+
+    const isUrgent = timeLeft < 900; // Dưới 15 phút
+
+    return (
+      <div className="flex flex-col">
+        <Text className="text-[11px] text-slate-400">
+          Hạn: {dayjs(deadline).format("HH:mm DD/MM")}
+        </Text>
+        <Text
+          className={`text-[12px] font-bold font-mono ${isUrgent ? "text-red-500! animate-pulse" : "text-emerald-600!"}`}
+        >
+          Còn {renderTimeText()}
+        </Text>
+      </div>
+    );
+  };
+
   const handleCompleteMaintenance = async (taskId: string) => {
-    const hide = messageApi.loading("Đang xử lý...", 0);
     try {
       const res = await completeMaintenanceTaskAction(taskId);
       if (res.success) {
-        messageApi.success("Đã xong!");
-        loadData();
+        messageApi.success("Hoàn thành nhắc bảo dưỡng");
+        loadInitialData();
       }
-    } finally {
-      hide();
+    } catch (err) {
+      messageApi.error("Lỗi xử lý");
     }
   };
 
-  // --- MOBILE CARD RENDERER ---
+  // --- COLUMNS DEFINITION ---
+  const columnsTasks = [
+    {
+      title: "KHÁCH HÀNG",
+      render: (t: any) => (
+        <Space>
+          <div>
+            <Text strong className="block">
+              {t.customer.fullName}
+            </Text>
+            <Text type="secondary" className="text-[11px] font-mono">
+              {t.customer.phone}
+            </Text>
+          </div>
+          <UrgencyBadge type={t.customer.urgencyLevel} />
+        </Space>
+      ),
+    },
+    {
+      title: "XE / NHU CẦU",
+      render: (t: any) => (
+        <div>
+          <Text strong className="text-emerald-700 text-[13px]">
+            <CarOutlined /> {t.customer.carModel?.name || "Chưa chọn xe"}
+          </Text>
+          <div className="text-[11px] text-slate-400 line-clamp-1">
+            {t.customer.leadCar?.description || "Nhu cầu chung"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "KPI HẠN",
+      render: (t: any) => {
+        const isSelfCreated =
+          t.customer?.referrerId === currentUser?.id ||
+          t.customer?.isSelfCreated;
+
+        // Trường hợp 1: Tự khai thác (Không tính hạn, chỉ hiện giờ hẹn)
+        if (isSelfCreated) {
+          return (
+            <div className="flex flex-col">
+              <Tag
+                color="blue"
+                className="w-fit m-0 text-[10px] font-bold rounded-md border-blue-200 bg-blue-50 text-blue-600"
+              >
+                TỰ KHAI THÁC
+              </Tag>
+              <Text className="text-[12px] text-slate-400 mt-1 italic">
+                Hẹn:{" "}
+                {dayjs(t.scheduledAt || t.deadlineAt).format("HH:mm DD/MM")}
+              </Text>
+            </div>
+          );
+        }
+
+        // Trường hợp 2: Khách hệ thống (Chạy bộ đếm realtime)
+        return (
+          <TableCountdown
+            deadline={t.scheduledAt || t.deadlineAt}
+            isOverdue={t.isOverdue}
+            minutesOverdue={t.minutesOverdue}
+          />
+        );
+      },
+    },
+    {
+      title: "XỬ LÝ",
+      align: "right" as const,
+      render: (record: any) => (
+        <Space onClick={(e) => e.stopPropagation()}>
+          <Button
+            icon={<PhoneOutlined />}
+            type="primary"
+            ghost
+            size="small"
+            shape="circle"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMakeCall(record.customer?.phone);
+              setSelectedLead(record);
+              setIsContactModalOpen(true);
+            }}
+          />
+          <Button
+            danger
+            icon={<CloseCircleOutlined />}
+            type="text"
+            onClick={() => {
+              setSelectedLead(record.customer);
+              setIsFailModalOpen(true);
+              getActiveReasonsAction("LOSE").then(setReasons);
+            }}
+          />
+        </Space>
+      ),
+    },
+  ];
+
+  const columnsCustomers = [
+    {
+      title: "KHÁCH HÀNG",
+      render: (r: any) => (
+        <Space>
+          <Avatar className="bg-slate-800">{r.fullName?.[0]}</Avatar>
+          <div>
+            <div className="flex gap-2 items-center">
+              <Text strong>{r.fullName}</Text>
+              <UrgencyBadge type={r.urgencyLevel} />
+            </div>
+            <div className="text-[11px] font-mono">{r.phone}</div>
+          </div>
+        </Space>
+      ),
+    },
+    {
+      title: "XE / NHU CẦU",
+      render: (t: any) => (
+        <div>
+          <Text strong className="text-emerald-700 text-[13px]">
+            <CarOutlined /> {t.carModel?.name || "Chưa chọn xe"}
+          </Text>
+          <div className="text-[11px] text-slate-400 line-clamp-1">
+            {t.leadCar?.description || "Nhu cầu chung"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "TRẠNG THÁI",
+      render: (r: any) => {
+        const { label, color, icon } = getLeadStatusHelper(r.status);
+        return (
+          <Tag
+            icon={icon}
+            color={color}
+            className="rounded-full border-none font-black text-[10px] px-3"
+          >
+            {label}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "THAO TÁC",
+      align: "right" as const,
+      render: (record: any) => (
+        <Space onClick={(e) => e.stopPropagation()}>
+          <Button
+            icon={<PhoneOutlined />}
+            shape="circle"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMakeCall(record.phone);
+              setSelectedLead(record);
+              setIsContactModalOpen(true);
+            }}
+          />
+          <Button
+            type="primary"
+            className="bg-emerald-600 border-none font-bold rounded-xl"
+            onClick={() => {
+              setSelectedLead({ customerId: record.id, customer: record });
+              setIsSalesModalOpen(true);
+            }}
+          >
+            CHỐT
+          </Button>
+          <Button
+            danger
+            icon={<CloseCircleOutlined />}
+            type="text"
+            onClick={() => {
+              setSelectedLead({ customer: record, id: record.id });
+              setIsFailModalOpen(true);
+              getActiveReasonsAction("LOSE").then(setReasons);
+            }}
+          />
+        </Space>
+      ),
+    },
+  ];
+
+  const CountdownTimer = ({
+    deadline,
+    isSelfCreated,
+  }: {
+    deadline: string;
+    isSelfCreated: boolean;
+  }) => {
+    const [timeLeft, setTimeLeft] = useState<number>(0);
+
+    useEffect(() => {
+      if (isSelfCreated) return;
+      const timer = setInterval(() => {
+        const diff = dayjs(deadline).diff(dayjs(), "second");
+        setTimeLeft(diff);
+      }, 1000);
+      return () => clearInterval(timer);
+    }, [deadline, isSelfCreated]);
+
+    if (isSelfCreated) {
+      return (
+        <div className="flex flex-col items-end">
+          <Tag
+            color="blue"
+            className="m-0 border-none rounded-lg font-bold text-[10px] bg-blue-50 text-blue-600"
+          >
+            TỰ KHAI THÁC
+          </Tag>
+          <Text className="text-[10px] text-slate-400 mt-1">
+            Hẹn: {dayjs(deadline).format("HH:mm DD/MM/YY")}
+          </Text>
+        </div>
+      );
+    }
+
+    if (timeLeft <= 0) {
+      return (
+        <div className="flex flex-col items-end">
+          <Text className="text-red-500 font-bold animate-pulse text-[11px]">
+            QUÁ HẠN
+          </Text>
+          <Text className="text-[10px] text-slate-400">
+            Hạn: {dayjs(deadline).format("HH:mm")}
+          </Text>
+        </div>
+      );
+    }
+
+    // Logic tính toán thông minh
+    const hours = Math.floor(timeLeft / 3600);
+    const minutes = Math.floor((timeLeft % 3600) / 60);
+    const seconds = timeLeft % 60;
+    const isUrgent = timeLeft < 900; // Nháy đỏ nếu dưới 15 phút
+
+    return (
+      <div
+        className={`flex flex-col items-end ${isUrgent ? "animate-pulse" : ""}`}
+      >
+        <Text
+          className={`text-[10px] font-mono ${isUrgent ? "text-red-600! font-bold" : "text-slate-500"}`}
+        >
+          Hạn: {dayjs(deadline).format("HH:mm")}
+        </Text>
+        <Text
+          className={`text-[11px] font-bold ${isUrgent ? "text-red-500!" : "text-emerald-600"}`}
+        >
+          Còn {hours > 0 ? `${hours}h ` : ""}
+          {minutes}p {seconds}s
+        </Text>
+      </div>
+    );
+  };
+
+  // --- MOBILE RENDERER ---
   const renderMobileFeed = (items: any[], type: "TASK" | "CUSTOMER") => {
     if (items.length === 0)
       return (
-        <Card className="rounded-2xl border-none text-center p-8">
-          <Text type="secondary">Không có dữ liệu</Text>
+        <Card className="rounded-2xl text-center p-8 border-dashed border-2">
+          <Text type="secondary">Trống</Text>
         </Card>
       );
+
     return items.map((item) => {
       const isTask = type === "TASK";
       const record = isTask ? item : { customer: item, isOverdue: false };
+
+      // Logic xác định khách tự khai thác (không tính hạn)
+      const isSelfCreated =
+        record.customer?.isSelfCreated ||
+        record.customer?.referrerId === currentUser?.id;
+
       return (
         <Card
           key={item.id}
-          className={`mb-4! rounded-3xl shadow-sm border-none overflow-hidden ${record.isOverdue ? "bg-red-50/50" : "bg-white"}`}
+          className={`mb-3! rounded-2xl shadow-sm border-none transition-all ${
+            !isSelfCreated && record.isOverdue
+              ? "bg-red-50 ring-1 ring-red-100"
+              : "bg-white"
+          }`}
           onClick={() => {
-            setSelectedLead(item);
+            setSelectedLead(isTask ? item : { customer: item });
             setIsDetailModalOpen(true);
           }}
         >
-          <div className="flex justify-between items-start mb-3">
-            <Space>
-              <Avatar
-                size={45}
-                className={`${isTask ? "bg-emerald-500" : "bg-slate-800"}`}
-              >
-                {record.customer.fullName?.[0]}
-              </Avatar>
-              <div className="flex flex-col">
-                <Text strong className="text-base">
-                  {record.customer.fullName}
-                </Text>
-                <Text type="secondary" className="text-xs font-mono">
-                  {record.customer.phone}
+          <div className="flex justify-between items-start">
+            <div>
+              <Space align="start">
+                <Avatar
+                  size="default"
+                  className={isTask ? "bg-emerald-500" : "bg-slate-700"}
+                >
+                  {record.customer.fullName?.[0]}
+                </Avatar>
+                <div>
+                  <Text strong className="text-[15px] block leading-none mb-1">
+                    {record.customer.fullName}
+                  </Text>
+                  <Text type="secondary" className="text-[11px] font-mono">
+                    {record.customer.phone}
+                  </Text>
+                </div>
+              </Space>
+              <div>
+                <Text strong className="text-[15px] block leading-none mb-1">
+                  <CarOutlined />{" "}
+                  {record.customer.carModel?.name || "Chưa chọn xe"}
                 </Text>
               </div>
-            </Space>
-            <UrgencyBadge type={record.customer.urgencyLevel} />
-          </div>
-          <div className="bg-white/60 p-3 rounded-2xl border border-slate-100 mb-4">
-            <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
-              <CarOutlined />{" "}
-              {record.customer.carModel?.name || "Nhu cầu chung"}
             </div>
-          </div>
-          <div className="flex justify-between items-center">
-            {isTask ? (
-              <Text
-                strong
-                className={
-                  record.customer.isOverdue ? "text-red-500" : "text-blue-600"
-                }
-              >
-                <ClockCircleOutlined />{" "}
-                {dayjs(item.scheduledAt).format("HH:mm - DD/MM")}
-              </Text>
+
+            {/* Hiển thị đếm ngược hoặc Tag tự khai thác */}
+            {isTask && item.scheduledAt ? (
+              <CountdownTimer
+                deadline={item.scheduledAt}
+                isSelfCreated={isSelfCreated}
+              />
             ) : (
-              <Tag
-                color="blue"
-                className="rounded-full border-none px-3 font-black text-[10px] uppercase"
-              >
-                {record.customer.status}
-              </Tag>
+              <UrgencyBadge type={record.customer.urgencyLevel} />
             )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-50 flex justify-between items-center">
+            <div className="flex gap-2 items-center">
+              {isTask && <UrgencyBadge type={record.customer.urgencyLevel} />}
+              {!isTask && isSelfCreated && (
+                <Tag
+                  color="success"
+                  className="m-0 text-[10px] font-bold rounded"
+                >
+                  TỰ KHAI THÁC
+                </Tag>
+              )}
+              {/* Chỉ hiện tag TRỄ nếu KHÔNG PHẢI khách tự khai thác */}
+              {isTask && !isSelfCreated && item.isOverdue && (
+                <Tag
+                  color="error"
+                  className="m-0 text-[10px] font-bold rounded"
+                >
+                  TRỄ {item.minutesOverdue}m
+                </Tag>
+              )}
+
+              {/* Icon đánh dấu khách tự khai thác nếu cần thiết ở hàng dưới */}
+              {isSelfCreated && (
+                <CheckCircleOutlined className="text-blue-500! text-xs" />
+              )}
+            </div>
+
             <Space onClick={(e) => e.stopPropagation()}>
               <Button
+                size="middle"
                 shape="circle"
-                icon={<HistoryOutlined />}
+                className="border-none bg-slate-100"
+                icon={<PhoneOutlined className="text-emerald-600" />}
                 onClick={(e) => {
-                  e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài Card/Row
-
-                  // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
-                  const phoneNumber = record.customer?.phone;
-                  handleMakeCall(phoneNumber);
-
-                  // 2. Mở Modal ghi chú tương tác
-                  setSelectedLead(item);
+                  e.stopPropagation();
+                  handleMakeCall(record.customer?.phone);
+                  setSelectedLead(record);
                   setIsContactModalOpen(true);
                 }}
               />
+              {!isTask && (
+                <Button
+                  type="primary"
+                  className="bg-emerald-600 border-none font-bold rounded-xl"
+                  onClick={() => {
+                    setSelectedLead({
+                      customerId: record.id,
+                      customer: record,
+                    });
+                    setIsSalesModalOpen(true);
+                  }}
+                >
+                  CHỐT
+                </Button>
+              )}
 
               <Button
-                danger
+                size="middle"
                 shape="circle"
+                className="border-none bg-slate-100"
+                danger
                 icon={<CloseCircleOutlined />}
                 onClick={() => {
-                  setSelectedLead(item);
+                  setSelectedLead(isTask ? item : record.customer);
                   setIsFailModalOpen(true);
-                  getActiveReasonsAction("LOSE").then(setReasons);
                 }}
               />
             </Space>
@@ -370,13 +690,12 @@ export default function SalesTasksPage() {
       );
     });
   };
-
   return (
     <div className="min-h-screen bg-[#f4f7fe] p-4 md:p-8">
       {contextHolder}
       <div className="max-w-6xl mx-auto space-y-6">
         {/* HEADER */}
-        <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-5 rounded-[2rem] shadow-sm gap-4 border border-slate-100">
+        <div className="flex justify-between items-center bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
           <div className="flex items-center gap-3">
             <div className="bg-emerald-600 p-3 rounded-2xl text-white shadow-lg">
               <DollarOutlined className="text-xl" />
@@ -391,380 +710,214 @@ export default function SalesTasksPage() {
           <Button
             type="primary"
             size="large"
-            className="bg-emerald-600 font-bold rounded-2xl h-12 px-6 w-full sm:w-auto shadow-lg shadow-emerald-100"
+            className="bg-emerald-600 font-bold rounded-2xl"
             icon={<UserAddOutlined />}
             onClick={() => setIsAddModalOpen(true)}
           >
-            THÊM KHÁCH
+            {isMobile ? "" : "THÊM KHÁCH"}
           </Button>
         </div>
 
-        {/* SECTION 1: NHIỆM VỤ */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-center px-2">
-            <Title
-              level={5}
-              className="m-0! text-slate-500 uppercase tracking-widest text-[12px]"
-            >
-              <ThunderboltOutlined className="text-orange-400" /> Nhiệm vụ
-            </Title>
-            <Segmented
-              options={["Tất cả", "Quá hạn"]}
-              value={filterType}
-              onChange={(v: any) => setFilterType(v)}
-              className="bg-slate-200/50 p-1 rounded-xl"
-            />
-          </div>
-          {isMobile ? (
-            renderMobileFeed(filteredTasks, "TASK")
-          ) : (
-            <Card className="rounded-[2rem] border-none shadow-xl overflow-hidden">
-              <Table
-                dataSource={filteredTasks}
-                columns={[
-                  {
-                    title: "KHÁCH HÀNG",
-                    render: (t) => (
-                      <Space>
-                        <div>
-                          <Text strong className="block">
-                            {t.customer.fullName}
-                          </Text>
-                          <Text type="secondary" className="text-[11px]">
-                            {t.customer.phone}
-                          </Text>
-                        </div>
-                        <UrgencyBadge type={t.customer.urgencyLevel} />
-                      </Space>
-                    ),
-                  },
-                  {
-                    title: "XE / NHU CẦU",
-                    render: (t) => (
-                      <div>
-                        <Text strong className="text-emerald-700 text-[13px]">
-                          <CarOutlined /> {t.customer.carModel?.name}
-                        </Text>
-                        <div className="text-[11px] text-slate-400">
-                          {t.customer.leadCar?.description || "Nhu cầu chung"}
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    title: "KPI HẠN",
-                    render: (t) => (
-                      <div className="flex flex-col">
-                        <Text className="text-[12px] font-bold text-slate-500">
-                          {dayjs(t.scheduledAt).format("HH:mm DD/MM/YYYY")}
-                        </Text>
-                        {t.isOverdue ? (
-                          <Tag
-                            color="error"
-                            className="w-fit m-0 text-[10px] font-bold"
-                          >
-                            TRỄ {t.minutesOverdue}m
-                          </Tag>
-                        ) : (
-                          <Tag
-                            color="success"
-                            className="w-fit m-0 text-[10px]"
-                          >
-                            {dayjs(t.deadlineAt).fromNow()}
-                          </Tag>
-                        )}
-                      </div>
-                    ),
-                  },
-                  {
-                    title: "XỬ LÝ",
-                    align: "right",
-                    render: (record) => (
-                      <Space onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          icon={<HistoryOutlined />}
-                          type="primary"
-                          ghost
-                          size="small"
-                          shape="circle"
-                          onClick={(e) => {
-                            e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài Card/Row
-
-                            // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
-                            const phoneNumber = record.customer?.phone;
-                            handleMakeCall(phoneNumber);
-                            // 2. Mở Modal ghi chú tương tác
-                            setSelectedLead(record);
-                            setIsContactModalOpen(true);
-                          }}
+        {/* TABS HỆ THỐNG */}
+        <Tabs
+          defaultActiveKey="1"
+          className="custom-sales-tabs"
+          items={[
+            {
+              key: "1",
+              label: (
+                <span className="px-2">
+                  <ThunderboltOutlined /> NHIỆM VỤ & BẢO DƯỠNG
+                </span>
+              ),
+              children: (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  {/* PHẦN NHIỆM VỤ */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center px-2">
+                      <Title
+                        level={5}
+                        className="m-0! text-slate-400 uppercase text-[11px] tracking-widest"
+                      >
+                        Danh sách kpi
+                      </Title>
+                      <Segmented
+                        options={["Tất cả", "Quá hạn"]}
+                        value={filterType}
+                        onChange={(v: any) => setFilterType(v)}
+                        className="bg-slate-200/50 p-1 rounded-xl"
+                      />
+                    </div>
+                    {isMobile ? (
+                      renderMobileFeed(filteredTasks, "TASK")
+                    ) : (
+                      <Card className="rounded-[2rem] border-none shadow-xl overflow-hidden">
+                        <Table
+                          dataSource={filteredTasks}
+                          columns={columnsTasks}
+                          rowKey="id"
+                          loading={loading}
+                          pagination={{ pageSize: 5 }}
+                          onRow={(r) => ({
+                            onClick: () => {
+                              setSelectedLead(r);
+                              setIsDetailModalOpen(true);
+                            },
+                          })}
                         />
-                        <Button
-                          danger
-                          icon={<CloseCircleOutlined />}
-                          type="text"
-                          onClick={() => {
-                            console.log(record.customer);
+                      </Card>
+                    )}
+                  </div>
 
-                            setSelectedLead(record.customer);
-                            setIsFailModalOpen(true);
-                            getActiveReasonsAction("LOSE").then(setReasons);
-                          }}
-                        />
-                      </Space>
-                    ),
-                  },
-                ]}
-                rowKey="id"
-                loading={loading}
-                pagination={{ pageSize: 5 }}
-                onRow={(r) => ({
-                  onClick: () => {
-                    setSelectedLead(r);
-                    setIsDetailModalOpen(true);
-                  },
-                })}
-              />
-            </Card>
-          )}
-        </div>
-
-        {/* SECTION 2: KHO KHÁCH */}
-        <div className="space-y-4">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3 px-2">
-            <Space orientation="vertical" size={0}>
-              <Title
-                level={5}
-                className="!m-0 text-slate-500 uppercase tracking-widest text-[12px]"
-              >
-                <TeamOutlined /> Kho khách hàng quản lý
-              </Title>
-              <Text type="secondary" className="text-[11px]">
-                Chăm sóc khách hàng chủ động
-              </Text>
-            </Space>
-
-            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-              {/* Bộ lọc HOT - WARM - COOL */}
-              <Segmented
-                value={filterUrgency}
-                onChange={(value) => setFilterUrgency(value as string)}
-                className="bg-slate-200/50 p-1 rounded-xl"
-                options={[
-                  { label: "Tất cả", value: "ALL" },
-                  {
-                    label: <span className="text-red-500 font-bold">HOT</span>,
-                    value: "HOT",
-                  },
-                  {
-                    label: (
-                      <span className="text-orange-500 font-bold">WARM</span>
-                    ),
-                    value: "WARM",
-                  },
-                  {
-                    label: (
-                      <span className="text-blue-500 font-bold">COOL</span>
-                    ),
-                    value: "COOL",
-                  },
-                ]}
-              />
-
-              <Input
-                placeholder="Tìm tên, SĐT, loại xe..."
-                prefix={<SearchOutlined className="text-slate-400" />}
-                className="rounded-2xl border-none shadow-sm h-11 w-full md:w-64"
-                onChange={(e) => setSearchText(e.target.value)}
-                allowClear
-              />
-            </div>
-          </div>
-          {isMobile ? (
-            renderMobileFeed(customers, "CUSTOMER")
-          ) : (
-            <Card className="rounded-[2rem] border-none shadow-xl overflow-hidden bg-white/70 backdrop-blur-sm">
-              <Table
-                dataSource={customers}
-                rowKey="id"
-                loading={loading}
-                pagination={{ pageSize: 8 }}
-                onRow={(r) => ({
-                  onClick: () => {
-                    setSelectedLead({ customer: r });
-                    setIsDetailModalOpen(true);
-                  },
-                })}
-                columns={[
-                  {
-                    title: "KHÁCH HÀNG",
-                    render: (r) => (
-                      <Space>
-                        <Avatar className="bg-slate-800">
-                          {r.fullName?.[0]}
-                        </Avatar>
-                        <div>
-                          <div className="flex gap-2 items-center">
-                            <Text strong>{r.fullName}</Text>
-                            <UrgencyBadge type={r.urgencyLevel} />
-                          </div>
-                          <div className="text-[11px] font-mono">{r.phone}</div>
-                        </div>
-                      </Space>
-                    ),
-                  },
-                  {
-                    title: "MÔ HÌNH XE",
-                    render: (r) => (
-                      <Text strong>
-                        <CarOutlined /> {r.carModel?.name || "N/A"}
+                  {/* PHẦN BẢO DƯỠNG */}
+                  <div className="space-y-4">
+                    <Divider plain>
+                      <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                        Lịch nhắc bảo dưỡng
                       </Text>
-                    ),
-                  },
-                  {
-                    title: "TRẠNG THÁI",
-                    dataIndex: "status",
-                    render: (s) => {
-                      const { label, color, icon } = getLeadStatusHelper(s);
-                      return (
-                        <Tag
-                          icon={icon}
-                          color={color}
-                          className="rounded-full border-none font-black text-[10px] px-3"
-                        >
-                          {label}
-                        </Tag>
-                      );
-                    },
-                  },
-                  {
-                    title: "THAO TÁC",
-                    align: "right",
-                    render: (record) => (
-                      <Space onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          icon={<PhoneOutlined />}
-                          shape="circle"
-                          onClick={(e) => {
-                            e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài Card/Row
-
-                            // 1. Kích hoạt cuộc gọi hệ thống ngay lập tức
-                            const phoneNumber = record?.phone;
-                            handleMakeCall(phoneNumber);
-
-                            // 2. Mở Modal ghi chú tương tác
-                            setSelectedLead(record);
-                            setIsContactModalOpen(true);
-                          }}
-                        />
-                        <Button
-                          type="primary"
-                          className="bg-emerald-600 border-none font-bold rounded-xl"
-                          onClick={() => {
-                            setSelectedLead({
-                              customerId: record.id,
-                              customer: record,
-                            });
-                            setIsSalesModalOpen(true);
-                          }}
-                        >
-                          CHỐT NGAY
-                        </Button>
-                        <Button
-                          danger
-                          icon={<CloseCircleOutlined />}
-                          type="text"
-                          onClick={() => {
-                            setSelectedLead({
-                              customer: record,
-                              id: record.id,
-                            });
-                            setIsFailModalOpen(true);
-                            getActiveReasonsAction("LOSE").then(setReasons);
-                          }}
-                        />
-                      </Space>
-                    ),
-                  },
-                ]}
-              />
-            </Card>
-          )}
-        </div>
-
-        {/* SECTION 3: BẢO DƯỠNG */}
-        <Divider plain>
-          <Text className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">
-            Lịch nhắc bảo dưỡng
-          </Text>
-        </Divider>
-        <Card className="rounded-3xl border-none shadow-lg bg-white/40 overflow-hidden">
-          <Table
-            dataSource={maintenanceTasks}
-            columns={[
-              {
-                title: "KHÁCH HÀNG",
-                render: (t) => (
-                  <Text strong className="text-[12px]">
-                    {t.customer?.fullName}
-                  </Text>
-                ),
-              },
-              {
-                title: "SĐT KHÁCH HÀNG",
-                render: (t) => (
-                  <Text strong className="text-[12px]">
-                    {t.customer?.phone}
-                  </Text>
-                ),
-              },
-              {
-                title: "HẠN KPI",
-                render: (t) => (
-                  <Text
-                    className={`text-[11px] ${dayjs().isAfter(dayjs(t.deadlineAt)) ? "text-red-500 font-bold" : ""}`}
-                  >
-                    {dayjs(t.deadlineAt).format("DD/MM HH:mm")}
-                  </Text>
-                ),
-              },
-              {
-                title: "",
-                align: "right",
-                render: (t) => (
-                  <>
-                    <Button
-                      type="primary"
-                      size="small"
-                      className="bg-blue-600 rounded-lg text-[10px] mr-2"
-                      onClick={() => {
-                        handleMakeCall(t.customer?.phone || "");
-                      }}
-                    >
-                      GỌI
-                    </Button>
-                    <Button
-                      type="primary"
-                      size="small"
-                      className="bg-blue-600 rounded-lg text-[10px]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCompleteMaintenance(t.id);
-                      }}
-                    >
-                      DONE
-                    </Button>
-                  </>
-                ),
-              },
-            ]}
-            rowKey="id"
-            size="small"
-            pagination={{ pageSize: 5 }}
-          />
-        </Card>
+                    </Divider>
+                    <Card className="rounded-3xl border-none shadow-lg bg-white/40 overflow-hidden">
+                      <Table
+                        dataSource={maintenanceTasks}
+                        rowKey="id"
+                        size="small"
+                        pagination={{ pageSize: 5 }}
+                        columns={[
+                          {
+                            title: "KHÁCH HÀNG",
+                            render: (t) => (
+                              <Text strong className="text-[12px]">
+                                {t.customer?.fullName}
+                              </Text>
+                            ),
+                          },
+                          {
+                            title: "SĐT",
+                            render: (t) => (
+                              <Text className="text-[12px]">
+                                {t.customer?.phone}
+                              </Text>
+                            ),
+                          },
+                          {
+                            title: "HẠN KPI",
+                            render: (t) => (
+                              <Text
+                                className={`text-[11px] ${dayjs().isAfter(dayjs(t.deadlineAt)) ? "text-red-500 font-bold" : ""}`}
+                              >
+                                {dayjs(t.deadlineAt).format("DD/MM HH:mm")}
+                              </Text>
+                            ),
+                          },
+                          {
+                            title: "",
+                            align: "right",
+                            render: (t) => (
+                              <Space>
+                                <Button
+                                  size="small"
+                                  className="text-[10px] rounded-lg"
+                                  onClick={() =>
+                                    handleMakeCall(t.customer?.phone)
+                                  }
+                                >
+                                  GỌI
+                                </Button>
+                                <Button
+                                  type="primary"
+                                  size="small"
+                                  className="bg-blue-600 rounded-lg text-[10px]"
+                                  onClick={() =>
+                                    handleCompleteMaintenance(t.id)
+                                  }
+                                >
+                                  XONG
+                                </Button>
+                              </Space>
+                            ),
+                          },
+                        ]}
+                      />
+                    </Card>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "2",
+              label: (
+                <span className="px-2">
+                  <TeamOutlined /> KHO KHÁCH HÀNG
+                </span>
+              ),
+              children: (
+                <div className="space-y-4 animate-in fade-in duration-500">
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-4 px-2">
+                    <Segmented
+                      value={filterUrgency}
+                      onChange={(v) => setFilterUrgency(v as string)}
+                      className="bg-slate-200/50 p-1 rounded-xl"
+                      options={[
+                        { label: "Tất cả", value: "ALL" },
+                        {
+                          label: (
+                            <span className="text-red-500 font-bold">HOT</span>
+                          ),
+                          value: "HOT",
+                        },
+                        {
+                          label: (
+                            <span className="text-orange-500 font-bold">
+                              WARM
+                            </span>
+                          ),
+                          value: "WARM",
+                        },
+                        {
+                          label: (
+                            <span className="text-blue-500 font-bold">
+                              COOL
+                            </span>
+                          ),
+                          value: "COOL",
+                        },
+                      ]}
+                    />
+                    <Input
+                      placeholder="Tìm tên, SĐT..."
+                      prefix={<SearchOutlined className="text-slate-400" />}
+                      className="rounded-2xl border-none shadow-sm h-11 w-full md:w-64"
+                      onChange={(e) => setSearchText(e.target.value)}
+                      allowClear
+                    />
+                  </div>
+                  {isMobile ? (
+                    renderMobileFeed(customers, "CUSTOMER")
+                  ) : (
+                    <Card className="rounded-[2rem] border-none shadow-xl overflow-hidden bg-white/70 backdrop-blur-sm">
+                      <Table
+                        dataSource={customers}
+                        columns={columnsCustomers}
+                        rowKey="id"
+                        loading={loading}
+                        pagination={{ pageSize: 10 }}
+                        onRow={(r) => ({
+                          onClick: () => {
+                            setSelectedLead({ customer: r });
+                            setIsDetailModalOpen(true);
+                          },
+                        })}
+                      />
+                    </Card>
+                  )}
+                </div>
+              ),
+            },
+          ]}
+        />
       </div>
 
-      {/* --- MODALS --- */}
+      {/* --- CÁC MODALS --- */}
       <ModalApproveSales
         isOpen={isSalesModalOpen}
         onClose={() => setIsSalesModalOpen(false)}
@@ -782,7 +935,7 @@ export default function SalesTasksPage() {
             if (res.success) {
               messageApi.success("Đã gửi phê duyệt!");
               setIsSalesModalOpen(false);
-              loadData();
+              loadInitialData();
             }
           } finally {
             setLoading(false);
@@ -800,14 +953,14 @@ export default function SalesTasksPage() {
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         selectedLead={selectedLead}
+        onUpdateSuccess={loadInitialData}
+        carModels={carModels}
+        buyReasons={buyReasons}
+        UrgencyBadge={UrgencyBadge}
         onContactClick={() => {
           setIsDetailModalOpen(false);
           setIsContactModalOpen(true);
         }}
-        buyReasons={buyReasons}
-        UrgencyBadge={UrgencyBadge}
-        carModels={carModels}
-        onUpdateSuccess={loadData}
       />
       <ModalLoseLead
         isOpen={isFailModalOpen}
@@ -828,14 +981,30 @@ export default function SalesTasksPage() {
       />
 
       <style jsx global>{`
+        .custom-sales-tabs .ant-tabs-nav {
+          background: white;
+          padding: 8px;
+          border-radius: 20px;
+          margin-bottom: 24px !important;
+          border: 1px solid #f1f5f9;
+        }
+        .custom-sales-tabs .ant-tabs-tab-active {
+          background: #f0fdf4 !important;
+          border-radius: 12px !important;
+        }
+        .custom-sales-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+          color: #059669 !important;
+          font-weight: 800 !important;
+        }
+        .custom-sales-tabs .ant-tabs-ink-bar {
+          background: #059669 !important;
+        }
         .ant-table-thead > tr > th {
           background: #f8fafc !important;
           font-size: 10px !important;
           text-transform: uppercase !important;
           color: #94a3b8 !important;
-          letter-spacing: 1px;
           font-weight: 800 !important;
-          border-bottom: 1px solid #f1f5f9 !important;
           padding: 16px !important;
         }
         .ant-table-row {
