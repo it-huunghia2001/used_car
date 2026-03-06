@@ -32,32 +32,29 @@ const translateStatus = (status: string) => {
 
 const translateSource = (source: string) => {
   const map: Record<string, string> = {
-    // --- NGUỒN CÔNG TY (Dlr) ---
-    FB_COMPANY: "Fanpage - DLr",
-    FB_TMV: "Lead TMV",
-    WEB_COMPANY: "Web - DLr",
-    ZALO_OA: "Zalo OA - DLr",
-    YOUTUBE_COMPANY: "Youtube - DLr",
-    TIKTOK_COMPANY: "Tiktok - DLr",
-    GOOGLE_MAP: "Google Map - DLr",
+    // --- NGUỒN CÔNG TY (DLr) ---
+    ZALO_OA: "Zalo OA (Công ty)",
+    FACEBOOK_ADS: "Fanpage công ty / Lead TMV",
+    WEBSITE_COMPANY: "Website công ty",
+    TIKTOK_COMPANY: "Tiktok công ty",
+    YOUTUBE_COMPANY: "Youtube công ty",
+    GOOGLE_MAPS: "Google Maps",
     SHROOM: "Shroom",
     EVENT: "Sự kiện",
 
     // --- NGUỒN CÁ NHÂN KHAI THÁC ---
     ZALO_PERSONAL: "Zalo cá nhân",
-    FB_PERSONAL: "Fanpage cá nhân",
+    FACEBOOK_PERSONAL: "Fanpage cá nhân",
     TIKTOK_PERSONAL: "Tiktok cá nhân",
     YOUTUBE_PERSONAL: "Youtube cá nhân",
-    WEB_PERSONAL: "Web cá nhân",
-    OLD_CUSTOMER: "Khách hàng cũ",
-    COMMUNITY: "Diễn đàn/Hội nhóm",
-    BROKER: "Môi giới",
+    WEBSITE_PERSONAL: "Website cá nhân",
+    REFERRAL: "Khách cũ / Môi giới",
+    COMMUNITY: "Diễn đàn / Hội nhóm",
 
-    INTERNAL: "Nội bộ", // Case dự phòng cho dữ liệu cũ
-
-    // --- TRỰC TIẾP ---
+    // --- NỘI BỘ & KHÁC ---
     HOTLINE: "Hotline",
     WALK_IN: "Khách vãng lai",
+    INTERNAL: "Nội bộ hệ thống",
     OTHER: "Nguồn khác",
   };
 

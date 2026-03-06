@@ -140,32 +140,52 @@ export default function FormSellCar({
                 >
                   <Select
                     className="w-full"
+                    size="large"
                     placeholder="Chọn nguồn khách hàng"
+                    showSearch
+                    optionFilterProp="label"
                     options={[
                       {
-                        label: <span>🏢 NGUỒN CÔNG TY (DLr)</span>,
-                        title: "Nguồn công ty",
+                        label: (
+                          <span className="font-bold text-blue-600">
+                            🏢 NGUỒN CÔNG TY (DLr)
+                          </span>
+                        ),
                         options: [
-                          { value: "FB_COMPANY", label: "🔵 Fanpage - DLr" },
-                          { value: "WEB_COMPANY", label: "🌐 Web - DLr" },
-                          { value: "ZALO_OA", label: "💬 Zalo OA - DLr" },
+                          {
+                            value: "FACEBOOK_ADS",
+                            label: "🔵 Fanpage công ty / Lead TMV",
+                          },
+                          {
+                            value: "WEBSITE_COMPANY",
+                            label: "🌐 Website công ty",
+                          },
+                          { value: "ZALO_OA", label: "💬 Zalo OA (Công ty)" },
                           {
                             value: "YOUTUBE_COMPANY",
-                            label: "🔴 Youtube - DLr",
+                            label: "🔴 Youtube công ty",
                           },
-                          { value: "TIKTOK_COMPANY", label: "🎵 Tiktok - DLr" },
-                          { value: "GOOGLE_MAP", label: "📍 Google Map - DLr" },
-                          { value: "FB_TMV", label: "🩺 Lead TMV" },
+                          {
+                            value: "TIKTOK_COMPANY",
+                            label: "🎵 Tiktok công ty",
+                          },
+                          { value: "GOOGLE_MAPS", label: "📍 Google Maps" },
                           { value: "SHROOM", label: "🍄 Shroom" },
                           { value: "EVENT", label: "🎉 Sự kiện" },
                         ],
                       },
                       {
-                        label: <span>👤 NGUỒN CÁ NHÂN KHAI THÁC</span>,
-                        title: "Nguồn cá nhân",
+                        label: (
+                          <span className="font-bold text-green-600">
+                            👤 NGUỒN CÁ NHÂN KHAI THÁC
+                          </span>
+                        ),
                         options: [
                           { value: "ZALO_PERSONAL", label: "📱 Zalo cá nhân" },
-                          { value: "FB_PERSONAL", label: "👥 Fanpage cá nhân" },
+                          {
+                            value: "FACEBOOK_PERSONAL",
+                            label: "👥 Fanpage cá nhân",
+                          },
                           {
                             value: "TIKTOK_PERSONAL",
                             label: "🎥 Tiktok cá nhân",
@@ -174,20 +194,31 @@ export default function FormSellCar({
                             value: "YOUTUBE_PERSONAL",
                             label: "🎬 Youtube cá nhân",
                           },
-                          { value: "WEB_PERSONAL", label: "💻 Web cá nhân" },
-                          { value: "OLD_CUSTOMER", label: "🤝 Khách hàng cũ" },
+                          {
+                            value: "WEBSITE_PERSONAL",
+                            label: "💻 Website cá nhân",
+                          },
+                          {
+                            value: "REFERRAL",
+                            label: "🤝 Khách cũ / Môi giới",
+                          },
                           {
                             value: "COMMUNITY",
                             label: "🏛️ Diễn đàn / Hội nhóm",
                           },
-                          { value: "BROKER", label: "🔗 Môi giới" },
                         ],
                       },
                       {
-                        label: <span>📑 KHÁC</span>,
+                        label: (
+                          <span className="font-bold text-orange-600">
+                            🏠 NỘI BỘ & KHÁC
+                          </span>
+                        ),
                         options: [
+                          { value: "INTERNAL", label: "🏢 Nội bộ hệ thống" },
                           { value: "HOTLINE", label: "📞 Hotline" },
                           { value: "WALK_IN", label: "🚶 Khách vãng lai" },
+                          { value: "OTHER", label: "❓ Nguồn khác" },
                         ],
                       },
                     ]}
