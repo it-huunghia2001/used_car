@@ -125,7 +125,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     { header: "GIỜ NHẬN", key: "timeIn", width: 10 },
     { header: "NGƯỜI GIỚI THIỆU", key: "refStaff", width: 20 },
     { header: "BỘ PHẬN GT", key: "source", width: 20 },
-    { header: "NGỒN CHI TIẾT", key: "sourceDetail", width: 25 },
+    { header: "NGUỒN CHI TIẾT", key: "sourceDetail", width: 25 },
 
     // Nhóm: Khách hàng
     { header: "TÊN KHÁCH HÀNG", key: "name", width: 25 },
@@ -231,7 +231,7 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     { header: "GIỜ NHẬN", key: "timeIn", width: 10 },
     { header: "NGƯỜI GIỚI THIỆU", key: "refStaff", width: 20 },
     { header: "BỘ PHẬN GT", key: "source", width: 20 },
-    { header: "NGỒN CHI TIẾT", key: "sourceDetail", width: 25 },
+    { header: "NGUỒN CHI TIẾT", key: "sourceDetail", width: 25 },
 
     // Nhóm: Khách hàng
     { header: "TÊN KHÁCH HÀNG", key: "name", width: 25 },
