@@ -407,13 +407,20 @@ export default function ModalSelfAddCustomer({
                         value: "FACEBOOK_ADS",
                         label: "🔵 Fanpage công ty / Lead TMV",
                       },
-                      { value: "WEBSITE_COMPANY", label: "🌐 Website công ty" },
+                      {
+                        value: "WEBSITE_COMPANY",
+                        label: "🌐 Website công ty",
+                      },
                       { value: "ZALO_OA", label: "💬 Zalo OA (Công ty)" },
-                      { value: "YOUTUBE_COMPANY", label: "🔴 Youtube công ty" },
+                      {
+                        value: "YOUTUBE_COMPANY",
+                        label: "🔴 Youtube công ty",
+                      },
                       { value: "TIKTOK_COMPANY", label: "🎵 Tiktok công ty" },
                       { value: "GOOGLE_MAPS", label: "📍 Google Maps" },
                       { value: "SHROOM", label: "🍄 Shroom" },
                       { value: "EVENT", label: "🎉 Sự kiện" },
+                      { value: "HOTLINE", label: "📞 Hotline" },
                     ],
                   },
                   {
@@ -428,7 +435,10 @@ export default function ModalSelfAddCustomer({
                         value: "FACEBOOK_PERSONAL",
                         label: "👥 Fanpage cá nhân",
                       },
-                      { value: "TIKTOK_PERSONAL", label: "🎥 Tiktok cá nhân" },
+                      {
+                        value: "TIKTOK_PERSONAL",
+                        label: "🎥 Tiktok cá nhân",
+                      },
                       {
                         value: "YOUTUBE_PERSONAL",
                         label: "🎬 Youtube cá nhân",
@@ -443,22 +453,9 @@ export default function ModalSelfAddCustomer({
                       }, // Tách riêng
                       {
                         value: "BROKER",
-                        label: "🔗 Môi giới ",
+                        label: "🔗 Môi giới",
                       },
                       { value: "COMMUNITY", label: "🏛️ Diễn đàn / Hội nhóm" },
-                    ],
-                  },
-                  {
-                    label: (
-                      <span className="font-bold text-orange-600">
-                        🏠 NỘI BỘ & KHÁC
-                      </span>
-                    ),
-                    options: [
-                      { value: "INTERNAL", label: "🏢 Nội bộ hệ thống" },
-                      { value: "HOTLINE", label: "📞 Hotline" },
-                      { value: "WALK_IN", label: "🚶 Khách vãng lai" },
-                      { value: "OTHER", label: "❓ Nguồn khác" },
                     ],
                   },
                 ]}

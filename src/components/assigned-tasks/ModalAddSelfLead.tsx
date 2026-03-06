@@ -185,13 +185,20 @@ export default function ModalAddSelfLead({
                         value: "FACEBOOK_ADS",
                         label: "🔵 Fanpage công ty / Lead TMV",
                       },
-                      { value: "WEBSITE_COMPANY", label: "🌐 Website công ty" },
+                      {
+                        value: "WEBSITE_COMPANY",
+                        label: "🌐 Website công ty",
+                      },
                       { value: "ZALO_OA", label: "💬 Zalo OA (Công ty)" },
-                      { value: "YOUTUBE_COMPANY", label: "🔴 Youtube công ty" },
+                      {
+                        value: "YOUTUBE_COMPANY",
+                        label: "🔴 Youtube công ty",
+                      },
                       { value: "TIKTOK_COMPANY", label: "🎵 Tiktok công ty" },
                       { value: "GOOGLE_MAPS", label: "📍 Google Maps" },
                       { value: "SHROOM", label: "🍄 Shroom" },
                       { value: "EVENT", label: "🎉 Sự kiện" },
+                      { value: "HOTLINE", label: "📞 Hotline" },
                     ],
                   },
                   {
@@ -206,7 +213,10 @@ export default function ModalAddSelfLead({
                         value: "FACEBOOK_PERSONAL",
                         label: "👥 Fanpage cá nhân",
                       },
-                      { value: "TIKTOK_PERSONAL", label: "🎥 Tiktok cá nhân" },
+                      {
+                        value: "TIKTOK_PERSONAL",
+                        label: "🎥 Tiktok cá nhân",
+                      },
                       {
                         value: "YOUTUBE_PERSONAL",
                         label: "🎬 Youtube cá nhân",
@@ -217,26 +227,13 @@ export default function ModalAddSelfLead({
                       },
                       {
                         value: "OLD_CUSTOMER",
-                        label: "🤝 Khách hàng cũ ",
+                        label: "🤝 Khách hàng cũ (Tái mua/đổi xe)",
                       }, // Tách riêng
                       {
                         value: "BROKER",
-                        label: "🔗 Môi giới ",
+                        label: "🔗 Môi giới",
                       },
                       { value: "COMMUNITY", label: "🏛️ Diễn đàn / Hội nhóm" },
-                    ],
-                  },
-                  {
-                    label: (
-                      <span className="font-bold text-orange-600">
-                        🏠 NỘI BỘ & KHÁC
-                      </span>
-                    ),
-                    options: [
-                      { value: "INTERNAL", label: "🏢 Nội bộ hệ thống" },
-                      { value: "HOTLINE", label: "📞 Hotline" },
-                      { value: "WALK_IN", label: "🚶 Khách vãng lai" },
-                      { value: "OTHER", label: "❓ Nguồn khác" },
                     ],
                   },
                 ]}
@@ -298,7 +295,16 @@ export default function ModalAddSelfLead({
 
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item name="carModelId" label="Dòng xe quan tâm">
+            <Form.Item
+              name="carModelId"
+              label="Dòng xe quan tâm"
+              rules={[
+                {
+                  required: true,
+                  message: "Vui lòng chọn dòng xe quan tâm!",
+                },
+              ]}
+            >
               <Select placeholder="Chọn dòng xe" showSearch>
                 {carModels.map((m) => (
                   <Option key={m.id} value={m.id}>
@@ -309,14 +315,32 @@ export default function ModalAddSelfLead({
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="carYear" label="Đời xe / Năm SX">
+            <Form.Item
+              name="carYear"
+              label="Đời xe / Năm SX"
+              rules={[
+                {
+                  required: true,
+                  message: "Vui lòng nhập năm SX!",
+                },
+              ]}
+            >
               <Input placeholder="VD: 2022" />
             </Form.Item>
           </Col>
         </Row>
 
         {watchType === "BUY" ? (
-          <Form.Item name="budget" label="Ngân sách dự kiến">
+          <Form.Item
+            name="budget"
+            label="Ngân sách dự kiến"
+            rules={[
+              {
+                required: true,
+                message: "Vui lòng nhập ngân sách dự kiến!",
+              },
+            ]}
+          >
             <InputNumber
               className="w-full!"
               placeholder="VD: 600,000,000"

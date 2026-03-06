@@ -172,6 +172,7 @@ export default function FormSellCar({
                           { value: "GOOGLE_MAPS", label: "📍 Google Maps" },
                           { value: "SHROOM", label: "🍄 Shroom" },
                           { value: "EVENT", label: "🎉 Sự kiện" },
+                          { value: "HOTLINE", label: "📞 Hotline" },
                         ],
                       },
                       {
@@ -200,7 +201,7 @@ export default function FormSellCar({
                           },
                           {
                             value: "OLD_CUSTOMER",
-                            label: "🤝 Khách hàng cũ",
+                            label: "🤝 Khách hàng cũ (Tái mua/đổi xe)",
                           }, // Tách riêng
                           {
                             value: "BROKER",
@@ -210,19 +211,6 @@ export default function FormSellCar({
                             value: "COMMUNITY",
                             label: "🏛️ Diễn đàn / Hội nhóm",
                           },
-                        ],
-                      },
-                      {
-                        label: (
-                          <span className="font-bold text-orange-600">
-                            🏠 NỘI BỘ & KHÁC
-                          </span>
-                        ),
-                        options: [
-                          { value: "INTERNAL", label: "🏢 Nội bộ hệ thống" },
-                          { value: "HOTLINE", label: "📞 Hotline" },
-                          { value: "WALK_IN", label: "🚶 Khách vãng lai" },
-                          { value: "OTHER", label: "❓ Nguồn khác" },
                         ],
                       },
                     ]}
@@ -326,7 +314,16 @@ export default function FormSellCar({
             )}
 
             <Col xs={24} md={12}>
-              <Form.Item name="carYear" label="Năm sản xuất">
+              <Form.Item
+                name="carYear"
+                label="Năm sản xuất"
+                rules={[
+                  {
+                    required: true,
+                    message: "Vui lòng nhập năm sản xuất!",
+                  },
+                ]}
+              >
                 <Input prefix={<CalendarOutlined />} placeholder="Vd: 2019" />
               </Form.Item>
             </Col>

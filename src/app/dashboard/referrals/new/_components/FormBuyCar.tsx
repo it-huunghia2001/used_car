@@ -188,13 +188,31 @@ export default function FormBuyCar({
           </Col>
 
           <Col xs={24} md={8}>
-            <Form.Item name="carYear" label="Đời xe">
+            <Form.Item
+              name="carYear"
+              label="Đời xe"
+              rules={[
+                {
+                  required: true,
+                  message: "Vui lòng nhập đời xe!",
+                },
+              ]}
+            >
               <InputNumber className="w-full!" placeholder="2022" />
             </Form.Item>
           </Col>
 
           <Col xs={24} md={12}>
-            <Form.Item name="budget" label="Ngân sách (VNĐ)">
+            <Form.Item
+              name="budget"
+              label="Ngân sách (VNĐ)"
+              rules={[
+                {
+                  required: true,
+                  message: "Vui lòng chọn ngân sách!",
+                },
+              ]}
+            >
               <InputNumber
                 className="w-full!"
                 formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
@@ -250,6 +268,7 @@ export default function FormBuyCar({
                         { value: "GOOGLE_MAPS", label: "📍 Google Maps" },
                         { value: "SHROOM", label: "🍄 Shroom" },
                         { value: "EVENT", label: "🎉 Sự kiện" },
+                        { value: "HOTLINE", label: "📞 Hotline" },
                       ],
                     },
                     {
@@ -285,19 +304,6 @@ export default function FormBuyCar({
                           label: "🔗 Môi giới",
                         },
                         { value: "COMMUNITY", label: "🏛️ Diễn đàn / Hội nhóm" },
-                      ],
-                    },
-                    {
-                      label: (
-                        <span className="font-bold text-orange-600">
-                          🏠 NỘI BỘ & KHÁC
-                        </span>
-                      ),
-                      options: [
-                        { value: "INTERNAL", label: "🏢 Nội bộ hệ thống" },
-                        { value: "HOTLINE", label: "📞 Hotline" },
-                        { value: "WALK_IN", label: "🚶 Khách vãng lai" },
-                        { value: "OTHER", label: "❓ Nguồn khác" },
                       ],
                     },
                   ]}
