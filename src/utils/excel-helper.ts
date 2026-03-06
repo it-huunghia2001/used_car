@@ -34,7 +34,8 @@ const translateSource = (source: string) => {
   const map: Record<string, string> = {
     // --- NGUỒN CÔNG TY (DLr) ---
     ZALO_OA: "Zalo OA (Công ty)",
-    FACEBOOK_ADS: "Fanpage công ty / Lead TMV",
+    FACEBOOK_ADS: "Fanpage công ty",
+    LEAD_TMV: "Lead TMV",
     WEBSITE_COMPANY: "Website công ty",
     TIKTOK_COMPANY: "Tiktok công ty",
     YOUTUBE_COMPANY: "Youtube công ty",

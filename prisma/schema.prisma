@@ -672,6 +672,7 @@ enum LeadSource {
   ZALO_PERSONAL // Zalo do nhân viên tự khai thác
   FACEBOOK_ADS // Fanpage công ty / Lead TMV
   FACEBOOK_PERSONAL // Fanpage cá nhân
+  LEAD_TMV
   WEBSITE_COMPANY
   WEBSITE_PERSONAL
   TIKTOK_COMPANY
