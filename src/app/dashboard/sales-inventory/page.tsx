@@ -353,7 +353,7 @@ export default function SalesTasksPage() {
         // Trường hợp 2: Khách hệ thống (Chạy bộ đếm realtime)
         return (
           <TableCountdown
-            deadline={t.scheduledAt || t.deadlineAt}
+            deadline={t.deadlineAt}
             isOverdue={t.isOverdue}
             minutesOverdue={t.minutesOverdue}
           />
@@ -514,7 +514,7 @@ export default function SalesTasksPage() {
     if (timeLeft <= 0) {
       return (
         <div className="flex flex-col items-end">
-          <Text className="text-red-500 font-bold animate-pulse text-[11px]">
+          <Text className="text-red-500! font-bold animate-pulse text-[11px]">
             QUÁ HẠN
           </Text>
           <Text className="text-[10px] text-slate-400">
@@ -609,7 +609,7 @@ export default function SalesTasksPage() {
             {/* Hiển thị đếm ngược hoặc Tag tự khai thác */}
             {isTask && item.scheduledAt ? (
               <CountdownTimer
-                deadline={item.scheduledAt}
+                deadline={item.deadlineAt}
                 isSelfCreated={isSelfCreated}
               />
             ) : (
