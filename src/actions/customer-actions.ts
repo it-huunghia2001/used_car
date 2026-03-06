@@ -18,6 +18,26 @@ import { getCurrentUser } from "@/lib/session-server";
 import dayjs from "@/lib/dayjs";
 import { getReferralTypeLabel } from "@/lib/utils";
 
+const calculateDeadline = (startTime: Date, maxLateMinutes: number) => {
+  const dayjsTime = dayjs(startTime);
+  const hour = dayjsTime.hour();
+  const minute = dayjsTime.minute();
+
+  // Kiểm tra nếu sau 16:30 (16h30p)
+  if (hour > 16 || (hour === 16 && minute >= 30)) {
+    // Trả về 08:30 sáng ngày hôm sau
+    return dayjsTime
+      .add(1, "day")
+      .set("hour", 8)
+      .set("minute", 30)
+      .set("second", 0)
+      .toDate();
+  }
+
+  // Nếu trong giờ hành chính, cộng thêm số phút quy định
+  return dayjsTime.add(maxLateMinutes, "minute").toDate();
+};
+
 /**
  * HÀM TẠO KHÁCH HÀNG TỪ NGƯỜI GIỚI THIỆU (REFERRAL)
  * Đã tách biệt luồng MUA và BÁN/ĐỔI để tránh chặn trùng nhầm
@@ -166,6 +186,8 @@ export async function createCustomerAction(rawData: any) {
       const config = await tx.leadSetting.findFirst();
       const maxLate = config?.maxLateMinutes || 30;
 
+      const finalDeadline = calculateDeadline(now, Number(maxLate));
+
       // Nếu khách chọn xe từ kho
       const stockCarInfo = selectedCarId
         ? await tx.car.findUnique({ where: { id: selectedCarId } })
@@ -212,9 +234,7 @@ export async function createCustomerAction(rawData: any) {
                     title: "📞 Liên hệ lại khách hàng (Tái sinh Lead)",
                     content: `Khách bị trễ, cần xử lý ngay. Nhu cầu: ${data.type}`,
                     scheduledAt: now,
-                    deadlineAt: dayjs(now)
-                      .add(Number(maxLate), "minute")
-                      .toDate(),
+                    deadlineAt: finalDeadline,
                     status: TaskStatus.PENDING,
                     type: data.type === "BUY" ? "SALES" : "PURCHASE",
                     assigneeId: assignedStaffId,
@@ -261,9 +281,7 @@ export async function createCustomerAction(rawData: any) {
                     title: "📞 Liên hệ khách hàng mới",
                     content: `Tiếp nhận khách hàng từ ${assignmentLog}`,
                     scheduledAt: now,
-                    deadlineAt: dayjs(now)
-                      .add(Number(maxLate), "minute")
-                      .toDate(),
+                    deadlineAt: finalDeadline,
                     status: TaskStatus.PENDING,
                     type: data.type === "BUY" ? "SALES" : "PURCHASE",
                     assigneeId: assignedStaffId,
