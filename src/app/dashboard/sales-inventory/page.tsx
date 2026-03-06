@@ -342,7 +342,7 @@ export default function SalesTasksPage() {
               >
                 TỰ KHAI THÁC
               </Tag>
-              <Text className="text-[12px] text-slate-400 mt-1 italic">
+              <Text className="text-[12px] text-green-400! mt-1 italic">
                 Hẹn:{" "}
                 {dayjs(t.scheduledAt || t.deadlineAt).format("HH:mm DD/MM")}
               </Text>
@@ -504,7 +504,7 @@ export default function SalesTasksPage() {
           >
             TỰ KHAI THÁC
           </Tag>
-          <Text className="text-[10px] text-slate-400 mt-1">
+          <Text className="text-[10px] text-green-400! mt-1">
             Hẹn: {dayjs(deadline).format("HH:mm DD/MM/YY")}
           </Text>
         </div>
