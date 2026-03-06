@@ -30,7 +30,7 @@ const translateStatus = (status: string) => {
   return map[status] || status;
 };
 
-const translateSource = (source: string) => {
+export const translateSource = (source: string) => {
   const map: Record<string, string> = {
     // --- NGUỒN CÔNG TY (DLr) ---
     ZALO_OA: "Zalo OA (Công ty)",

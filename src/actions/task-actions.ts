@@ -30,6 +30,7 @@ import {
   referrerLoseResultEmailTemplate,
   saleApprovalRequestEmailTemplate,
   selfCreatedLeadEmailTemplate,
+  staffLoseResultEmailTemplate,
   unfreezeAssignmentEmailTemplate,
 } from "@/lib/mail-templates";
 
@@ -1569,12 +1570,16 @@ export async function approveLoseRequestAction(
       include: {
         customer: {
           include: {
+            assignedTo: {
+              // Lấy thông tin Sale đang chăm sóc trực tiếp
+              select: { email: true, fullName: true },
+            },
             referrer: {
-              // Lấy thông tin người giới thiệu
-              select: { email: true, fullName: true, username: true },
+              select: { email: true, fullName: true },
             },
           },
         },
+        reason: true,
         user: {
           // Nhân viên đề xuất (người nhận mail)
           select: { email: true, fullName: true, username: true },
@@ -1664,17 +1669,19 @@ export async function approveLoseRequestAction(
     const emailsToSend = [];
 
     // Mail cho nhân viên đang chăm sóc (Assignee)
-    if (activity.user?.email) {
+    // Mail cho nhân viên đang chăm sóc (Sale)
+    const saleStaff = activity.customer.assignedTo;
+    if (saleStaff?.email) {
       emailsToSend.push(
         sendMail({
-          to: activity.user.email,
+          to: saleStaff.email,
           subject: `[KẾT QUẢ] Duyệt dừng hồ sơ khách hàng: ${activity.customer.fullName.toUpperCase()}`,
-          html: loseResultEmailTemplate({
-            staffName:
-              activity.user.fullName || activity.user.username || "Nhân viên",
+          html: staffLoseResultEmailTemplate({
+            staffName: saleStaff.fullName || "Chuyên viên tư vấn",
             customerName: activity.customer.fullName,
             decision: decision,
             targetStatus: targetStatus,
+            adminNote: activity.note ?? "", // Ghi chú từ người duyệt
           }),
         }),
       );
@@ -1693,6 +1700,7 @@ export async function approveLoseRequestAction(
             carInfo: activity.customer.carYear
               ? `${activity.customer.carYear}`
               : undefined,
+            reason: `${activity.reason?.content} | ${activity.note} `,
           }),
         }),
       );

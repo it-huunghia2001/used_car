@@ -503,7 +503,9 @@ export default function SalesTasksPage() {
                           icon={<CloseCircleOutlined />}
                           type="text"
                           onClick={() => {
-                            setSelectedLead(record);
+                            console.log(record.customer);
+
+                            setSelectedLead(record.customer);
                             setIsFailModalOpen(true);
                             getActiveReasonsAction("LOSE").then(setReasons);
                           }}

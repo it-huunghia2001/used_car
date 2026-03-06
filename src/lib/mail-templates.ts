@@ -1406,12 +1406,12 @@ export const referrerLoseResultEmailTemplate = (data: {
   referrerName: string;
   customerName: string;
   decision: "APPROVE" | "REJECT";
-  targetStatus?: string; // LOSE, FROZEN, ...
+  targetStatus?: string;
   carInfo?: string;
+  reason?: string; // <--- Thêm lý do ở đây
 }) => {
   const isApproved = data.decision === "APPROVE";
 
-  // Định nghĩa trạng thái hiển thị thân thiện
   const getStatusLabel = (status?: string) => {
     switch (status) {
       case "LOSE":
@@ -1426,7 +1426,7 @@ export const referrerLoseResultEmailTemplate = (data: {
   const statusLabel = isApproved
     ? getStatusLabel(data.targetStatus)
     : "Tiếp tục chăm sóc";
-  const headerColor = isApproved ? "#64748b" : "#2563eb"; // Xám cho hồ sơ đóng, Xanh cho hồ sơ làm tiếp
+  const headerColor = isApproved ? "#64748b" : "#2563eb";
 
   return `
   <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
@@ -1436,12 +1436,8 @@ export const referrerLoseResultEmailTemplate = (data: {
     </div>
 
     <div style="padding: 30px; background-color: #ffffff;">
-      <p style="color: #1e293b; font-size: 16px;">
-        Xin chào <strong>${data.referrerName}</strong>,
-      </p>
-      <p style="color: #475569; font-size: 15px; line-height: 1.6;">
-        Hệ thống Toyota Bình Dương xin thông báo về kết quả xử lý hồ sơ khách hàng do bạn giới thiệu:
-      </p>
+      <p style="color: #1e293b; font-size: 16px;">Xin chào <strong>${data.referrerName}</strong>,</p>
+      <p style="color: #475569; font-size: 15px; line-height: 1.6;">Hệ thống xin thông báo kết quả xử lý hồ sơ khách hàng do bạn giới thiệu:</p>
 
       <div style="margin: 20px 0; padding: 20px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
         <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
@@ -1449,45 +1445,92 @@ export const referrerLoseResultEmailTemplate = (data: {
             <td style="padding: 8px 0; color: #64748b; width: 40%;">Khách hàng:</td>
             <td style="font-weight: bold; color: #1e293b;">${data.customerName.toUpperCase()}</td>
           </tr>
-          ${
-            data.carInfo
-              ? `
+          ${data.carInfo ? `<tr><td style="padding: 8px 0; color: #64748b;">Nhu cầu:</td><td style="color: #1e293b;">${data.carInfo}</td></tr>` : ""}
           <tr>
-            <td style="padding: 8px 0; color: #64748b;">Nhu cầu:</td>
-            <td style="color: #1e293b;">${data.carInfo}</td>
-          </tr>`
-              : ""
-          }
-          <tr>
-            <td style="padding: 8px 0; color: #64748b;">Trạng thái hiện tại:</td>
+            <td style="padding: 8px 0; color: #64748b;">Trạng thái:</td>
             <td style="padding: 4px 0;">
               <span style="background-color: ${isApproved ? "#f1f5f9" : "#dcfce7"}; color: ${isApproved ? "#475569" : "#16a34a"}; padding: 2px 10px; border-radius: 4px; font-weight: bold; border: 1px solid ${isApproved ? "#e2e8f0" : "#bbf7d0"};">
                 ${statusLabel.toUpperCase()}
               </span>
             </td>
           </tr>
+          ${
+            data.reason
+              ? `
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; vertical-align: top;">Lý do chi tiết:</td>
+            <td style="color: #e11d48; font-weight: 500;">${data.reason}</td>
+          </tr>`
+              : ""
+          }
         </table>
       </div>
 
       <p style="color: #475569; font-size: 14px; font-style: italic; line-height: 1.6;">
         ${
           isApproved
-            ? "Hiện tại do một số lý do khách quan từ phía khách hàng hoặc nhu cầu chưa phù hợp, chúng tôi xin phép tạm dừng chăm sóc hồ sơ này. Hệ thống sẽ thông báo ngay cho bạn nếu khách hàng có nhu cầu trở lại."
-            : "Yêu cầu dừng hồ sơ đã bị từ chối. Đội ngũ bán hàng sẽ tiếp tục nỗ lực tương tác và chăm sóc khách hàng này để đạt được kết quả tốt nhất."
+            ? "Hiện tại do nhu cầu chưa phù hợp hoặc các lý do khách quan, chúng tôi xin phép tạm dừng chăm sóc. Chúng tôi sẽ thông báo ngay nếu khách hàng có nhu cầu trở lại."
+            : "Yêu cầu tạm đóng đã bị từ chối. Đội ngũ bán hàng sẽ tiếp tục nỗ lực hỗ trợ khách hàng này để đạt được kết quả tốt nhất."
         }
       </p>
 
       <div style="border-top: 1px solid #f1f5f9; margin-top: 25px; padding-top: 20px; text-align: center;">
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 15px;">Cảm ơn bạn đã luôn tin tưởng và đồng hành cùng Toyota Bình Dương.</p>
         <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/referrals" 
            style="background-color: #1e293b; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">
            XEM DANH SÁCH GIỚI THIỆU
         </a>
       </div>
     </div>
+  </div>
+  `;
+};
 
-    <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 12px; color: #94a3b8;">
-      Đây là email tự động từ hệ thống CRM Toyota Bình Dương
+export const staffLoseResultEmailTemplate = (data: {
+  staffName: string;
+  customerName: string;
+  decision: "APPROVE" | "REJECT";
+  targetStatus?: string;
+  adminNote?: string;
+}) => {
+  const isApproved = data.decision === "APPROVE";
+  const statusLabel = isApproved
+    ? data.targetStatus === "FROZEN"
+      ? "ĐÓNG BĂNG (FROZEN)"
+      : "THẤT BẠI (LOSE)"
+    : "TIẾP TỤC CHĂM SÓC";
+  const headerColor = isApproved ? "#64748b" : "#ef4444"; // Xám cho đóng, Đỏ cho từ chối
+
+  return `
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; border: 1px solid #edf2f7; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <div style="background-color: ${headerColor}; padding: 30px; text-align: center;">
+      <h2 style="color: #ffffff; margin: 0; font-size: 18px; letter-spacing: 1px;">KẾT QUẢ PHÊ DUYỆT HỒ SƠ</h2>
+    </div>
+    <div style="padding: 30px; background-color: #ffffff;">
+      <p style="font-size: 16px; color: #2d3748;">Chào <strong>${data.staffName}</strong>,</p>
+      <p style="color: #4a5568; line-height: 1.6;">Yêu cầu thay đổi trạng thái hồ sơ khách hàng của bạn đã được quản trị viên xử lý như sau:</p>
+      
+      <div style="background-color: #f7fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 4px solid ${headerColor};">
+        <p style="margin: 5px 0;"><strong>Khách hàng:</strong> ${data.customerName.toUpperCase()}</p>
+        <p style="margin: 5px 0;"><strong>Quyết định:</strong> <span style="color: ${headerColor}; font-weight: bold;">${isApproved ? "ĐỒNG Ý" : "TỪ CHỐI"}</span></p>
+        <p style="margin: 5px 0;"><strong>Trạng thái mới:</strong> <span style="font-weight: bold;">${statusLabel}</span></p>
+      </div>
+
+      ${
+        !isApproved
+          ? `
+      <div style="background-color: #fff5f5; padding: 15px; border-radius: 8px; border: 1px solid #feb2b2; margin-bottom: 20px;">
+        <p style="color: #c53030; margin: 0; font-size: 14px;"><strong>💡 Chỉ thị từ Admin:</strong> Admin yêu cầu bạn tiếp tục tương tác, khai thác thêm nhu cầu hoặc thử phương án tiếp cận mới. Một Task mới đã được tạo cho bạn.</p>
+      </div>
+      `
+          : ""
+      }
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/leads" style="background-color: #2d3748; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">TRUY CẬP CRM</a>
+      </div>
+    </div>
+    <div style="background-color: #f8fafc; padding: 15px; text-align: center; font-size: 12px; color: #a0aec0;">
+      Email này được gửi tự động từ hệ thống Toyota Bình Dương CRM.
     </div>
   </div>
   `;
