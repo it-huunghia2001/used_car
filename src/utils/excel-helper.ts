@@ -48,7 +48,8 @@ const translateSource = (source: string) => {
     TIKTOK_PERSONAL: "Tiktok cá nhân",
     YOUTUBE_PERSONAL: "Youtube cá nhân",
     WEBSITE_PERSONAL: "Website cá nhân",
-    REFERRAL: "Khách cũ / Môi giới",
+    OLD_CUSTOMER: "Khách cũ",
+    BROKER: "MÔI GIỚI",
     COMMUNITY: "Diễn đàn / Hội nhóm",
 
     // --- NỘI BỘ & KHÁC ---

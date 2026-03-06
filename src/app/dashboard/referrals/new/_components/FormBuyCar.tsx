@@ -276,7 +276,14 @@ export default function FormBuyCar({
                           value: "WEBSITE_PERSONAL",
                           label: "💻 Website cá nhân",
                         },
-                        { value: "REFERRAL", label: "🤝 Khách cũ / Môi giới" },
+                        {
+                          value: "OLD_CUSTOMER",
+                          label: "🤝 Khách hàng cũ (Tái mua/đổi xe)",
+                        }, // Tách riêng
+                        {
+                          value: "BROKER",
+                          label: "🔗 Môi giới",
+                        },
                         { value: "COMMUNITY", label: "🏛️ Diễn đàn / Hội nhóm" },
                       ],
                     },

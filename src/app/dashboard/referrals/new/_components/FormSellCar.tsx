@@ -199,8 +199,12 @@ export default function FormSellCar({
                             label: "💻 Website cá nhân",
                           },
                           {
-                            value: "REFERRAL",
-                            label: "🤝 Khách cũ / Môi giới",
+                            value: "OLD_CUSTOMER",
+                            label: "🤝 Khách hàng cũ",
+                          }, // Tách riêng
+                          {
+                            value: "BROKER",
+                            label: "🔗 Môi giới",
                           },
                           {
                             value: "COMMUNITY",
