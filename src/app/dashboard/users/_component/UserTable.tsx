@@ -17,6 +17,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { getRoleTag } from "@/components/role";
+import TestPushBtn from "@/components/TestPushBtn";
 
 const { Text } = Typography;
 
@@ -94,6 +95,7 @@ export default function UserTable({
           >
             <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
+          <TestPushBtn userId={record.id} />
         </Space>
       ),
     },
