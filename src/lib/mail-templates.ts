@@ -149,7 +149,7 @@ export const staffAssignmentEmailTemplate = (data: {
       </div>
 
       <div style="text-align: center; margin-top: 40px;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/customers" 
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/showroom" 
            style="background-color: #eb0a1e; color: #ffffff; padding: 15px 35px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
            XEM CHI TIẾT & CẬP NHẬT
         </a>

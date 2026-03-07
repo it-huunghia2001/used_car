@@ -116,15 +116,16 @@ model User {
   salesSchedules   SalesSchedule[]
   tasks            Task[]          @relation("UserTasks")
 
-  lastAssignedAt   DateTime?         @default(now())
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  tokenVersion     Int               @default(0)
-  cars             Car[]
-  customers        Customer[]
-  contracts        Contract[]
-  dailyCarInbounds DailyCarInbound[] @relation("InboundCreator")
-  notifications    Notification[]
+  lastAssignedAt    DateTime?          @default(now())
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  tokenVersion      Int                @default(0)
+  cars              Car[]
+  customers         Customer[]
+  contracts         Contract[]
+  dailyCarInbounds  DailyCarInbound[]  @relation("InboundCreator")
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
 
   @@index([branchId])
 }
@@ -667,7 +668,10 @@ model Notification {
   title     String
   content   String
   isRead    Boolean  @default(false)
+  link      String? // Thêm link để khi bấm vào sẽ mở đúng trang khách hàng
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 enum LeadSource {
@@ -691,4 +695,18 @@ enum LeadSource {
   WALK_IN
   INTERNAL
   OTHER
+}
+
+model PushSubscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Đây là Player ID từ OneSignal hoặc Token từ trình duyệt
+  deviceToken String  @unique
+  deviceType  String? // Ghi chú thiết bị: Chrome, iOS, Android...
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

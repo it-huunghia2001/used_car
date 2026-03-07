@@ -12,6 +12,7 @@ import { ConfigProvider } from "antd";
 import viVN from "antd/locale/vi_VN";
 import dayjs from "dayjs";
 import "dayjs/locale/vi";
+import PushNotificationManager from "@/components/providers/PushNotificationManager";
 
 // Thiết lập locale cho dayjs toàn cục
 dayjs.locale("vi");
@@ -51,6 +52,7 @@ export default async function RootLayout({
   const token = (await cookies()).get("used-car")?.value;
   let role: Role = "REFERRER";
   let isGobal = false;
+  const userId: string | undefined = undefined; // Thêm biến lấy ID
   if (token) {
     try {
       const payload = (await jwt.verify(token, JWT_SECRET!)) as any;
@@ -69,6 +71,7 @@ export default async function RootLayout({
         {/* Bọc ConfigProvider quanh Providers hoặc AppLayout */}
         <ConfigProvider locale={viVN}>
           <Providers>
+            <PushNotificationManager userId={userId} />
             <AppLayout isGobal={isGobal} role={role}>
               {children}
             </AppLayout>

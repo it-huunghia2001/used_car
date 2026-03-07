@@ -17,7 +17,6 @@ import { LeadStatus, TaskStatus, UrgencyType } from "@prisma/client";
 import { getCurrentUser } from "@/lib/session-server";
 import dayjs from "@/lib/dayjs";
 import { getReferralTypeLabel } from "@/lib/utils";
-
 const calculateDeadline = (startTime: Date, maxLateMinutes: number) => {
   // Chuyển đổi sang múi giờ VN
   const vnTime = dayjs(startTime).tz("Asia/Ho_Chi_Minh");
@@ -341,6 +340,16 @@ export async function createCustomerAction(rawData: any) {
 
       // A. Gửi cho nhân viên được phân bổ
       if (staff?.email) {
+        await oneSignalClient.createNotification({
+          contents: {
+            vi: `🚗 Có khách hàng mới: ${result.fullName}`,
+          },
+          headings: {
+            vi: "Toyota Bình Dương",
+          },
+          // Gửi đích danh cho nhân viên dựa trên userId đã login ở Client
+          include_external_user_ids: [assignedStaffId ?? ""],
+        });
         emailPromises.push(
           sendMail({
             to: staff.email,
@@ -1245,6 +1254,7 @@ export async function getLeadsWithoutSensitiveAction(params: {
 
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import { oneSignalClient } from "@/lib/onesignal";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
