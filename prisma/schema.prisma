@@ -238,6 +238,9 @@ model LeadCar {
   color         String?
   interiorColor String?
 
+  contractNo          String?
+  authorizedOwnerName String?
+
   source LeadSource @default(OTHER)
 
   year                          Int?

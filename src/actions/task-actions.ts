@@ -235,6 +235,8 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
       finalPrice: values.contractData.price
         ? Number(values.contractData.price)
         : 0,
+      authorizedOwnerName: values.contractData.authorizedOwnerName,
+      contractNo: values.contractData.contractNo,
     };
 
     const result = await db.$transaction(
@@ -306,6 +308,8 @@ export async function requestPurchaseApproval(leadId: string, values: any) {
           update: formattedLeadCarData,
           create: {
             customerId: leadId,
+            authorizedOwnerName: formattedLeadCarData.authorizedOwnerName,
+            contractNo: formattedLeadCarData.contractNo,
             ...formattedLeadCarData,
           },
         });
@@ -683,17 +687,8 @@ export async function getPendingApprovalsAction() {
       include: {
         customer: {
           include: {
-            leadCar: {
-              select: {
-                conditionGrade: true, // Mức độ/Tình trạng (A/B/C)
-                isCertified: true, // Đạt chuẩn T-Sure hay không
-                certificationNote: true, // Ghi chú chi tiết đạt/không đạt
-                odo: true, // Số km thực tế khi giám định
-                description: true, // Mô tả chi tiết của giám định viên
-                hasFine: true,
-                fineNote: true,
-              },
-            },
+            contracts: true,
+            leadCar: true,
             carModel: true,
             // LẤY THÊM THÔNG TIN NGƯỜI GIÁM ĐỊNH
             inspectorRef: {

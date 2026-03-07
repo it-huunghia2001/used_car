@@ -80,47 +80,62 @@ export default function ModalApprovalDetail({
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && selectedActivity?.note) {
-      try {
-        const parsed = JSON.parse(selectedActivity.note);
-        const car = parsed.carData || parsed;
-        const contract = parsed.contractData || {};
-        const realCustomer = selectedActivity.customer || {};
+    if (isOpen && selectedActivity) {
+      const customer = selectedActivity.customer || {};
+      const leadCar = customer.leadCar || {};
 
-        form.setFieldsValue({
-          ...car,
-          ...contract,
-          registrationDeadline: car.registrationDeadline
-            ? dayjs(car.registrationDeadline)
-            : null,
-          insuranceDeadline: car.insuranceDeadline
-            ? dayjs(car.insuranceDeadline)
-            : null,
-          insuranceTNDSDeadline: car.insuranceTNDSDeadline
-            ? dayjs(car.insuranceTNDSDeadline)
-            : null,
-          insuranceVCDeadline: car.insuranceVCDeadline
-            ? dayjs(car.insuranceVCDeadline)
-            : null,
-          carImages: realCustomer.carImages || car.carImages || [],
-          documents: realCustomer.documents || car.documents || [],
-          conditionGrade: realCustomer.leadCar.conditionGrade || "",
-          features: car.features || "",
-          note: realCustomer.note || "",
-          // Thông tin giám định
-          isCertified: realCustomer.leadCar?.isCertified || false,
-          certificationNote: realCustomer.leadCar?.certificationNote || "",
-          inspectorId: realCustomer.inspectorId,
-          inspectorName: realCustomer.inspectorRef.fullName,
-          hasFine: realCustomer.leadCar?.hasFine || false,
-          fineNote: realCustomer.leadCar?.fineNote || "",
-          // Bảo hiểm
-          insuranceDSCorp: car.insuranceDSCorp || "",
-          insuranceVCCorp: car.insuranceVCCorp || "",
-        });
-      } catch (e) {
-        console.error("Lỗi parse dữ liệu JSON", e);
-      }
+      form.setFieldsValue({
+        // Thông tin xe cơ bản
+        carModelId: customer.carModelId,
+        licensePlate: customer.licensePlate,
+        year: customer.carYear ? parseInt(customer.carYear) : undefined,
+        odo: leadCar.odo || 0,
+
+        // Hình ảnh và tài liệu (Lấy trực tiếp từ mảng)
+        carImages: customer.carImages || [],
+        documents: customer.documents || [],
+
+        // Đánh giá chất lượng
+        conditionGrade: leadCar.conditionGrade || "",
+        isCertified: leadCar.isCertified || false,
+        certificationNote: leadCar.certificationNote || "",
+        hasFine: leadCar.hasFine || false,
+        fineNote: leadCar.fineNote || "",
+        finalPrice: leadCar.finalPrice,
+        engineNumber: leadCar.engineNumber,
+        transmission: leadCar.transmission,
+        interiorColor: leadCar.interiorColor,
+        color: leadCar.color,
+        origin: leadCar.origin,
+        seats: leadCar.seats,
+        fuelType: leadCar.fuelType,
+        contractNo: leadCar.contractNo,
+        authorizedOwnerName: leadCar.authorizedOwnerName,
+        // Nhân viên giám định
+        inspectorName: customer.inspectorRef?.fullName || "",
+        inspectorId: customer.inspectorId,
+        vin: leadCar.vin,
+        // Thông tin khác
+        note: customer.note || "",
+        // Các trường này trong data mẫu đang để trống, bạn có thể bổ sung nếu cần
+        features: leadCar.description || "",
+        driveTrain: leadCar.driveTrain,
+        carType: leadCar.carType,
+        engineSize: leadCar.engineSize,
+        ownerType: leadCar.ownerType,
+        insuranceDeadline: leadCar.insuranceDeadline
+          ? dayjs(leadCar.insuranceDeadline)
+          : null,
+        insuranceVCDeadline: leadCar.insuranceVCDeadline
+          ? dayjs(leadCar.insuranceVCDeadline)
+          : null,
+        insuranceTNDSDeadline: leadCar.insuranceTNDSDeadline
+          ? dayjs(leadCar.insuranceTNDSDeadline)
+          : null,
+        registrationDeadline: leadCar.registrationDeadline
+          ? dayjs(leadCar.registrationDeadline)
+          : null,
+      });
     } else {
       form.resetFields();
     }
@@ -152,12 +167,24 @@ export default function ModalApprovalDetail({
     onReject(reason);
   };
 
-  const parsedNote = selectedActivity?.note
-    ? JSON.parse(selectedActivity.note)
-    : {};
-  const images = parsedNote.carData?.images || [];
-  const isLoading = loading || isSubmitting;
+  const parsedNote = React.useMemo(() => {
+    const noteStr = selectedActivity?.note || "";
+    if (!noteStr) return {};
 
+    // Kiểm tra xem có thực sự là JSON không trước khi parse
+    if (noteStr.trim().startsWith("{") || noteStr.trim().startsWith("[")) {
+      try {
+        return JSON.parse(noteStr);
+      } catch (e) {
+        return { rawNote: noteStr };
+      }
+    }
+    return { rawNote: noteStr };
+  }, [selectedActivity?.note]);
+
+  // Kiểm tra images an toàn hơn
+  const images = parsedNote?.carData?.images || [];
+  const isLoading = loading || isSubmitting;
   return (
     <Modal
       title={

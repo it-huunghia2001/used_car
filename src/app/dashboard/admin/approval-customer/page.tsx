@@ -92,6 +92,8 @@ export default function ApprovalsPage() {
 
   // --- ĐIỀU KIỆN MỞ MODAL THEO NGHIỆP VỤ ---
   const openApprovalModal = async (record: any) => {
+    console.log(record);
+
     setSelectedActivity(record);
     setHistoryLoading(true);
 
