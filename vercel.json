@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "src/actions/customer-actions.ts": {
+      "maxDuration": 60
+    }
+  }
+}

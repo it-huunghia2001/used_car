@@ -392,12 +392,12 @@ export async function createCustomerAction(rawData: any) {
       }
 
       // Thực thi (Giữ nguyên logic non-blocking của bạn vì nó rất tốt)
-      Promise.allSettled(emailPromises).then((results) => {
-        results.forEach((res, i) => {
-          if (res.status === "rejected") {
-            console.error(`❌ Email task ${i} failed:`, res.reason);
-          }
-        });
+      const results = await Promise.allSettled(emailPromises);
+
+      results.forEach((res, i) => {
+        if (res.status === "rejected") {
+          console.error(`❌ Email task ${i} failed:`, res.reason);
+        }
       });
     }
 
