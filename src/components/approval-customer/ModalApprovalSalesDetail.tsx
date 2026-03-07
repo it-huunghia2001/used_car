@@ -190,7 +190,7 @@ export default function ModalApprovalSalesDetail({
                 {Number(customer?.budget || 0).toLocaleString()}đ
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Ngân sách">
+            <Descriptions.Item label="Cài app/ mở thẻ tích điểm">
               <Tag color="blue">
                 {Number(leadCar.loyaltyNote || 0).toLocaleString()}đ
               </Tag>
