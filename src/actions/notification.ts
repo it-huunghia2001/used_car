@@ -13,12 +13,13 @@ export async function sendTestPushAction(userId: string) {
   try {
     const notification = {
       contents: {
+        en: `New customer from TBD!`, // Bắt buộc phải có 'en'
         vi: `Chào Nghĩa! Thông báo test từ hệ thống TBD lúc ${new Date().toLocaleTimeString()}`,
       },
       headings: {
+        en: "Toyota Binh Duong",
         vi: "Toyota Bình Dương",
       },
-      // Quan trọng: Gửi đích danh cho user đang đăng nhập
       include_external_user_ids: [userId],
     };
 
