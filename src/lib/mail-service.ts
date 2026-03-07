@@ -1,24 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import nodemailer from "nodemailer";
 
-// 1. Khởi tạo Transporter với cơ chế Pooling (Bể kết nối)
-const transporter = nodemailer.createTransport({
-  pool: true, // Giữ kết nối luôn mở
-  maxConnections: 3, // Tối đa 3 luồng gửi cùng lúc (An toàn cho mail trường)
-  maxMessages: 100, // Reset kết nối sau 100 mail
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    type: "OAuth2",
-    user: process.env.EMAIL_USER,
-    clientId: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
-  },
-});
-
-// 2. Hàm gửi mail có cơ chế "Xếp hàng" (Queue)
 export async function sendMail({
   to,
   subject,
@@ -28,37 +10,48 @@ export async function sendMail({
   subject: string;
   html: string;
 }) {
+  // 1. Khởi tạo transporter bên trong hàm (Cần thiết cho Serverless)
+  const transporter = nodemailer.createTransport({
+    // KHÔNG dùng pool: true trên Vercel vì nó gây treo timeout
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      type: "OAuth2",
+      user: process.env.EMAIL_USER,
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+    },
+  });
+
   const mailOptions = {
     from: `"Hệ thống Toyota Bình Dương" <${process.env.EMAIL_USER}>`,
-    to,
+    to: Array.isArray(to) ? to.join(", ") : to, // Đảm bảo to luôn hợp lệ
     subject,
     html,
   };
 
-  // Đợi cho đến khi Transporter rảnh (isIdle)
-  // Nếu đang quá tải, nó sẽ đợi một chút trước khi đẩy mail mới vào luồng
-  if (!transporter.isIdle()) {
-    await new Promise<void>((resolve) => {
-      // Dùng mũi tên trống () => resolve() để khớp với signature của sự kiện 'idle'
-      transporter.once("idle", () => resolve());
-    });
-  }
+  const MAX_RETRIES = 2; // Giảm xuống 2 để tránh dính Vercel Timeout
+  let lastError;
 
-  const MAX_RETRIES = 3;
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
+      // 2. Gửi trực tiếp, không đợi idle
       const info = await transporter.sendMail(mailOptions);
-      console.log(`✅ Mail gửi thành công tới ${to}`);
+      console.log(`✅ Mail gửi thành công tới: ${to}`);
       return info;
     } catch (error: any) {
-      console.warn(`⚠️ Thử lại lần ${i + 1} cho ${to}...`);
+      lastError = error;
+      console.warn(`⚠️ Lần thử ${i + 1} cho ${to} thất bại: ${error.message}`);
 
-      // Nếu lỗi 421 (Rate limit), nghỉ lâu hơn
-      if (error.responseCode === 421 || i === MAX_RETRIES - 1) {
-        await new Promise((r) => setTimeout(r, 5000 * (i + 1)));
+      // Nếu dính lỗi Rate Limit (421), nghỉ 3s rồi thử lại nốt lần cuối
+      if (i < MAX_RETRIES - 1) {
+        await new Promise((r) => setTimeout(r, 3000));
       }
-
-      if (i === MAX_RETRIES - 1) throw error;
     }
   }
+
+  console.error("❌ Thất bại cuối cùng:", lastError);
+  throw lastError;
 }
