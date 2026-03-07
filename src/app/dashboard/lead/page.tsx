@@ -51,6 +51,7 @@ import {
   handleExportFullCustomerExcel,
   translateSource,
 } from "@/utils/excel-helper";
+import LeadDetailModal from "@/components/LeadDetailCustomer";
 
 const { Text, Title } = Typography;
 const { Option, OptGroup } = Select;
@@ -165,7 +166,6 @@ export default function LeadsPage() {
         ? dayjs(filters.endDate).endOf("day").toDate()
         : undefined;
 
-      console.log("Ngày bắt đầu gửi đi:", sDate); // Sẽ thấy đúng 01/04/2026
       // Truyền sDate, eDate (kiểu Date) vào hàm
       const exportData = await getExportCustomerData(
         sDate,
@@ -588,246 +588,13 @@ export default function LeadsPage() {
       </div>
 
       {/* MODAL DETAIL */}
-      <Modal
+      <LeadDetailModal
         open={isModalOpen}
+        lead={selectedLead}
         onCancel={() => setIsModalOpen(false)}
-        footer={null}
-        width={800}
-        centered
-        closeIcon={null}
-        className="premium-modal"
-      >
-        {selectedLead && (
-          <div className="relative">
-            {/* Nút đóng góc trên bên phải */}
-            <Button
-              className="absolute -right-2 -top-2 z-10 shadow-md border-none bg-white hover:bg-red-50 hover:text-red-500"
-              shape="circle"
-              icon={<PlusOutlined className="rotate-45" />}
-              onClick={() => setIsModalOpen(false)}
-            />
-
-            <div className="space-y-6">
-              {/* HEADER SECTION: AVATAR & QUICK INFO */}
-              <div className="flex flex-col md:flex-row gap-6 items-center md:items-start bg-gradient-to-br from-indigo-50 to-white p-6 rounded-[2.5rem] border border-indigo-100/50">
-                <Badge
-                  offset={[-10, 55]}
-                  count={
-                    <div className="bg-white p-1 rounded-full shadow-sm">
-                      {selectedLead.source === "LEAD_TMV" ? "🔴" : "👤"}
-                    </div>
-                  }
-                >
-                  <Avatar
-                    size={100}
-                    className="border-4 border-white shadow-2xl bg-indigo-600"
-                    icon={<UserOutlined />}
-                  />
-                </Badge>
-
-                <div className="flex-1 text-center md:text-left">
-                  <div className="flex flex-wrap justify-center md:justify-start items-center gap-3 mb-2">
-                    <Title level={2} className="m-0! font-black text-slate-800">
-                      {selectedLead.fullName}
-                    </Title>
-                    <Tag
-                      color="blue"
-                      className="rounded-full px-4 font-bold border-none shadow-sm"
-                    >
-                      ID: {selectedLead.id.slice(-6).toUpperCase()}
-                    </Tag>
-                  </div>
-
-                  <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                    <Text className="text-lg font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-xl">
-                      <PhoneOutlined className="mr-2" /> {selectedLead.phone}
-                    </Text>
-                    <div className="flex items-center text-slate-400 font-medium">
-                      <EnvironmentOutlined className="mr-1 text-red-400" />
-                      {selectedLead.branch?.name || "Chi nhánh chưa xác định"}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-2">
-                    <Tag className="m-0 border-none bg-slate-800 text-white rounded-lg px-3 py-1">
-                      NGUỒN: {translateSource(selectedLead.source)}
-                    </Tag>
-                    {getLeadStatusHelper(selectedLead.status).icon}
-                    <span className="font-bold text-xs uppercase self-center">
-                      {getLeadStatusHelper(selectedLead.status).label}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* CONTENT TABS */}
-              <Tabs
-                defaultActiveKey="1"
-                className="custom-tabs-v2"
-                items={[
-                  {
-                    key: "1",
-                    label: (
-                      <span className="px-4 font-bold">
-                        📂 THÔNG TIN CHI TIẾT
-                      </span>
-                    ),
-                    children: (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
-                        {/* Cột trái: Thông tin xe */}
-                        <div className="space-y-4">
-                          <Card
-                            title={
-                              <span className="text-xs text-slate-400">
-                                <CarOutlined /> THÔNG TIN XE
-                              </span>
-                            }
-                            className="rounded-3xl border-slate-100 shadow-sm"
-                          >
-                            <div className="space-y-3">
-                              <div>
-                                <Text className="text-[11px] text-slate-400 block">
-                                  Dòng xe quan tâm
-                                </Text>
-                                <Text
-                                  strong
-                                  className="text-base text-indigo-900"
-                                >
-                                  {selectedLead.carModel?.name ||
-                                    "Chưa cập nhật"}
-                                </Text>
-                              </div>
-                              <div className="flex justify-between">
-                                <div>
-                                  <Text className="text-[11px] text-slate-400 block">
-                                    Nhu cầu
-                                  </Text>
-                                  {getReferralTypeTag(selectedLead.type)}
-                                </div>
-                                <div className="text-right">
-                                  <Text className="text-[11px] text-slate-400 block">
-                                    Biển số
-                                  </Text>
-                                  <Text strong className="font-mono">
-                                    {selectedLead.licensePlate || "---"}
-                                  </Text>
-                                </div>
-                              </div>
-                            </div>
-                          </Card>
-                        </div>
-
-                        {/* Cột phải: Ghi chú & Ngày tạo */}
-                        <div className="space-y-4">
-                          <Card
-                            title={
-                              <span className="text-xs text-slate-400">
-                                <FileExcelOutlined /> GHI CHÚ QUẢN TRỊ
-                              </span>
-                            }
-                            className="rounded-3xl border-slate-100 shadow-sm h-full"
-                          >
-                            <div className="bg-amber-50/50 p-3 rounded-2xl border border-dashed border-amber-200 min-h-[80px]">
-                              <Text className="italic text-slate-600">
-                                {selectedLead.note ||
-                                  "Chưa có ghi chú cụ thể cho khách hàng này..."}
-                              </Text>
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-slate-50 flex justify-between items-center text-[11px] text-slate-400">
-                              <span>
-                                Ngày tạo:{" "}
-                                {dayjs(selectedLead.createdAt).format(
-                                  "DD/MM/YYYY HH:mm",
-                                )}
-                              </span>
-                            </div>
-                          </Card>
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "2",
-                    label: (
-                      <span className="px-4 font-bold">
-                        🕒 LỊCH SỬ CHĂM SÓC
-                      </span>
-                    ),
-                    children: (
-                      <div className="p-4 max-h-[350px] overflow-y-auto bg-slate-50/50 rounded-[2rem]">
-                        {selectedLead.activities?.length > 0 ? (
-                          <Timeline
-                            mode="left"
-                            className="mt-4"
-                            items={selectedLead.activities.map((act: any) => ({
-                              label: (
-                                <Text className="text-[10px] font-bold text-slate-400">
-                                  {dayjs(act.createdAt).format("DD/MM HH:mm")}
-                                </Text>
-                              ),
-                              children: (
-                                <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-4">
-                                  <Tag
-                                    color="blue"
-                                    className="m-0 mb-1 border-none text-[10px] font-black uppercase"
-                                  >
-                                    {act.status}
-                                  </Tag>
-                                  <div className="text-[13px] text-slate-600 font-medium">
-                                    {act.note}
-                                  </div>
-                                  <div className="text-[10px] text-slate-300 mt-1 italic">
-                                    — Thực hiện bởi: Hệ thống
-                                  </div>
-                                </div>
-                              ),
-                            }))}
-                          />
-                        ) : (
-                          <Empty
-                            description="Chưa có lịch sử hoạt động"
-                            className="py-10"
-                          />
-                        )}
-                      </div>
-                    ),
-                  },
-                ]}
-              />
-
-              {/* FOOTER ACTIONS */}
-              <div className="grid grid-cols-4 gap-3 pt-4 border-t border-slate-100">
-                <Popconfirm
-                  title="Xác nhận xóa khách hàng?"
-                  onConfirm={() => handleDelete(selectedLead.id)}
-                  okText="Xóa"
-                  cancelText="Hủy"
-                  okButtonProps={{
-                    danger: true,
-                    size: "large",
-                    className: "rounded-xl",
-                  }}
-                >
-                  <Button
-                    danger
-                    size="large"
-                    className="rounded-2xl font-bold h-14 border-none bg-red-50 text-red-500 hover:bg-red-100"
-                    icon={<DeleteOutlined />}
-                  />
-                </Popconfirm>
-
-                <Button
-                  size="large"
-                  className="col-span-3 bg-slate-900 text-white rounded-2xl font-bold h-14 shadow-lg shadow-slate-200 hover:scale-[1.02] transition-transform"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  QUAY LẠI DANH SÁCH
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+        onDelete={handleDelete}
+        getReferralTypeTag={getReferralTypeTag}
+      />
 
       <style jsx global>{`
         .custom-select .ant-select-selector {
