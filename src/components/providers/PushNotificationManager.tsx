@@ -19,6 +19,7 @@ export default function PushNotificationManager({
             appId: "60633c73-3211-4b9c-a80c-efe41d56df17", // App ID thật của Nghĩa
             allowLocalhostAsSecureOrigin: true,
             serviceWorkerPath: "/OneSignalSDKWorker.js",
+            siteStack: "https://www.xecubinhduong.com.vn",
           });
 
           // Liên kết User ID từ hệ thống của bạn với OneSignal
