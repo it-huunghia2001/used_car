@@ -52,12 +52,13 @@ export default async function RootLayout({
   const token = (await cookies()).get("used-car")?.value;
   let role: Role = "REFERRER";
   let isGobal = false;
-  const userId: string | undefined = undefined; // Thêm biến lấy ID
+  let userId: string | undefined = undefined; // Thêm biến lấy ID
   if (token) {
     try {
       const payload = (await jwt.verify(token, JWT_SECRET!)) as any;
       role = payload.role;
       isGobal = payload.isGlobalManager;
+      userId = payload.id;
     } catch (err) {
       console.log("JWT invalid", err);
     }
