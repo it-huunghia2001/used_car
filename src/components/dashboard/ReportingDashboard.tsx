@@ -533,7 +533,7 @@ export default function ReportingDashboard({
                       barSize={14}
                     >
                       {interestedModels.map((_: any, index: number) => (
-                        <Cell key={index} fillOpacity={1 - index * 0.15} />
+                        <Cell key={index} fillOpacity={3 - index * 0.15} />
                       ))}
                     </Bar>
                     <RechartsTooltip cursor={{ fill: "transparent" }} />
