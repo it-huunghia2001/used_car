@@ -22,7 +22,8 @@ import {
 } from "@ant-design/icons";
 import { createCustomerAction } from "@/actions/customer-actions";
 import { useState } from "react";
-
+export const maxDuration = 60; // Tăng timeout cho toàn bộ các action được gọi từ page này
+export const dynamic = "force-dynamic";
 const { Title, Text } = Typography;
 
 export default function FormValuation({ carModels, userId, onSuccess }: any) {

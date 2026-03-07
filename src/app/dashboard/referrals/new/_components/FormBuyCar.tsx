@@ -27,6 +27,9 @@ import { getAvailableCarsAction } from "@/actions/car-actions";
 
 const { Title, Text } = Typography;
 
+export const maxDuration = 60; // Tăng timeout cho toàn bộ các action được gọi từ page này
+export const dynamic = "force-dynamic";
+
 export default function FormBuyCar({
   carModels,
   userId,
