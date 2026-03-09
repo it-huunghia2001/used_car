@@ -95,6 +95,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
             {/* ================= THÔNG TIN CƠ BẢN ================= */}
             <section>
+              <div className="onesignal-customlink-container"></div>
               <Divider>Thông tin cơ bản</Divider>
 
               <Form.Item
