@@ -20,6 +20,7 @@ import {
   SaveOutlined,
 } from "@ant-design/icons";
 import { updateProfile } from "@/actions/profile-actions";
+import ManualNotificationBtn from "@/components/buttonShowNotification";
 
 const { Title, Text } = Typography;
 
@@ -74,7 +75,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
           </div>
 
           <div>
-            <Title level={3} className="!m-0">
+            <Title level={3} className="m-0!">
               {user?.fullName || "Người dùng"}
             </Title>
             <Space size={8}>
@@ -83,6 +84,7 @@ export default function ProfilePage({ user }: ProfilePageProps) {
             </Space>
           </div>
         </div>
+        <ManualNotificationBtn />
 
         {/* FORM */}
         <Form
@@ -95,7 +97,6 @@ export default function ProfilePage({ user }: ProfilePageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
             {/* ================= THÔNG TIN CƠ BẢN ================= */}
             <section>
-              <div className="onesignal-customlink-container"></div>
               <Divider>Thông tin cơ bản</Divider>
 
               <Form.Item
