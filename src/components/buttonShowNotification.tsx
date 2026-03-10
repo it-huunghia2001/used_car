@@ -1,29 +1,61 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { Button, message } from "antd";
+"use client";
+import React, { useState } from "react";
+import { Button, message, notification } from "antd";
 import { BellOutlined } from "@ant-design/icons";
-import OneSignal from "react-onesignal";
+import { getFcmToken } from "@/lib/firebase";
 
-export default function ManualNotificationBtn() {
-  const handleSubscribe = async () => {
-    // Ép hiện bảng hỏi của trình duyệt
+export default function NotificationButton({ userId }: { userId: string }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleEnablePush = async () => {
+    setLoading(true);
     try {
-      await OneSignal.Notifications.requestPermission();
-      message.success("Cảm ơn Nghĩa đã bật thông báo!");
-    } catch (err) {
-      message.error(
-        "Không thể bật thông báo, hãy kiểm tra cài đặt trình duyệt.",
-      );
+      // 1. Xin quyền và lấy Token từ Firebase
+      const token = await getFcmToken();
+
+      if (token) {
+        // 2. Gửi lên API Route để lưu vào MySQL
+        const res = await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            deviceToken: token,
+            deviceType: navigator.userAgent.includes("Mobi")
+              ? "Mobile"
+              : "Desktop",
+          }),
+        });
+
+        if (res.ok) {
+          notification.success({
+            message: "Thành công!",
+            description: 'Hệ thống sẽ báo "Ting Ting" khi có khách hàng mới.',
+            placement: "topRight",
+          });
+        }
+      } else {
+        message.warning(
+          "Bạn đã từ chối hoặc trình duyệt không hỗ trợ thông báo.",
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      message.error("Có lỗi xảy ra khi đăng ký thông báo.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <Button
       type="primary"
-      danger
       icon={<BellOutlined />}
-      onClick={handleSubscribe}
+      loading={loading}
+      onClick={handleEnablePush}
+      style={{ backgroundColor: "#d71920", borderColor: "#d71920" }} // Màu đỏ Toyota
     >
-      Nhận thông báo khách mới
+      Bật thông báo khách mới
     </Button>
   );
 }

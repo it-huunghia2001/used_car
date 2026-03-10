@@ -20,7 +20,6 @@ import {
   SaveOutlined,
 } from "@ant-design/icons";
 import { updateProfile } from "@/actions/profile-actions";
-import ManualNotificationBtn from "@/components/buttonShowNotification";
 
 const { Title, Text } = Typography;
 
@@ -84,7 +83,6 @@ export default function ProfilePage({ user }: ProfilePageProps) {
             </Space>
           </div>
         </div>
-        <ManualNotificationBtn />
 
         {/* FORM */}
         <Form

@@ -17,7 +17,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { getRoleTag } from "@/components/role";
-import TestPushBtn from "@/components/TestPushBtn";
+import PushNotificationClient from "@/components/PushRegister";
 
 const { Text } = Typography;
 
@@ -95,7 +95,7 @@ export default function UserTable({
           >
             <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
-          <TestPushBtn userId={record.id} />
+          <PushNotificationClient userId={record.id} />
         </Space>
       ),
     },

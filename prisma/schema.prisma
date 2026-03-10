@@ -702,11 +702,14 @@ model PushSubscription {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Đây là Player ID từ OneSignal hoặc Token từ trình duyệt
-  deviceToken String  @unique
-  deviceType  String? // Ghi chú thiết bị: Chrome, iOS, Android...
+  // Sửa chỗ này: Thay @db.Text bằng @db.VarChar(512)
+  deviceToken String @unique @db.VarChar(512)
 
-  createdAt DateTime @default(now())
+  browser    String?
+  os         String?
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  deviceType String?
 
   @@index([userId])
 }
