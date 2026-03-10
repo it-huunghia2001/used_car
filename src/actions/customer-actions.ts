@@ -340,16 +340,15 @@ export async function createCustomerAction(rawData: any) {
 
       // A. Gửi cho nhân viên được phân bổ
       if (staff?.email) {
-        await oneSignalClient.createNotification({
-          contents: {
-            vi: `🚗 Có khách hàng mới: ${result.fullName}`,
-          },
-          headings: {
-            vi: "Toyota Bình Dương",
-          },
-          // Gửi đích danh cho nhân viên dựa trên userId đã login ở Client
-          include_external_user_ids: [assignedStaffId ?? ""],
-        });
+        if (assignedStaffId) {
+          // 1. Bắn Firebase Push (Thay cho OneSignal)
+          sendFirebasePush({
+            userIds: [assignedStaffId],
+            title: "🚗 TOYOTA BÌNH DƯƠNG",
+            body: `Nhiệm vụ mới: Chăm sóc khách hàng ${result.fullName}`,
+            url: "/dashboard/assigned-tasks",
+          });
+        }
         emailPromises.push(
           sendMail({
             to: staff.email,
@@ -368,6 +367,12 @@ export async function createCustomerAction(rawData: any) {
       // B. Gửi cho Admin chi nhánh
       const adminEmails = branchAdmins.map((a) => a.email).filter(Boolean);
       if (adminEmails.length > 0) {
+        sendFirebasePush({
+          emails: adminEmails,
+          title: "HỆ THỐNG TOYOTA",
+          body: `${auth.fullName} vừa giới thiệu khách: ${result.fullName}`,
+          url: "/dashboard/customers",
+        });
         emailPromises.push(
           sendMail({
             to: adminEmails.join(","),
@@ -1255,6 +1260,7 @@ export async function getLeadsWithoutSensitiveAction(params: {
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { oneSignalClient } from "@/lib/onesignal";
+import { sendFirebasePush } from "@/lib/push-service";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
