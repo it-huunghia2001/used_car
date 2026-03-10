@@ -10,6 +10,7 @@ export async function POST(req: Request) {
 
     const user = await getCurrentUser();
     const { deviceToken, deviceType } = body;
+    console.log(user);
 
     // Sửa lại logic: Nếu không có user HOẶC không có token thì trả về 400
     if (!user || !user.id || !deviceToken) {

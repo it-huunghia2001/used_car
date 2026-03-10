@@ -4,7 +4,7 @@ import { Button, message, notification } from "antd";
 import { BellOutlined } from "@ant-design/icons";
 import { getFcmToken } from "@/lib/firebase";
 
-export default function NotificationButton({ userId }: { userId: string }) {
+export default function NotificationButton() {
   const [loading, setLoading] = useState(false);
 
   const handleEnablePush = async () => {
@@ -19,7 +19,6 @@ export default function NotificationButton({ userId }: { userId: string }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId,
             deviceToken: token,
             deviceType: navigator.userAgent.includes("Mobi")
               ? "Mobile"
