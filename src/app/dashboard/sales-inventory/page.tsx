@@ -45,6 +45,7 @@ import {
   getMaintenanceTasksAction,
   getMyCustomersAction,
   selfCreateCustomerAction,
+  getCustomerUrgencyStatsAction,
 } from "@/actions/task-actions";
 import { getCarModelsAction } from "@/actions/car-actions";
 import { getMeAction } from "@/actions/user-actions";
@@ -85,9 +86,15 @@ export default function SalesTasksPage() {
   const [maintenanceTasks, setMaintenanceTasks] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [buyReasons, setBuyReasons] = useState<any[]>([]);
-
+  const [stats, setStats] = useState<{
+    HOT: number;
+    WARM: number;
+    COOL: number;
+    UNASSIGNED: number;
+  }>({ HOT: 0, WARM: 0, COOL: 0, UNASSIGNED: 0 });
   // --- EFFECT ---
   useEffect(() => {
+    loadCustomerUrgencyStatsAction();
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     handleResize();
     window.addEventListener("resize", handleResize);
@@ -122,7 +129,6 @@ export default function SalesTasksPage() {
       setBuyReasons(bReasons);
       setMaintenanceTasks(maintenance);
       setCurrentUser(userData.data);
-      console.log(userData.data);
     } catch (err) {
       messageApi.error("Lỗi tải dữ liệu hệ thống");
     } finally {
@@ -140,6 +146,19 @@ export default function SalesTasksPage() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const loadCustomerUrgencyStatsAction = async () => {
+    const data = await getCustomerUrgencyStatsAction();
+
+    // Chuyển Object thành Mảng để map() dễ hơn và fix lỗi TS
+    const formattedData = [
+      { label: "HOT", value: data.HOT, color: "#ef4444" },
+      { label: "WARM", value: data.WARM, color: "#f97316" },
+      { label: "COOL", value: data.COOL, color: "#3b82f6" },
+      { label: "Chưa phân loại", value: data.UNASSIGNED, color: "#9ca3af" },
+    ];
+    setStats(data);
   };
 
   // --- LOGIC XỬ LÝ ---
@@ -861,14 +880,16 @@ export default function SalesTasksPage() {
                         { label: "Tất cả", value: "ALL" },
                         {
                           label: (
-                            <span className="text-red-500 font-bold">HOT</span>
+                            <span className="text-red-500 font-bold">
+                              HOT ({stats.HOT})
+                            </span>
                           ),
                           value: "HOT",
                         },
                         {
                           label: (
                             <span className="text-orange-500 font-bold">
-                              WARM
+                              WARM ({stats.WARM})
                             </span>
                           ),
                           value: "WARM",
@@ -876,10 +897,18 @@ export default function SalesTasksPage() {
                         {
                           label: (
                             <span className="text-blue-500 font-bold">
-                              COOL
+                              COOL ({stats.COOL})
                             </span>
                           ),
                           value: "COOL",
+                        },
+                        {
+                          label: (
+                            <span className="text-green-500 font-bold">
+                              Chưa xác định ({stats.UNASSIGNED})
+                            </span>
+                          ),
+                          value: null,
                         },
                       ]}
                     />

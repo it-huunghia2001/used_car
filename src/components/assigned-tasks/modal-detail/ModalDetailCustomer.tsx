@@ -266,7 +266,6 @@ export default function ModalDetailCustomer({
         ) : (
           <CustomerBanner
             customerData={customerData}
-            UrgencyBadge={UrgencyBadge}
             renderTime={(date: any) =>
               hasMounted && date
                 ? dayjs(date).format("DD/MM/YYYY | HH:mm")

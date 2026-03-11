@@ -1163,11 +1163,8 @@ export async function updateCustomerStatusAction(
 
     const result = await db.$transaction(
       async (tx) => {
-        const [config, currentTask, customer] = await Promise.all([
+        const [config, customer] = await Promise.all([
           tx.leadSetting.findFirst(),
-          currentTaskId
-            ? tx.task.findUnique({ where: { id: currentTaskId } })
-            : null,
           tx.customer.findUnique({ where: { id: customerId } }),
         ]);
 
@@ -1177,17 +1174,18 @@ export async function updateCustomerStatusAction(
         let isLate = false;
         let lateMinutes = 0;
 
-        // --- LOGIC XỬ LÝ TRỄ HẠN (CẬP NHẬT) ---
-        if (currentTask && currentTask.status === "PENDING") {
-          // Kiểm tra điều kiện miễn trừ trễ: Người giới thiệu chính là người đang xử lý
-          const isSelfReferral = customer.referrerId === customer.assignedToId;
+        // 1. TÌM TASK CHÍNH (Task hiện tại đang được xử lý để tính toán trễ hạn)
+        const currentTask = currentTaskId
+          ? await tx.task.findUnique({ where: { id: currentTaskId } })
+          : await tx.task.findFirst({
+              where: { customerId, status: "PENDING" },
+              orderBy: { scheduledAt: "asc" },
+            });
 
-          if (isSelfReferral) {
-            // Nếu tự giới thiệu tự xử lý: Không bao giờ đánh trễ
-            isLate = false;
-            lateMinutes = 0;
-          } else {
-            // Nếu là khách được giao từ người khác/hệ thống: Tính trễ bình thường
+        // 2. TÍNH TOÁN TRỄ HẠN (Dựa trên task cũ nhất hoặc task được chọn)
+        if (currentTask && currentTask.status === "PENDING") {
+          const isSelfReferral = customer.referrerId === customer.assignedToId;
+          if (!isSelfReferral) {
             const deadline = dayjs(currentTask.scheduledAt).add(
               maxLateMinutes,
               "minute",
@@ -1195,13 +1193,27 @@ export async function updateCustomerStatusAction(
             isLate = dayjs(now).isAfter(deadline);
             lateMinutes = isLate ? dayjs(now).diff(deadline, "minute") : 0;
           }
+        }
 
-          // Cập nhật Task cũ với kết quả tính toán trên
+        // 3. ĐÓNG TẤT CẢ CÁC TASK ĐANG PENDING CỦA KHÁCH HÀNG NÀY
+        // Thay vì chỉ update 1 cái, ta quét sạch để tránh rác dữ liệu
+        await tx.task.updateMany({
+          where: {
+            customerId: customerId,
+            status: "PENDING",
+          },
+          data: {
+            status: "COMPLETED",
+            completedAt: now,
+            content: `[Hệ thống tự động đóng] ${note}`,
+          },
+        });
+
+        // Nếu có task cụ thể được xử lý, cập nhật chính xác task đó với thông tin trễ hạn
+        if (currentTask) {
           await tx.task.update({
-            where: { id: currentTaskId },
+            where: { id: currentTask.id },
             data: {
-              status: "COMPLETED",
-              completedAt: now,
               content: note,
               isLate,
               lateMinutes,
@@ -1211,7 +1223,7 @@ export async function updateCustomerStatusAction(
 
         const operations = [];
 
-        // Cập nhật khách hàng
+        // 4. CẬP NHẬT THÔNG TIN KHÁCH HÀNG
         operations.push(
           tx.customer.update({
             where: { id: customerId },
@@ -1223,23 +1235,18 @@ export async function updateCustomerStatusAction(
               nextContactNote: payload?.nextNote || null,
               lastContactResult: note || null,
               contactCount: { increment: 1 },
-              // Nếu bạn có trường isLate trên Customer thì cập nhật luôn (tùy thiết kế)
-              // isLate: isLate
             },
           }),
         );
 
-        // Tạo Task mới nếu có hẹn
+        // 5. TẠO TASK MỚI (NẾU CÓ HẸN)
         if (nextContactAt) {
-          let taskType: "SALES" | "PURCHASE" | "MAINTENANCE" = "SALES";
-          if (
-            currentTask?.type === "MAINTENANCE" ||
-            customer.status === "DEAL_DONE"
-          ) {
-            taskType = "MAINTENANCE";
-          } else {
-            taskType = customer.type === "BUY" ? "SALES" : "PURCHASE";
-          }
+          const taskType =
+            currentTask?.type === "MAINTENANCE" || status === "DEAL_DONE"
+              ? "MAINTENANCE"
+              : customer.type === "BUY"
+                ? "SALES"
+                : "PURCHASE";
 
           operations.push(
             tx.task.create({
@@ -1259,7 +1266,7 @@ export async function updateCustomerStatusAction(
           );
         }
 
-        // Ghi nhật ký hoạt động
+        // 6. GHI LOG HOẠT ĐỘNG
         operations.push(
           tx.leadActivity.create({
             data: {
@@ -2047,6 +2054,53 @@ export async function completeMaintenanceTaskAction(taskId: string) {
     },
   });
   return { success: true };
+}
+
+export async function getCustomerUrgencyStatsAction() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Định nghĩa các trạng thái khách hàng đang hoạt động (giống với list của bạn)
+  const activeStatuses: LeadStatus[] = [
+    "NEW",
+    "CONTACTED",
+    "FOLLOW_UP",
+    "INSPECTING",
+    "ASSIGNED",
+    "PENDING_DEAL_APPROVAL",
+    "PENDING_LOSE_APPROVAL",
+  ];
+
+  const stats = await db.customer.groupBy({
+    by: ["urgencyLevel"],
+    where: {
+      assignedToId: user.id,
+      status: {
+        in: activeStatuses,
+      },
+    },
+    _count: {
+      urgencyLevel: true,
+    },
+  });
+
+  // Chuyển đổi kết quả sang định dạng dễ dùng hơn
+  const result = {
+    HOT: 0,
+    WARM: 0,
+    COOL: 0,
+    UNASSIGNED: 0, // Trường hợp urgencyLevel bị null
+  };
+
+  stats.forEach((item) => {
+    if (item.urgencyLevel) {
+      result[item.urgencyLevel] = item._count.urgencyLevel;
+    } else {
+      result.UNASSIGNED = item._count.urgencyLevel;
+    }
+  });
+
+  return result;
 }
 
 export async function getMyCustomersAction(filters?: any) {

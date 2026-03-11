@@ -13,14 +13,11 @@ import {
   GlobalOutlined,
 } from "@ant-design/icons";
 import { getReferralTypeTagStaff } from "@/lib/status-helper";
+import { UrgencyBadge } from "@/lib/urgencyBadge";
 
 const { Text, Title } = Typography;
 
-export const CustomerBanner = ({
-  customerData,
-  renderTime,
-  UrgencyBadge,
-}: any) => {
+export const CustomerBanner = ({ customerData, renderTime }: any) => {
   // Helper gán màu sắc và label cho trạng thái giám địnhlog
 
   const getInspectStatusTag = (status: string) => {
