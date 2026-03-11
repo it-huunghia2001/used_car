@@ -2169,7 +2169,7 @@ export async function getMyCustomersAction(filters?: any) {
         orderBy: { createdAt: "desc" },
       },
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { createdAt: "desc" },
   });
 
   return serializePrisma(customers);
