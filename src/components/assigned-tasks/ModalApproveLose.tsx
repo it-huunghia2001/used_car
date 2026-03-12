@@ -27,6 +27,7 @@ import {
   HistoryOutlined,
   FileTextOutlined,
   SyncOutlined,
+  CarOutlined,
 } from "@ant-design/icons";
 import dayjs from "@/lib/dayjs";
 import { getLeadStatusHelper } from "@/lib/status-helper";
@@ -61,18 +62,18 @@ export default function ModalApproveLose({
     return null;
 
   const rawNote = selectedActivity.note || "";
+  const customer = selectedActivity.customer || {};
+  const leadCar = customer.leadCar || {};
+  const carModel = customer.carModel || {};
 
-  // --- LOGIC BÓC TÁCH CHUỖI (REGEX) ---
-  // 1. Tìm trạng thái sau chữ "ĐÍCH: " (Ví dụ: FROZEN, LOSE)
+  // --- LOGIC BÓC TÁCH CHUỖI ---
   const targetStatusMatch = rawNote.match(/ĐÍCH:\s*([A-Z_]+)/);
   const targetStatus = targetStatusMatch ? targetStatusMatch[1] : "LOSE";
 
-  // 2. Tìm nội dung giải trình sau dấu "]: "
   const salesNote = rawNote.includes("]: ")
     ? rawNote.split("]: ").pop()?.trim()
     : rawNote;
 
-  // Lấy cấu hình hiển thị (Màu sắc, Icon, Label) của trạng thái đích
   const { label, color, icon } = getLeadStatusHelper(targetStatus);
 
   // --- SUB-RENDERS ---
@@ -116,11 +117,9 @@ export default function ModalApproveLose({
       >
         <Descriptions.Item label="Khách hàng">
           <Text strong className="text-blue-600">
-            {selectedActivity.customer?.fullName}
+            {customer.fullName}
           </Text>
-          <div className="text-xs text-gray-400">
-            {selectedActivity.customer?.phone}
-          </div>
+          <div className="text-xs text-gray-400">{customer.phone}</div>
         </Descriptions.Item>
         <Descriptions.Item label="Đề xuất chuyển">
           <Tag
@@ -151,7 +150,99 @@ export default function ModalApproveLose({
     </div>
   );
 
-  // Tab 2: Dòng thời gian tương tác (Bản nâng cấp dựa trên dữ liệu thật)
+  // Tab 2: Chi tiết xe (MỚI)
+  const renderCarDetail = (
+    <div className="py-2">
+      <div className="mb-4 flex items-center gap-3 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+        <div className="bg-white p-3 rounded-lg shadow-sm">
+          <CarOutlined className="text-2xl text-indigo-600" />
+        </div>
+        <div>
+          <div className="text-[10px] uppercase font-bold text-indigo-400 leading-none mb-1">
+            Dòng xe quan tâm
+          </div>
+          <div className="text-lg font-bold text-indigo-900">
+            {carModel.name || "Chưa cập nhật model"}
+            <span className="ml-2 text-sm font-normal text-indigo-500">
+              ({carModel.grade || "N/A"})
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <Descriptions
+        bordered
+        column={2}
+        size="small"
+        labelStyle={{
+          fontWeight: "bold",
+          backgroundColor: "#f8fafc",
+          width: "140px",
+        }}
+      >
+        <Descriptions.Item label="Biển số">
+          <Tag color="blue" className="font-mono font-bold m-0">
+            {leadCar.licensePlate || customer.licensePlate || "N/A"}
+          </Tag>
+        </Descriptions.Item>
+        <Descriptions.Item label="Năm sản xuất">
+          {leadCar.year || customer.carYear || "N/A"}
+        </Descriptions.Item>
+        <Descriptions.Item label="Số KM (ODO)">
+          {leadCar.odo ? `${leadCar.odo.toLocaleString()} km` : "N/A"}
+        </Descriptions.Item>
+        <Descriptions.Item label="Hộp số">
+          {leadCar.transmission === "AUTOMATIC"
+            ? "Số tự động"
+            : leadCar.transmission || "N/A"}
+        </Descriptions.Item>
+        <Descriptions.Item label="Nhiên liệu">
+          {leadCar.fuelType === "GASOLINE" ? "Xăng" : leadCar.fuelType || "N/A"}
+        </Descriptions.Item>
+        <Descriptions.Item label="Số chỗ ngồi">
+          {leadCar.seats ? `${leadCar.seats} chỗ` : "N/A"}
+        </Descriptions.Item>
+        <Descriptions.Item label="Nguồn gốc">
+          {leadCar.origin === "VN" ? "Trong nước" : leadCar.origin || "N/A"}
+        </Descriptions.Item>
+        <Descriptions.Item label="Loại sở hữu">
+          {leadCar.ownerType === "PERSONAL"
+            ? "Cá nhân"
+            : leadCar.ownerType || "N/A"}
+        </Descriptions.Item>
+        <Descriptions.Item label="Giá dự kiến" span={2}>
+          <Text strong className="text-red-500">
+            {leadCar.expectedPrice
+              ? `${leadCar.expectedPrice.toLocaleString()} VNĐ`
+              : "Chưa có giá"}
+          </Text>
+        </Descriptions.Item>
+        <Descriptions.Item label="Ghi chú xe" span={2}>
+          <div className="text-slate-600">
+            {customer.note || "Không có ghi chú thêm về tình trạng xe."}
+          </div>
+        </Descriptions.Item>
+      </Descriptions>
+
+      {/* Hiển thị các Badge trạng thái pháp lý/bảo hiểm nếu cần */}
+      <div className="mt-4 flex gap-2 flex-wrap">
+        <Badge
+          status={leadCar.isCertified ? "success" : "default"}
+          text="Xe T-Sure"
+        />
+        <Badge
+          status={leadCar.hasFine ? "error" : "success"}
+          text={leadCar.hasFine ? "Có phạt nguội" : "Không phạt nguội"}
+        />
+        <Badge
+          status={leadCar.insuranceVC ? "success" : "default"}
+          text="Bảo hiểm VC"
+        />
+      </div>
+    </div>
+  );
+
+  // Tab 3: Dòng thời gian tương tác
   const renderHistoryTimeline = (
     <div className="max-h-[500px] overflow-y-auto px-4 py-6 custom-scrollbar bg-slate-50/50 rounded-2xl">
       {historyLoading ? (
@@ -163,16 +254,13 @@ export default function ModalApproveLose({
         <Timeline
           mode="left"
           items={history.map((item) => {
-            // Helper lấy cấu hình status của từng dòng lịch sử
             const statusCfg = getLeadStatusHelper(item.status);
-
-            // Xác định màu sắc Timeline Dot
-            let dotColor = "#3b82f6"; // Blue mặc định
-            if (item.status === "PENDING_LOSE_APPROVAL") dotColor = "#f59e0b"; // Orange
+            let dotColor = "#3b82f6";
+            if (item.status === "PENDING_LOSE_APPROVAL") dotColor = "#f59e0b";
             if (item.status === "LOSE" || item.status === "CANCELLED")
-              dotColor = "#ef4444"; // Red
+              dotColor = "#ef4444";
             if (item.status === "DEAL_DONE" || item.status === "FROZEN")
-              dotColor = "#10b981"; // Green
+              dotColor = "#10b981";
 
             return {
               label: (
@@ -201,21 +289,12 @@ export default function ModalApproveLose({
                     >
                       {statusCfg.label}
                     </Tag>
-                    {item.isLate && (
-                      <Badge
-                        count="Trễ hạn"
-                        style={{ backgroundColor: "#f5222d", fontSize: "10px" }}
-                      />
-                    )}
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm transition-all group-hover:border-indigo-300 group-hover:shadow-md relative">
-                    {/* Nội dung ghi chú */}
                     <div className="text-[13px] text-slate-700 leading-relaxed mb-3">
                       {item.note}
                     </div>
-
-                    {/* Hiển thị Lý do nếu có (Dữ liệu từ JSON: item.reason.content) */}
                     {item.reason && (
                       <div className="mb-3 p-2 bg-indigo-50 rounded-lg border border-indigo-100 flex items-start gap-2">
                         <InfoCircleFilled className="text-indigo-400 mt-0.5" />
@@ -229,8 +308,6 @@ export default function ModalApproveLose({
                         </div>
                       </div>
                     )}
-
-                    {/* Thông tin nhân viên thực hiện */}
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-50">
                       <Space size={4}>
                         <Avatar
@@ -241,9 +318,6 @@ export default function ModalApproveLose({
                         <Text className="text-[11px] font-semibold text-slate-500">
                           {item.user?.fullName}
                         </Text>
-                        <Tag className="text-[9px] m-0 bg-slate-100 border-none text-slate-400 font-bold">
-                          {item.user?.role}
-                        </Tag>
                       </Space>
                     </div>
                   </div>
@@ -287,7 +361,7 @@ export default function ModalApproveLose({
           loading={loading}
           className="rounded-lg"
         >
-          Từ chối (Yêu cầu chăm sóc tiếp)
+          Từ chối (Tiếp tục chăm sóc)
         </Button>,
         <Button
           key="approve"
@@ -302,7 +376,7 @@ export default function ModalApproveLose({
           Đồng ý cho {label}
         </Button>,
       ]}
-      width={700}
+      width={750}
       centered
       destroyOnHidden
     >
@@ -314,16 +388,25 @@ export default function ModalApproveLose({
             key: "1",
             label: (
               <Space>
-                <FileTextOutlined /> Chi tiết yêu cầu
+                <FileTextOutlined /> Yêu cầu
               </Space>
             ),
             children: renderApprovalDetail,
           },
           {
+            key: "car",
+            label: (
+              <Space>
+                <CarOutlined /> Chi tiết xe
+              </Space>
+            ),
+            children: renderCarDetail,
+          },
+          {
             key: "2",
             label: (
               <Space>
-                <HistoryOutlined /> Lịch sử chăm sóc
+                <HistoryOutlined /> Lịch sử
               </Space>
             ),
             children: renderHistoryTimeline,
