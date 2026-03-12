@@ -52,6 +52,7 @@ import {
   translateSource,
 } from "@/utils/excel-helper";
 import LeadDetailModal from "@/components/LeadDetailCustomer";
+import { UrgencyBadge } from "@/lib/urgencyBadge";
 
 const { Text, Title } = Typography;
 const { Option, OptGroup } = Select;
@@ -322,9 +323,12 @@ export default function LeadsPage() {
             icon={<UserOutlined />}
           />
           <div className="flex flex-col">
-            <Text strong className="text-slate-800 text-[14px] leading-tight">
-              {r.fullName}
-            </Text>
+            <div className="flex gap-2 items-center">
+              <Text strong className="text-slate-800 text-[14px] leading-tight">
+                {r.fullName}
+              </Text>
+              <UrgencyBadge type={r.urgencyLevel} />
+            </div>
             <Text className="text-[13px] text-blue-600 font-bold font-mono">
               <PhoneOutlined className="mr-1" /> {r.phone}
             </Text>
