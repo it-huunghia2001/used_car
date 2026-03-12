@@ -37,6 +37,7 @@ import {
 import dayjs from "@/lib/dayjs";
 import { getLeadStatusHelper } from "@/lib/status-helper";
 import { translateSource } from "@/utils/excel-helper";
+import { UrgencyBadge } from "@/lib/urgencyBadge";
 
 const { Text, Title } = Typography;
 
@@ -96,6 +97,7 @@ export default function LeadDetailModal({
                 >
                   {lead.fullName}
                 </Title>
+                <UrgencyBadge type={lead.urgencyLevel} />
                 {getReferralTypeTag(lead.type)}
               </div>
               <div className="flex flex-wrap gap-4 text-slate-300">
