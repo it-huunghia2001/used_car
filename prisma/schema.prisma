@@ -692,6 +692,7 @@ enum LeadSource {
   REFERRAL // Khách cũ Môi giới
   COMMUNITY // Diễn đàn Hội nhóm
   HOTLINE
+  BROKER
   WALK_IN
   INTERNAL
   OTHER
