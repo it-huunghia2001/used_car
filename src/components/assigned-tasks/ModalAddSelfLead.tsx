@@ -230,7 +230,7 @@ export default function ModalAddSelfLead({
                         label: "💻 Website cá nhân",
                       },
                       {
-                        value: "OLD_CUSTOMER",
+                        value: "REFERRAL",
                         label: "🤝 Khách hàng cũ (Tái mua/đổi xe)",
                       }, // Tách riêng
                       {
