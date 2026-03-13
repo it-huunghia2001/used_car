@@ -224,7 +224,10 @@ export default function FormBuyCar({
             </Form.Item>
           </Col>
 
-          {(userRole === "SALES_STAFF" || userRole === "PURCHASE_STAFF") && (
+          {(userRole === "SALES_STAFF" ||
+            userRole === "PURCHASE_STAFF" ||
+            userRole === "MANAGER" ||
+            userRole === "APPRAISER") && (
             <Col xs={24} md={12}>
               <Form.Item
                 name="source"
