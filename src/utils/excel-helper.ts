@@ -135,6 +135,8 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
     // Nhóm: Thông tin Xe
     { header: "MODEL XE", key: "model", width: 20 },
     { header: "PHIÊN BẢN (GRADE)", key: "grade", width: 15 },
+    { header: "MODEL MUỐN ĐỔI", key: "modelTrade", width: 20 },
+    { header: "PHIÊN BẢN MUỐN ĐỔI", key: "gradeTradee", width: 15 },
     { header: "NĂM SẢN XUẤT", key: "year", width: 10 },
     { header: "BIỂN SỐ", key: "plate", width: 15 },
     { header: "ODO (KM)", key: "odo", width: 12 },
@@ -186,6 +188,9 @@ export const handleExportFullCustomerExcel = async (data: any[]) => {
       address: item.address,
       model: item.carModel?.name,
       grade: item.leadCar?.grade || item.carModel?.grade,
+      gradeTradee: item.tradeInModel?.grade,
+      modelTrade: item.tradeInModel?.name,
+
       year: item.leadCar?.year || item.carYear,
       plate: item.leadCar?.licensePlate || item.licensePlate,
       odo: item.leadCar?.odo ? Number(item.leadCar.odo) : null,
@@ -396,7 +401,9 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Địa chỉ", key: "address", width: 30 },
     { header: "Tỉnh", key: "province", width: 15 },
     { header: "Model", key: "model", width: 15 },
-    { header: "Grade", key: "grade", width: 15 },
+    { header: "Phiên bản", key: "grade", width: 15 },
+    { header: "Model muốn đổi", key: "modelTrade", width: 20 },
+    { header: "Phiên bản muốn đổi", key: "gradeTradee", width: 15 },
     { header: "Năm SX", key: "year", width: 10 },
     { header: "Số km (ODO)", key: "odo", width: 12 },
     { header: "NV Giám định", key: "inspector", width: 20 },
@@ -435,6 +442,8 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
       province: item.province,
       model: item.carModel?.name,
       grade: item.carModel?.grade || item.leadCar?.grade || "N/A",
+      gradeTradee: item.tradeInModel?.grade,
+      modelTrade: item.tradeInModel?.name,
       year: item.leadCar?.year || item.carYear,
       odo: item.leadCar?.odo ? Number(item.leadCar.odo) : null,
       inspector: item.inspectorRef?.fullName,
@@ -484,6 +493,8 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
     { header: "Nguồn chi tiết", key: "sourceDetail", width: 25 },
     { header: "Ngân sách", key: "budget", width: 15 },
     { header: "Model quan tâm", key: "model", width: 15 },
+    { header: "Phiên bản", key: "grade", width: 15 },
+
     { header: "Ngày liên hệ gần nhất", key: "lastDate", width: 15 },
     { header: "Kết quả LH gần nhất", key: "lastRes", width: 30 },
     { header: "Số lần LH", key: "count", width: 10 },
@@ -514,6 +525,7 @@ export const handleExportFullCustomerExcelManager = async (data: any[]) => {
       sourceDetail: translateSource(item.source),
       budget: item.budget ? Number(item.budget) : null,
       model: item.carModel?.name,
+      grade: item.carModel?.grade ?? "",
 
       lastDate: item.lastContactAt
         ? dayjs(item.lastContactAt).format("DD/MM/YYYY")

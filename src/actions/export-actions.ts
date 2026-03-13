@@ -53,6 +53,7 @@ export async function getExportCustomerData(
           department: { select: { name: true } },
         },
       },
+      tradeInModel: { select: { name: true, grade: true } },
       carModel: { select: { name: true, grade: true } },
       leadCar: {
         select: {
