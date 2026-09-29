@@ -81,6 +81,9 @@ export async function createCustomerAction(rawData: any) {
       ? data.licensePlate.toUpperCase().replace(/[^A-Z0-9]/g, "")
       : undefined;
 
+    // [MỚI] Xác định người giới thiệu thực sự của khách này
+    const actualReferrerId: string = data.referrerId || auth.id;
+
     // 2. KIỂM TRA TRÙNG LẶP RIÊNG BIỆT (PHÂN LUỒNG MUA VÀ BÁN)
     const activeStatuses = {
       notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED, LeadStatus.LOSE],
@@ -135,14 +138,14 @@ export async function createCustomerAction(rawData: any) {
     let assignmentLog = "";
 
     if (data.type === "BUY") {
-      // 1. Lấy khoảng thời gian từ 00:00 đến 23:59 của ngày hôm nay
+      // LUỒNG SALES: giữ nguyên logic cũ (dựa trên assignedCount)
       const nowVN = dayjs().tz("Asia/Ho_Chi_Minh");
 
-      // 2. Lấy mốc đầu ngày và cuối ngày chuẩn VN
+      // Lấy mốc đầu ngày và cuối ngày chuẩn VN
       const startOfToday = nowVN.startOf("day").toDate();
       const endOfToday = nowVN.endOf("day").toDate();
 
-      // 2. Truy vấn lịch trực trong khoảng ngày (tránh lệch miligiây hoặc múi giờ)
+      // Truy vấn lịch trực trong khoảng ngày (tránh lệch miligiây hoặc múi giờ)
       const schedules = await db.salesSchedule.findMany({
         where: {
           branchId: referrer.branchId,
@@ -157,7 +160,7 @@ export async function createCustomerAction(rawData: any) {
       const onDutyIds = schedules.map((s) => s.userId);
 
       if (onDutyIds.length > 0) {
-        // 3. Tìm nhân viên SALES đang trực, ưu tiên người ít nhận khách nhất (xoay vòng)
+        // Tìm nhân viên SALES đang trực, ưu tiên người ít nhận khách nhất (xoay vòng)
         const staff = await db.user.findFirst({
           where: {
             id: { in: onDutyIds },
@@ -165,7 +168,7 @@ export async function createCustomerAction(rawData: any) {
             active: true,
           },
           orderBy: [
-            { assignedCount: "asc" }, // 1. Ưu tiên người nhận ít khách nhất trong ngày/tổng
+            { assignedCount: "asc" }, // 1. Ưu tiên người nhận ít khách nhất
             { lastAssignedAt: "asc" }, // 2. Nếu bằng số khách, ưu tiên người chờ lâu nhất
           ],
         });
@@ -176,19 +179,42 @@ export async function createCustomerAction(rawData: any) {
         }
       }
     } else {
-      // Phân bổ xoay vòng cho Thu mua
-      const staff = await db.user.findFirst({
+      // [SỬA] LUỒNG THU MUA: xoay vòng theo số khách do NGƯỜI KHÁC giới thiệu,
+      // có giới hạn bù để nhân viên mới / quay lại không hứng hết khách
+      const MAX_GAP = 2; // 0 = bù đến ngang người cao nhất; tăng lên nếu muốn bù nhiều hơn
+
+      const candidates = await db.user.findMany({
         where: {
           branchId: referrer.branchId,
           role: "PURCHASE_STAFF",
           active: true,
         },
-        orderBy: [
-          { assignedCount: "asc" }, // 1. Ưu tiên người nhận ít khách nhất trong ngày/tổng
-          { lastAssignedAt: "asc" }, // 2. Nếu bằng số khách, ưu tiên người chờ lâu nhất
-        ],
+        select: {
+          id: true,
+          fullName: true,
+          referredAssignedCount: true,
+          lastAssignedAt: true,
+        },
       });
-      if (staff) {
+
+      if (candidates.length > 0) {
+        const maxCount = Math.max(
+          ...candidates.map((c) => c.referredAssignedCount),
+        );
+        const floor = Math.max(maxCount - MAX_GAP, 0);
+
+        const staff = candidates
+          .map((c) => ({
+            ...c,
+            effective: Math.max(c.referredAssignedCount, floor),
+          }))
+          .sort(
+            (a, b) =>
+              a.effective - b.effective ||
+              (a.lastAssignedAt?.getTime() ?? 0) -
+                (b.lastAssignedAt?.getTime() ?? 0),
+          )[0];
+
         assignedStaffId = staff.id;
         assignmentLog = "Phân bổ xoay vòng Thu mua.";
       }
@@ -211,6 +237,7 @@ export async function createCustomerAction(rawData: any) {
 
       const commonData: any = {
         ...data,
+        referrerId: actualReferrerId, // [SỬA] gán tường minh để đồng bộ với logic đếm
         licensePlate: cleanPlate,
         carYear: finalYear,
         budget: finalBudget,
@@ -305,13 +332,23 @@ export async function createCustomerAction(rawData: any) {
         });
       }
 
-      // Cập nhật lượt phân bổ cho nhân viên
+      // [SỬA] Cập nhật lượt phân bổ cho nhân viên
       if (assignedStaffId) {
+        // Chỉ tính khi: luồng Thu mua (không phải BUY) và khách do NGƯỜI KHÁC giới thiệu
+        const countAsReferred =
+          data.type !== "BUY" && assignedStaffId !== actualReferrerId;
+
         await tx.user.update({
           where: { id: assignedStaffId },
           data: {
-            lastAssignedAt: now,
-            assignedCount: { increment: 1 }, // Tăng số lượng lên 1
+            assignedCount: { increment: 1 }, // Tổng số khách đã nhận
+            // Tự giới thiệu (luồng Thu mua) thì không đụng vào bộ đếm xoay vòng
+            ...(data.type === "BUY" || countAsReferred
+              ? { lastAssignedAt: now }
+              : {}),
+            ...(countAsReferred
+              ? { referredAssignedCount: { increment: 1 } }
+              : {}),
           },
         });
       }
@@ -323,7 +360,7 @@ export async function createCustomerAction(rawData: any) {
     if (result) {
       const typeLabelVn = getReferralTypeLabel(result.type);
 
-      // 1. Fetch toàn bộ dữ liệu cần thiết 1 lần duy nhất
+      // Fetch toàn bộ dữ liệu cần thiết 1 lần duy nhất
       const [branch, referrerUser, staff, branchAdmins] = await Promise.all([
         referrer.branchId
           ? db.branch.findUnique({ where: { id: referrer.branchId } })
@@ -354,7 +391,7 @@ export async function createCustomerAction(rawData: any) {
       // A. Gửi cho nhân viên được phân bổ
       if (staff?.email) {
         if (assignedStaffId) {
-          // 1. Bắn Firebase Push (Thay cho OneSignal)
+          // Bắn Firebase Push
           sendFirebasePush({
             userIds: [assignedStaffId],
             title: "🚗 TOYOTA BÌNH DƯƠNG",
@@ -418,7 +455,7 @@ export async function createCustomerAction(rawData: any) {
         );
       }
 
-      // Thực thi (Giữ nguyên logic non-blocking của bạn vì nó rất tốt)
+      // Thực thi non-blocking
       const results = await Promise.allSettled(emailPromises);
 
       results.forEach((res, i) => {

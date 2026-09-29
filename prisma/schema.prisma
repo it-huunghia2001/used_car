@@ -109,14 +109,14 @@ model User {
   soldCars       Car[] @relation("CarSeller") // THÊM DÒNG NÀY ĐỂ LIÊN KẾT VỚI XE ĐÃ BÁN
 
   // --- QUAN HỆ KHÁCH HÀNG ---
-  createdReferrals Customer[]      @relation("CreatedReferrals")
-  assignedLeads    Customer[]      @relation("AssignedLeads")
-  inspectedLeads   Customer[]      @relation("Inspector")
-  leadActivities   LeadActivity[]
-  salesSchedules   SalesSchedule[]
-  tasks            Task[]          @relation("UserTasks")
-
-  assignedCount Int @default(0) // Tổng số khách đã nhận (tự tạo + được chia)
+  createdReferrals      Customer[]      @relation("CreatedReferrals")
+  assignedLeads         Customer[]      @relation("AssignedLeads")
+  inspectedLeads        Customer[]      @relation("Inspector")
+  leadActivities        LeadActivity[]
+  salesSchedules        SalesSchedule[]
+  tasks                 Task[]          @relation("UserTasks")
+  referredAssignedCount Int             @default(0) // Chỉ dành cho PURCHASE_STAFF: số khách do NGƯỜI KHÁC giới thiệu mà mình nhận
+  assignedCount         Int             @default(0) // Tổng số khách đã nhận (tự tạo + được chia)
 
   lastAssignedAt    DateTime?          @default(now())
   createdAt         DateTime           @default(now())
