@@ -130,7 +130,6 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
 
   // --- TRANG CHỦ & HỢP ĐỒNG DÙNG CHUNG ---
-
   "/dashboard/contract": ["ADMIN", "MANAGER", "SALES_STAFF", "PURCHASE_STAFF"],
   "/": [
     "ADMIN",
@@ -161,20 +160,27 @@ export async function middleware(req: NextRequest) {
 
   if (isPublic) return NextResponse.next();
 
+  // 🛠️ LẤY DOMAIN THỰC TẾ TỪ NGINX (Khắc phục triệt để lỗi quay về localhost:3000)
+  const host =
+    req.headers.get("x-forwarded-host") ||
+    req.headers.get("host") ||
+    "xecu.toyotabinhduong.com.vn";
+  const protocol = req.headers.get("x-forwarded-proto") || "https";
+  const baseUrl = `${protocol}://${host}`;
+
   const token = req.cookies.get("used-car")?.value;
-  if (!token) return NextResponse.redirect(new URL("/login", req.url));
+  if (!token) return NextResponse.redirect(new URL("/login", baseUrl));
 
   try {
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
 
     if (payload.appName !== APP_NAME)
-      return NextResponse.redirect(new URL("/login", req.url));
+      return NextResponse.redirect(new URL("/login", baseUrl));
 
     const userRole = (payload.role as string) || "";
 
     // 🚀 LOGIC ĐIỀU HƯỚNG THEO ROLE KHI TRUY CẬP TRANG CHỦ HOẶC VỪA ĐĂNG NHẬP
-    // 🚀 LOGIC ĐIỀU HƯỚNG THEO ROLE
     if (pathname === "/" || pathname === "/dashboard") {
       // 1. Nếu là Admin hoặc Quản lý: Cho phép truy cập tiếp (giữ nguyên tại "/")
       const isAdminOrManager = ["ADMIN", "MANAGER", "ADMIN_MANAGER"].includes(
@@ -187,15 +193,13 @@ export async function middleware(req: NextRequest) {
       // 2. Nếu là Nhân viên nghiệp vụ: Chuyển đến staff-dashboard
       if (userRole === "SALES_STAFF" || userRole === "PURCHASE_STAFF") {
         return NextResponse.redirect(
-          new URL("/dashboard/staff-dashboard", req.url),
+          new URL("/dashboard/staff-dashboard", baseUrl),
         );
       }
 
-      // 3. Đối với các Role khác (REFERRER..
-      // "MARKETING",.)
-      // Redirect to referrals page for other roles
+      // 3. Đối với các Role khác (REFERRER, MARKETING...)
       return NextResponse.redirect(
-        new URL("/dashboard/referrals/new", req.url),
+        new URL("/dashboard/referrals/new", baseUrl),
       );
     }
 
@@ -211,7 +215,7 @@ export async function middleware(req: NextRequest) {
       if (isMatch) {
         const allowedRoles = ROLE_PERMISSIONS[route];
         if (!allowedRoles.includes(userRole)) {
-          return NextResponse.redirect(new URL("/403", req.url));
+          return NextResponse.redirect(new URL("/403", baseUrl));
         }
         break;
       }
@@ -219,7 +223,7 @@ export async function middleware(req: NextRequest) {
 
     return NextResponse.next();
   } catch (err) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(new URL("/login", baseUrl));
   }
 }
 
