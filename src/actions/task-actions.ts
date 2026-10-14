@@ -1355,29 +1355,65 @@ export async function selfCreateCustomerAction(values: any) {
       ? values.licensePlate.toUpperCase().replace(/[^A-Z0-9]/g, "")
       : undefined;
 
+    const normalizePhone = (p?: string | null) =>
+      p ? String(p).replace(/\D/g, "") : "";
+    const phone = normalizePhone(values.phone);
+    const phone2 = normalizePhone(values.phone2) || null;
+
+    if (phone2 && phone2 === phone) {
+      return {
+        success: false,
+        error: "SĐT thứ 2 không được trùng SĐT chính.",
+      };
+    }
+    const phones = [phone, phone2].filter(Boolean) as string[];
+
     const activeStatuses = {
       notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED, LeadStatus.LOSE],
     };
 
-    // 2. KIỂM TRA TRÙNG LẶP (Giữ nguyên logic của bạn)
+    // 2. KIỂM TRA TRÙNG LẶP (SĐT chính + SĐT phụ so với cả phone và phone2)
+    const phoneConditions = [
+      { phone: { in: phones } },
+      { phone2: { in: phones } },
+    ];
+
     if (values.type === "BUY") {
-      const duplicatePhone = await db.customer.findFirst({
-        where: { phone: values.phone, type: "BUY", status: activeStatuses },
+      // LUỒNG MUA: chỉ so với khách BUY khác
+      const duplicate = await db.customer.findFirst({
+        where: { OR: phoneConditions, type: "BUY", status: activeStatuses },
       });
-      if (duplicatePhone)
+      if (duplicate) {
+        const matched = phones.find(
+          (p) => p === duplicate.phone || p === duplicate.phone2,
+        );
         return {
           success: false,
-          error: `SĐT ${values.phone} đang có yêu cầu MUA XE.`,
+          error: `SĐT ${matched} đang có yêu cầu MUA XE.`,
         };
-    } else if (cleanPlate) {
-      const duplicatePlate = await db.customer.findFirst({
-        where: { licensePlate: cleanPlate, status: activeStatuses },
+      }
+    } else {
+      // LUỒNG BÁN / ĐỔI / ĐỊNH GIÁ: check SĐT (chính + phụ) và biển số
+      const duplicate = await db.customer.findFirst({
+        where: {
+          OR: [
+            { AND: [{ OR: phoneConditions }, { type: { not: "BUY" } }] },
+            ...(cleanPlate ? [{ licensePlate: cleanPlate }] : []),
+          ],
+          status: activeStatuses,
+        },
       });
-      if (duplicatePlate)
+      if (duplicate) {
+        const matched = phones.find(
+          (p) => p === duplicate.phone || p === duplicate.phone2,
+        );
         return {
           success: false,
-          error: `Biển số ${cleanPlate} đang được xử lý.`,
+          error: matched
+            ? `SĐT ${matched} đang có yêu cầu đang xử lý.`
+            : `Biển số ${cleanPlate} đang được xử lý.`,
         };
+      }
     }
 
     let inventoryCarData: any = null;
@@ -1405,7 +1441,8 @@ export async function selfCreateCustomerAction(values: any) {
       const customer = await tx.customer.create({
         data: {
           fullName: values.fullName,
-          phone: values.phone,
+          phone,
+          phone2,
           status: LeadStatus.CONTACTED,
           type: values.type,
           referrerId: auth.id,
@@ -1423,8 +1460,8 @@ export async function selfCreateCustomerAction(values: any) {
           licensePlate: inventoryCarData
             ? inventoryCarData.licensePlate
             : cleanPlate,
-          budget: finalBudget, // Đã ép kiểu sang String
-          expectedPrice: finalExpectedPrice, // Đã ép kiểu sang String
+          budget: finalBudget,
+          expectedPrice: finalExpectedPrice,
           note: values.note,
 
           leadCar: {
@@ -1455,7 +1492,6 @@ export async function selfCreateCustomerAction(values: any) {
                   ? Number(values.odo)
                   : undefined,
               color: inventoryCarData ? inventoryCarData.color : values.color,
-              // Lưu ý: tSurePrice và expectedPrice trong LeadCar thường là Decimal, Prisma nhận Number/String đều được nhưng nên đồng nhất
               tSurePrice: inventoryCarData
                 ? inventoryCarData.costPrice
                 : undefined,
@@ -1497,18 +1533,19 @@ export async function selfCreateCustomerAction(values: any) {
 
       return { success: true, data: JSON.parse(JSON.stringify(customer)) };
     });
+
     if (result.success) {
-      // Lấy thêm thông tin chi nhánh và danh sách quản lý để gửi mail
+      // Lấy danh sách quản lý chi nhánh để gửi mail
       const branchManagers = await db.user.findMany({
         where: {
           branchId: auth.branchId,
-          role: { in: ["MANAGER"] }, // Các role quản lý của chi nhánh
+          role: { in: ["MANAGER"] },
           active: true,
         },
         select: { email: true },
       });
 
-      // Lấy thêm email Admin tổng (nếu có role ADMIN)
+      // Lấy email Admin tổng
       const admins = await db.user.findMany({
         where: { role: "ADMIN", active: true },
         select: { email: true },
@@ -1520,7 +1557,6 @@ export async function selfCreateCustomerAction(values: any) {
       ].filter(Boolean);
 
       if (allRecipients.length > 0) {
-        // Chuẩn bị thông tin xe
         const carInfo = inventoryCarData
           ? `Xe kho: ${inventoryCarData.stockCode} (${inventoryCarData.modelName})`
           : values.carModelName || "Xe ngoài hệ thống";
@@ -1534,13 +1570,12 @@ export async function selfCreateCustomerAction(values: any) {
           staffName: auth.fullName || auth.username,
           branchName: branch?.name || "Chi nhánh hiện tại",
           customerName: values.fullName,
-          customerPhone: values.phone,
+          customerPhone: phone2 ? `${phone} / ${phone2}` : phone,
           customerType: values.type,
           carInfo: carInfo,
           note: values.note,
         });
 
-        // Gửi mail (Sử dụng hàm gửi mail của bạn - ví dụ resend hoặc nodemailer)
         await sendMail({
           to: allRecipients,
           subject: `[HỆ THỐNG] Nhân viên tự tạo khách hàng mới`,

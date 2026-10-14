@@ -66,6 +66,16 @@ export async function createCustomerAction(rawData: any) {
       ...data
     } = rawData;
 
+    const normalizePhone = (p?: string | null) =>
+      p ? String(p).replace(/\D/g, "") : "";
+    const phone = normalizePhone(data.phone);
+    const phone2 = normalizePhone(data.phone2) || null;
+
+    if (phone2 && phone2 === phone) {
+      return { success: false, error: "SĐT thứ 2 không được trùng SĐT chính." };
+    }
+    const phones = [phone, phone2].filter(Boolean) as string[];
+
     // Ép kiểu dữ liệu để khớp với Prisma Schema (Expected String/Null)
     const finalBudget =
       budget !== undefined && budget !== null ? String(budget) : null;
@@ -89,7 +99,44 @@ export async function createCustomerAction(rawData: any) {
       notIn: [LeadStatus.DEAL_DONE, LeadStatus.CANCELLED, LeadStatus.LOSE],
     };
 
-    let existingCustomer = null;
+    const phoneConditions = [
+      { phone: { in: phones } },
+      { phone2: { in: phones } },
+    ];
+
+    const duplicates =
+      data.type === "BUY"
+        ? await db.customer.findMany({
+            where: { OR: phoneConditions, type: "BUY", status: activeStatuses },
+          })
+        : await db.customer.findMany({
+            where: {
+              OR: [
+                ...phoneConditions,
+                ...(cleanPlate ? [{ licensePlate: cleanPlate }] : []),
+              ],
+              type: { not: "BUY" },
+              status: activeStatuses,
+            },
+          });
+
+    // Có hồ sơ đang xử lý bình thường (không trễ) -> chặn
+    const blocking = duplicates.find((c) => !c.isLate);
+    if (blocking) {
+      const matchedPhone = phones.find(
+        (p) => p === blocking.phone || p === blocking.phone2,
+      );
+      const identity = matchedPhone
+        ? `SĐT ${matchedPhone}`
+        : `Biển số ${cleanPlate}`;
+      return {
+        success: false,
+        error: `${identity} hiện đang có yêu cầu đang xử lý trên hệ thống.`,
+      };
+    }
+
+    // Chỉ còn hồ sơ bị trễ -> cho tái sinh
+    let existingCustomer = duplicates.find((c) => c.isLate) ?? null;
 
     if (data.type === "BUY") {
       // LUỒNG MUA: Chỉ so sánh Số điện thoại + loại BUY
@@ -941,23 +988,30 @@ export async function getLeadsAction(params: {
   let whereClause: any = { AND: [] };
 
   // --- 2. PHÂN QUYỀN TRUY CẬP (Role-based) ---
+  // --- 2. PHÂN QUYỀN TRUY CẬP (Role-based) ---
   if (role === "ADMIN" || isGlobalManager) {
-    // Admin/Global: Nếu chọn chi nhánh cụ thể thì lọc, nếu là "ALL" thì không thêm điều kiện branchId
     if (branch && branch !== "ALL") {
       whereClause.AND.push({ branchId: branch });
     }
-  } else if (role === "MANAGER" || role === "GSM") {
-    // Trưởng phòng: chỉ thấy khách hàng do NHÂN VIÊN THUỘC PHÒNG MÌNH đang xử lý
+  } else if (role === "GSM") {
+    // GSM: Chỉ thấy khách hàng do nhân viên thuộc phòng mình phụ trách
     if (!managerDepartmentId) {
-      // Chưa được gán phòng ban -> không hiện gì, tránh lộ dữ liệu ngoài phạm vi
       whereClause.AND.push({ id: "___NONE___" });
     } else {
       whereClause.AND.push({
         assignedTo: {
           departmentId: managerDepartmentId,
-          ...(branchId ? { branchId } : {}),
+          ...(branch ? { branchId: branch } : branchId ? { branchId } : {}),
         },
       });
+    }
+  } else if (role === "MANAGER") {
+    // MANAGER: Xem được toàn bộ khách hàng thuộc chi nhánh của mình
+    const managerBranchId = branch || branchId || user.branchId;
+    if (!managerBranchId) {
+      whereClause.AND.push({ id: "___NONE___" });
+    } else {
+      whereClause.AND.push({ branchId: managerBranchId });
     }
   } else {
     // Staff: Chỉ thấy khách mình được phân công hoặc mình giới thiệu

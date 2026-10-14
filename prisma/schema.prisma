@@ -156,6 +156,7 @@ model Customer {
 
   fullName String
   phone    String
+  phone2   String? // SĐT thứ 2 (không bắt buộc)
 
   province String?
   address  String? @db.Text
@@ -224,6 +225,7 @@ model Customer {
 
   @@index([status])
   @@index([phone])
+  @@index([phone2])
   @@index([province])
   @@index([type])
 }

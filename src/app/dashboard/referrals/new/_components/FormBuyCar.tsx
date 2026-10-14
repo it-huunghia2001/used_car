@@ -140,6 +140,41 @@ export default function FormBuyCar({
             </Form.Item>
           </Col>
 
+          <Col xs={24} md={12}>
+            <Form.Item
+              name="phone2"
+              label="Số điện thoại 2 (nếu có)"
+              dependencies={["phone"]}
+              rules={[
+                {
+                  pattern: /^[0-9]{10}$/,
+                  message: "Số điện thoại phải có đúng 10 chữ số",
+                },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (value && value === getFieldValue("phone")) {
+                      return Promise.reject(
+                        new Error("Không được trùng số điện thoại chính"),
+                      );
+                    }
+                    return Promise.resolve();
+                  },
+                }),
+              ]}
+            >
+              <Input
+                prefix={<PhoneOutlined className="text-gray-400" />}
+                placeholder="0901234567"
+                maxLength={10}
+                onChange={(e) =>
+                  form.setFieldsValue({
+                    phone2: e.target.value.replace(/\D/g, ""),
+                  })
+                }
+              />
+            </Form.Item>
+          </Col>
+
           <Col span={24}>
             <Divider titlePlacement="left" plain>
               <Text
